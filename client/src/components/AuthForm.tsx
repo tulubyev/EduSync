@@ -106,9 +106,16 @@ export function AuthForm({ onAuthSuccess }: any) {
     }
   };
 
-  const handleLoginPhoneChange = (e: any) => {
-    const maskedPhone = phoneMask(e.target.value);
-    setLoginForm(prev => ({ ...prev, identifier: maskedPhone }));
+  const handleLoginIdentifierChange = (e: any) => {
+    const value = e.target.value;
+    // Если содержит @, это email - не применяем маску
+    if (value.includes('@')) {
+      setLoginForm(prev => ({ ...prev, identifier: value }));
+    } else {
+      // Иначе применяем маску телефона
+      const maskedPhone = phoneMask(value);
+      setLoginForm(prev => ({ ...prev, identifier: maskedPhone }));
+    }
   };
 
   const handleRegisterPhoneChange = (e: any) => {
@@ -219,10 +226,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                 <input
                   type={isEmailField ? 'email' : 'tel'}
                   value={loginForm.identifier}
-                  onChange={isEmailField ? 
-                    (e) => setLoginForm(prev => ({ ...prev, identifier: e.target.value })) :
-                    handleLoginPhoneChange
-                  }
+                  onChange={handleLoginIdentifierChange}
                   placeholder={isEmailField ? 'user@example.com' : '+7 (___) ___-__-__'}
                   required
                   style={{
@@ -238,6 +242,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                   onFocus={(e) => e.target.style.borderColor = '#007bff'}
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
                   data-testid="input-login-identifier"
+                  autoComplete="email"
                 />
               </div>
 
