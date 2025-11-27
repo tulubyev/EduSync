@@ -155,7 +155,7 @@ export function AuthForm({ onAuthSuccess }: any) {
             fontWeight: '600',
             letterSpacing: '-0.5px'
           }}>
-            💎 FinTrack
+            💎 My EPA
           </h1>
           <p style={{ 
             margin: '0', 
@@ -163,7 +163,7 @@ export function AuthForm({ onAuthSuccess }: any) {
             opacity: '0.9',
             fontWeight: '400'
           }}>
-            Умный финансовый агрегатор
+            Агрегатор Образовательных Программ
           </p>
         </div>
 
@@ -537,8 +537,11 @@ export function AuthForm({ onAuthSuccess }: any) {
             <p style={{ margin: '0 0 5px 0' }}>
               🔒 Ваши данные надёжно защищены
             </p>
-            <p style={{ margin: '0' }}>
+            <p style={{ margin: '0 0 8px 0' }}>
               Сертифицированная система безопасности
+            </p>
+            <p style={{ margin: '0', fontSize: '11px', opacity: '0.8' }}>
+              Агрегатор Образовательных Программ
             </p>
           </div>
         </div>
