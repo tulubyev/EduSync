@@ -1,7 +1,7 @@
-# FinTrack - Финтех-агрегатор MVP
+# My EPA — Агрегатор Образовательных Программ
 
 ## Overview
-FinTrack is a working MVP financial aggregator for Russian market, designed for managing bank accounts, budgets, savings, and investments. Successfully deployed with functional dashboard showing real banking data from Sberbank and VTB. Core features include user authentication, financial data visualization, and administrative controls for Russian fintech ecosystem.
+My EPA is an educational platform aggregator for the Russian market, designed for managing online courses from multiple platforms (Coursera, edX, Udemy, Stepik, and others). The project transitioned from a financial application (FinTrack) to an educational course management system. Features include user authentication, course aggregation, progress tracking, deadline management, and administrative controls.
 
 ## User Preferences
 - Language of interface: Russian.
@@ -11,54 +11,65 @@ FinTrack is a working MVP financial aggregator for Russian market, designed for 
 - **IMPORTANT**: Only the user manages the DATABASE_URL settings and other secret parameters.
 - **PAYMENTS**: Stripe does not work in Russia - Russian systems are used (YuKassa, CloudPayments, Sberbank Acquiring).
 
+## Recent Changes
+
+**Project Rebrand (Nov 28, 2025)**: Successfully transitioned from FinTrack (financial aggregator) to My EPA (educational platform aggregator). Implemented EduSync-inspired landing page with purple/blue gradient theme, 6 feature cards, and comprehensive footer with 12 informational pages.
+
+**Footer Pages Implementation (Nov 28, 2025)**: Created FooterPages.tsx component with 12 content pages based on documentation:
+- Features: Course Management, Progress Tracking, Deadline Management, Schedule Planning
+- Support: Documentation, API Reference, System Status, Contact
+- Legal: Privacy Policy, Terms of Service, Cookie Policy, Security
+All pages accessible via clickable links in the footer with "Back to Home" navigation.
+
+**Documentation Structure**: Uploaded documentation to myepa-docs/docs/ folder containing:
+- platform-integration-guide.md (supported platforms, connection process)
+- authentication-flow.md (login/registration flow)
+- navigation-schema.md (page structure and transitions)
+- testing-guide.md (test accounts and procedures)
+- adaptive-ui-implementation.md (mood-based UI adaptation)
+
 ## System Architecture
-FinTrack is built as a full-stack application with simplified frontend architecture for maximum stability and reliable Russian banking integration.
-
-**Recent Architecture Decision (Dec 26, 2024)**: Simplified frontend by removing complex dependency layers (AuthProvider, Router, shadcn/ui) and implementing direct state management with inline styling. This resolved critical rendering issues and ensures consistent dashboard display.
-
-**Feature Enhancement (Dec 28, 2024)**: Implemented secure document upload and verification system with object storage integration, enabling users to upload and verify identity documents. Added comprehensive bank connection interface with real banking API integration for account aggregation and asset management dashboard with portfolio tracking.
-
-**Major Modularization (Sep 8, 2025)**: Completed massive refactoring of frontend architecture. Successfully extracted App.tsx from monolithic 3731 lines to modular 453 lines (-87.8% reduction). Created 6 reusable components: DocumentsSection (636 lines), BankConnectionsSection (323 lines), AssetManagementSection (371 lines), AdminPanel (1033 lines), ProfileSection (488 lines), and AuthForm (430 lines). All original functionality preserved with improved maintainability and reusability.
-
-**AdminPanel Modularization (Nov 26, 2025)**: Completed comprehensive refactoring of AdminPanel component architecture. Successfully reduced AdminPanel.tsx from 1195 lines to 509 lines (-57.4% reduction, 686 lines saved). Extracted 6 specialized admin components: AdminDashboardStats (74 lines), PendingDocumentsList (126 lines), UserManagement (105 lines), DocumentArchive (80 lines), SystemMonitoring (118 lines), and ApiManagement (204 lines). All admin functionality preserved with improved modularity and maintainability. Fixed critical security bug with document viewing tokens - implemented one-time view tokens with ownerUserId support for proper admin-to-user document decryption.
-
-**Storage Layer Modularization (Nov 26, 2025)**: Completed comprehensive refactoring of monolithic storage.ts (1029 lines) into modular architecture with 5 specialized modules totaling 781 lines (-24.1% reduction, 248 lines saved). Created clean separation of concerns: UserStorage (99 lines, 17 methods), BankStorage (61 lines, 10 methods), TransactionStorage (64 lines, 11 methods), DocumentStorage (188 lines, 17 methods), AdminStorage (156 lines, 15 methods). Implemented composite DatabaseStorage pattern with type-safe delegation of all 60 methods, preserving full backward compatibility. Architecture verified by Architect review confirming behavioral parity. See STORAGE_OPTIMIZATION.md for detailed documentation.
 
 ### Frontend
-- **Technology Stack**: React with TypeScript, fully modularized component architecture with direct state management and inline styling for maximum reliability.
-- **Component Architecture**: Modular design with 6 major extracted components from main App.tsx, enabling reuse and easier maintenance.
-- **UI/UX**: Responsive design with clean, professional interface optimized for Russian banking data display.
-- **Key Features**: Working authentication system, comprehensive dashboard with financial cards, bank account listing, transaction history, and administrative controls.
-- **User Authentication**: Two-factor authentication (2FA) support via TOTP authenticators and SMS codes (for dev), QR code setup, and backup codes.
-- **User Roles**: Supports "Personal" and "Family Plan" roles, with "Business" planned. Family groups include invite codes and access rights.
+- **Technology Stack**: React with TypeScript, modular component architecture with direct state management and inline styling.
+- **Component Architecture**: 
+  - LandingPage.tsx - Main landing page with hero section, features, and footer navigation
+  - FooterPages.tsx - 12 informational pages for features, support, and legal sections
+  - AuthForm.tsx - Authentication component (login/registration)
+- **Design Theme**: Purple/blue gradient (#667eea to #764ba2), professional and clean interface.
 
 ### Backend
-- **Technology Stack**: Express.js server with JWT authentication.
-- **Database**: PostgreSQL is used as the primary database.
-- **Storage Layer Architecture**: Modular architecture with 5 specialized storage modules (UserStorage, BankStorage, TransactionStorage, DocumentStorage, AdminStorage) implementing clean separation of concerns. Composite DatabaseStorage class provides unified interface with type-safe delegation of 60 methods. Complete TypeScript interfaces ensure type safety across all operations.
-- **Security**: End-to-end encryption (E2EE), JWT tokens for authorization, separate encryption key for financial data, and secure storage of API keys.
-- **Admin System**: Multi-level administration with six distinct roles (Super Admin, DevOps Admin, Analytics Admin, Finance Admin, API Admin, Security Admin) is implemented with granular permission control via middleware (`requireAdmin`, `requirePermission`). All administrative actions are logged.
-- **Feature Specifications**:
-    - **Account Aggregation**: Supports aggregation via mock PCS / Gosuslugi.
-    - **Expense Analysis**: Automatic categorization of expenses and budget management.
-    - **AI Financial Assistant**: Provides predictions and personalized financial advice.
-    - **Family Finances**: Supports joint financial management.
-    - **Subscription Optimizer**: Analyzes and optimizes user subscriptions.
-    - **Cashback Aggregator**: Recommends cashback opportunities.
-    - **Gamification**: Points and achievements for financial goals.
-    - **GosUslugi (ESIA) Integration**: Full integration for OAuth 2.0 authorization, supporting test and production environments. Extends user schema with SNILS, TIN, patronymic, and date of birth, allowing automatic user verification and creation through government data. Supports GOST cryptography for production.
+- **Technology Stack**: Express.js server with session-based authentication.
+- **Database**: PostgreSQL hosted on Beget.com (quoquuquosijo.beget.app:5432/myepa_db).
+- **Security**: Password hashing with scrypt, session management, CSRF protection.
 
-### General Design Principles
-- **Modularity**: Separation of concerns between frontend and backend, and distinct modules for features like authentication, finance, and administration.
-- **Scalability**: Designed with future integrations (e.g., real banks, investments) in mind.
-- **Security First**: Emphasis on robust encryption and secure data handling.
+### Navigation Structure
+- **Landing Page** (`/`): Default page for unauthenticated users
+- **Authentication** (`/auth`): Login/registration accessible via "Войти" button
+- **Dashboard** (`/home`): Main page after authentication
+- **Footer Pages**: Clickable links open informational pages within landing page context
+
+## Supported Educational Platforms (Planned Integrations)
+- Coursera (OAuth)
+- Udemy (API key)
+- edX (OAuth)
+- Khan Academy (OAuth)
+- LinkedIn Learning (API key + OAuth)
+- Pluralsight (API key)
+- Codecademy (OAuth)
+- Stepik (OAuth)
+- YouTube Learning (OAuth)
 
 ## External Dependencies
-- **OpenAI API**: For the AI financial assistant.
-- **OpenRouter API**: For AI consultations, specifically using Claude 3.5 Sonnet.
-- **PostgreSQL**: Database solution.
-- **GosUslugi (ESIA)**: For user authentication and data verification in Russia.
+- **PostgreSQL**: Database solution hosted on Beget.com.
 - **Russian Payment Systems**: YuKassa, CloudPayments, Sberbank Acquiring (for payment processing in Russia).
-- **TOTP Authenticators**: Google Authenticator, Yandex.Key, etc., for 2FA.
-- **Object Storage**: Google Cloud Storage for secure document and file uploads.
-- **Banking APIs**: Integration with Russian banks (Sberbank, VTB, Tinkoff, etc.) for account aggregation via Open Banking standards.
+- **OpenAI API**: For AI educational assistant (planned).
+
+## Key Files
+- `client/src/components/LandingPage.tsx` - Landing page component
+- `client/src/components/FooterPages.tsx` - Footer page content component
+- `client/src/components/AuthForm.tsx` - Authentication form
+- `client/src/App.tsx` - Main application component
+- `myepa-docs/docs/` - Documentation folder
+- `shared/schema.ts` - Database schema
+- `server/index.ts` - Backend server
