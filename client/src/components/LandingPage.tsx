@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { FooterPage } from './FooterPages';
 
 interface LandingPageProps {
   onLoginClick: () => void;
 }
 
 export function LandingPage({ onLoginClick }: LandingPageProps) {
+  const [currentPage, setCurrentPage] = useState<string | null>(null);
+
   const features = [
     {
       icon: '📚',
@@ -43,6 +46,31 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
       color: '#9c27b0'
     }
   ];
+
+  const footerLinks = {
+    features: [
+      { label: 'Управление курсами', page: 'course-management' },
+      { label: 'Отслеживание прогресса', page: 'progress-tracking' },
+      { label: 'Управление дедлайнами', page: 'deadline-management' },
+      { label: 'Планирование расписания', page: 'schedule-planning' }
+    ],
+    support: [
+      { label: 'Документация', page: 'documentation' },
+      { label: 'API Reference', page: 'api-reference' },
+      { label: 'Статус системы', page: 'system-status' },
+      { label: 'Связаться с нами', page: 'contact' }
+    ],
+    legal: [
+      { label: 'Политика конфиденциальности', page: 'privacy-policy' },
+      { label: 'Условия использования', page: 'terms-of-service' },
+      { label: 'Cookie Policy', page: 'cookie-policy' },
+      { label: 'Безопасность', page: 'security' }
+    ]
+  };
+
+  if (currentPage) {
+    return <FooterPage page={currentPage} onBack={() => setCurrentPage(null)} />;
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
@@ -267,11 +295,22 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
               Возможности
             </h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {['Управление курсами', 'Отслеживание прогресса', 'Управление дедлайнами', 'Планирование расписания'].map((item, i) => (
+              {footerLinks.features.map((item, i) => (
                 <li key={i} style={{ marginBottom: '10px' }}>
-                  <a href="#" style={{ color: '#4285f4', textDecoration: 'none', fontSize: '14px' }}>
-                    {item}
-                  </a>
+                  <button
+                    onClick={() => setCurrentPage(item.page)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#4285f4',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      padding: 0,
+                      textAlign: 'left'
+                    }}
+                  >
+                    {item.label}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -283,11 +322,22 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
               Поддержка
             </h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {['Документация', 'API Reference', 'Статус системы', 'Связаться с нами'].map((item, i) => (
+              {footerLinks.support.map((item, i) => (
                 <li key={i} style={{ marginBottom: '10px' }}>
-                  <a href="#" style={{ color: '#4285f4', textDecoration: 'none', fontSize: '14px' }}>
-                    {item}
-                  </a>
+                  <button
+                    onClick={() => setCurrentPage(item.page)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#4285f4',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      padding: 0,
+                      textAlign: 'left'
+                    }}
+                  >
+                    {item.label}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -299,11 +349,22 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
               Правовая информация
             </h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {['Политика конфиденциальности', 'Условия использования', 'Cookie Policy', 'Безопасность'].map((item, i) => (
+              {footerLinks.legal.map((item, i) => (
                 <li key={i} style={{ marginBottom: '10px' }}>
-                  <a href="#" style={{ color: '#4285f4', textDecoration: 'none', fontSize: '14px' }}>
-                    {item}
-                  </a>
+                  <button
+                    onClick={() => setCurrentPage(item.page)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#4285f4',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      padding: 0,
+                      textAlign: 'left'
+                    }}
+                  >
+                    {item.label}
+                  </button>
                 </li>
               ))}
             </ul>
