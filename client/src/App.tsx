@@ -12,6 +12,7 @@ import { AssetManagementSection } from './components/AssetManagementSection';
 import AdminPanel from './components/AdminPanel';
 import { ProfileSection } from './components/ProfileSection';
 import { AuthForm } from './components/AuthForm';
+import { LandingPage } from './components/LandingPage';
 
 import { phoneMask, formatPhoneToInternational, validateRussianPhone } from './utils/phoneUtils';
 import { handleDocumentView, handleDocumentDownload, handleDocumentDelete, handleSubmitForReview } from './services/documentService';
@@ -21,7 +22,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  // Убираем activeSection, теперь всё будет в едином дашборде
+  const [showAuthForm, setShowAuthForm] = useState(false);
 
   useEffect(() => {
     // Сначала проверяем сохраненные данные пользователя
@@ -77,13 +78,13 @@ function App() {
   }, []);
 
   const handleAuthSuccess = (user: any) => {
-    // Исправляем названия полей верификации при получении пользователя
     const correctedUser = {
       ...user,
       verificationLevel2: user.verification_level_2 || user.verificationLevel2,
       verificationLevel3: user.verification_level_3 || user.verificationLevel3
     };
     setCurrentUser(correctedUser);
+    setShowAuthForm(false);
   };
 
   const handleLogout = () => {
@@ -91,21 +92,52 @@ function App() {
     localStorage.removeItem('currentUser');
     setCurrentUser(null);
     setShowAdminPanel(false);
+    setShowAuthForm(false);
   };
 
   if (loading) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50vh', flexDirection: 'column' }}>
-          <div style={{ width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #007bff', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-          <h1 style={{ marginTop: '20px', color: '#333' }}>Загрузка FinTrack...</h1>
+          <div style={{ width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #667eea', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+          <h1 style={{ marginTop: '20px', color: '#333' }}>Загрузка My EPA...</h1>
         </div>
       </div>
     );
   }
 
   if (!currentUser) {
-    return <AuthForm onAuthSuccess={handleAuthSuccess} />;
+    if (showAuthForm) {
+      return (
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowAuthForm(false)}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              left: '20px',
+              padding: '10px 20px',
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              color: '#333',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}
+          >
+            ← На главную
+          </button>
+          <AuthForm onAuthSuccess={handleAuthSuccess} />
+        </div>
+      );
+    }
+    return <LandingPage onLoginClick={() => setShowAuthForm(true)} />;
   }
 
   // Проверяем, есть ли у пользователя админ-роль и нужно ли показать админ-панель
@@ -123,12 +155,25 @@ function App() {
       {/* Заголовок приложения */}
       <div style={{ backgroundColor: 'white', padding: '20px 30px', borderBottom: '1px solid #dee2e6' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '32px' }}>₽</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: 'bold',
+              fontSize: '18px'
+            }}>
+              E
+            </div>
             <div>
-              <h1 style={{ margin: '0', color: '#333', fontSize: '24px' }}>FinTrack</h1>
+              <h1 style={{ margin: '0', color: '#333', fontSize: '24px' }}>My EPA</h1>
               <p style={{ margin: '0', color: '#666', fontSize: '14px' }}>
-                Привет, {currentUser.firstName}! Добро пожаловать в ваш финансовый агрегатор
+                Привет, {currentUser.firstName}! Добро пожаловать в ваш образовательный агрегатор
               </p>
             </div>
           </div>
