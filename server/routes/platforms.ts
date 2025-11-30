@@ -133,6 +133,34 @@ router.get('/:id', async (req, res: Response) => {
   }
 });
 
+router.post('/', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, code, websiteUrl, description, category, apiType, isActive } = req.body;
+
+    if (!name || !code || !websiteUrl) {
+      return res.status(400).json({ message: 'Название, код и веб-сайт обязательны' });
+    }
+
+    const platform = await storage.createPlatform({
+      code: code.toLowerCase().replace(/\s+/g, '_'),
+      name,
+      websiteUrl,
+      description: description || '',
+      color: '#667eea',
+      apiType: (apiType as 'oauth' | 'api_key' | 'manual') || 'manual',
+      isActive: isActive !== false,
+    });
+
+    res.status(201).json({
+      message: 'Платформа успешно добавлена',
+      platform,
+    });
+  } catch (error) {
+    console.error('Error creating platform:', error);
+    res.status(500).json({ message: 'Ошибка создания платформы' });
+  }
+});
+
 router.post('/seed', authenticateToken as any, requireAdmin as any, async (req: AuthRequest, res: Response) => {
   try {
     const createdPlatforms = [];

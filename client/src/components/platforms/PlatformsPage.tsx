@@ -11,6 +11,7 @@ import {
   CheckCircle,
   Link as LinkIcon
 } from 'lucide-react';
+import { AddPlatformModal } from './AddPlatformModal';
 
 interface Platform {
   id: string;
@@ -473,6 +474,7 @@ export function PlatformsPage() {
             {stats.total} платформ • {stats.connected} подключено • {stats.global} глобальных
           </p>
         </div>
+        <AddPlatformModal onPlatformAdded={fetchConnectedPlatforms} />
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
