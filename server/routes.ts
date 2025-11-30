@@ -2,18 +2,8 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { authService } from "./services/authService";
-// twoFactorService moved to: server/routes/auth.ts
-import { bankService } from "./services/bankService";
-import { bankApiService } from "./services/bankApiService";
-import { paymentService } from "./services/paymentService";
-// aiService moved to: server/routes/ai.ts
-// testingService moved to: server/routes/test.ts
-// esiaService moved to: server/routes/esia.ts
-import { smsService } from "./services/smsService";
 import { emailService } from "./services/emailService";
-import { verificationService } from "./services/verificationService";
 import { requireAdmin, requirePermission, getAdminSections, hasPermission } from "./middleware/adminAuth";
-import { documentStorageService } from "./services/documentStorageService";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import multer from 'multer';
@@ -142,48 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ALL DOCUMENTS ROUTES NOW IN MODULAR ROUTER: server/routes/documents.ts 
-  // (удалены дублированные documents роуты для предотвращения конфликтов)
-
-  // Administrative routes for document storage monitoring
-  app.get('/api/admin/storage/info', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const storageInfo = await documentStorageService.getStorageInfo();
-      res.json({
-        ...storageInfo,
-        totalSizeMB: Math.round(storageInfo.totalSize / (1024 * 1024) * 100) / 100,
-        securityFeatures: [
-          'AES-256 encryption',
-          'File integrity verification (SHA-256)',
-          'Access control (user-based)',
-          'Secure file paths',
-          'Directory permissions (700)',
-          'Path traversal protection'
-        ]
-      });
-    } catch (error) {
-      console.error('Storage info error:', error);
-      res.status(500).json({ message: 'Ошибка получения информации о хранилище' });
-    }
-  });
-
-  // ALL DUPLICATE BANK/PAYMENT/ACCOUNT/TRANSACTION ROUTES MOVED TO: server/routes/banks.ts 
-  // (второй блок дублированных банковских роутов удален для предотвращения конфликтов)
-
-  // ALL SAVINGS & BUDGET ROUTES NOW IN MODULAR ROUTER: server/routes/savings-budgets.ts 
-  // (удалены savings/budget роуты для предотвращения конфликтов)
-
-  // ALL 2FA AND SMS ROUTES NOW IN MODULAR ROUTER: server/routes/auth.ts 
-  // (удалены дублированные auth 2FA/SMS роуты для предотвращения конфликтов)
-
-  // ALL AI ASSISTANT ROUTES NOW IN MODULAR ROUTER: server/routes/ai.ts 
-  // (удалены AI роуты для предотвращения конфликтов)
-
-  // ALL TESTING ROUTES NOW IN MODULAR ROUTER: server/routes/test.ts 
-  // (удалены test роуты для предотвращения конфликтов)
-
-  // ALL ESIA (ГОСУСЛУГИ) ROUTES NOW IN MODULAR ROUTER: server/routes/esia.ts 
-  // (удалены ESIA роуты для предотвращения конфликтов)
+  // My EPA - Educational platform routes
 
   // ===========================================
   // ADMIN PANEL API ENDPOINTS

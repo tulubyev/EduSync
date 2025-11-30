@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { 
-  users,
+  users, courses, deadlines, notes, platformConnections, studySessions, userSettings,
   type User, type InsertUser
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -41,6 +41,12 @@ export class UserStorage implements IUserStorage {
   }
 
   async deleteUserData(userId: string): Promise<void> {
+    await db.delete(notes).where(eq(notes.userId, userId));
+    await db.delete(deadlines).where(eq(deadlines.userId, userId));
+    await db.delete(studySessions).where(eq(studySessions.userId, userId));
+    await db.delete(courses).where(eq(courses.userId, userId));
+    await db.delete(platformConnections).where(eq(platformConnections.userId, userId));
+    await db.delete(userSettings).where(eq(userSettings.userId, userId));
     await db.delete(users).where(eq(users.id, userId));
   }
 }
