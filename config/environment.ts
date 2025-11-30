@@ -74,11 +74,6 @@ export interface ExternalServicesConfig {
     timeout: number;
     maxRetries: number;
   };
-  smsRu: {
-    apiKey: string;
-    timeout: number;
-    sender: string;
-  };
   email: {
     host: string;
     port: number;
@@ -86,13 +81,6 @@ export interface ExternalServicesConfig {
     password: string;
     secure: boolean;
     timeout: number;
-  };
-  esia: {
-    clientId: string;
-    clientSecret: string;
-    redirectUri: string;
-    scope: string;
-    environment: 'test' | 'prod';
   };
 }
 
@@ -436,12 +424,8 @@ export function validateConfig(): void {
     errors.push('OPENROUTER_API_KEY обязателен');
   }
   
-  if (!config.services.smsRu.apiKey) {
-    errors.push('SMS_RU_API_KEY обязателен');
-  }
-  
   if (!config.services.email.host) {
-    errors.push('BEGET_SMTP_HOST обязателен');
+    errors.push('SMTP_HOST обязателен');
   }
   
   // Проверка логических значений

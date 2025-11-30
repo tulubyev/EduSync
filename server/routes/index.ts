@@ -1,9 +1,7 @@
 import { Router } from "express";
-import { collectMetrics, createHelmet, createCors, cache, rateLimiters } from "../middleware";
+import { collectMetrics, createHelmet, createCors, rateLimiters } from "../middleware";
 import { queryOptimizationMiddleware } from "../middleware/queryOptimization";
-import { config } from "../../config/environment";
 import authRouter from "./auth.js";
-import adminRouter from "./admin.js";
 import profileRouter from "./profile.js";
 import configRouter from "./config.js";
 import coursesRouter from "./courses.js";
@@ -19,7 +17,6 @@ mainRouter.use(createCors());
 mainRouter.use(queryOptimizationMiddleware);
 
 mainRouter.use('/auth', rateLimiters.auth, authRouter);
-mainRouter.use('/admin', rateLimiters.auth, adminRouter);
 mainRouter.use('/config', rateLimiters.general, configRouter);
 mainRouter.use('/profile', rateLimiters.general, profileRouter);
 
