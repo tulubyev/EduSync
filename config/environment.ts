@@ -357,25 +357,13 @@ export const config: AppConfig = {
       timeout: getEnvNumber('OPENROUTER_TIMEOUT', 30000), // 30 секунд
       maxRetries: getEnvNumber('OPENROUTER_MAX_RETRIES', 3)
     },
-    smsRu: {
-      apiKey: getEnvString('SMS_RU_API_KEY', 'dev_key'),
-      timeout: getEnvNumber('SMS_RU_TIMEOUT', 10000), // 10 секунд
-      sender: getEnvString('SMS_RU_SENDER', 'FinTrack')
-    },
     email: {
-      host: getEnvString('BEGET_SMTP_HOST', 'localhost'),
-      port: getEnvNumber('BEGET_SMTP_PORT', 587),
-      user: getEnvString('BEGET_SMTP_USER', 'dev@localhost'),
-      password: getEnvString('BEGET_SMTP_PASSWORD', 'dev_password'),
-      secure: getEnvBoolean('BEGET_SMTP_SECURE', false),
+      host: getEnvString('SMTP_HOST', 'localhost'),
+      port: getEnvNumber('SMTP_PORT', 587),
+      user: getEnvString('SMTP_USER', 'dev@localhost'),
+      password: getEnvString('SMTP_PASSWORD', 'dev_password'),
+      secure: getEnvBoolean('SMTP_SECURE', false),
       timeout: getEnvNumber('EMAIL_TIMEOUT', 30000) // 30 секунд
-    },
-    esia: {
-      clientId: getEnvString('ESIA_CLIENT_ID', 'fintrack_dev_client'),
-      clientSecret: getEnvString('ESIA_CLIENT_SECRET', ''),
-      redirectUri: getEnvString('ESIA_REDIRECT_URI', ''),
-      scope: getEnvString('ESIA_SCOPE', 'openid fullname birthdate snils inn'),
-      environment: (process.env.ESIA_ENVIRONMENT as any) || 'test'
     }
   },
   
@@ -410,17 +398,7 @@ export const config: AppConfig = {
     maxFileSize: getEnvNumber('UPLOAD_MAX_FILE_SIZE', 10 * 1024 * 1024) // 10MB
   },
   
-  // ESIA OAuth Configuration
-  esia: {
-    windowMs: getEnvNumber('ESIA_RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000), // 15 minutes
-    maxAttempts: getEnvNumber('ESIA_RATE_LIMIT_MAX_ATTEMPTS', 5) // 5 attempts
-  },
   
-  // Bank Connection Configuration
-  banks: {
-    redirectTimeoutMs: getEnvNumber('BANK_REDIRECT_TIMEOUT_MS', 30000), // 30 seconds
-    baseUrl: getEnvString('BASE_URL', 'http://localhost:5000')
-  },
   
   // Frontend Configuration
   frontend: {
