@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -60,19 +60,50 @@ export function AddCourseModal({
   isEditing = false 
 }: AddCourseModalProps) {
   const [formData, setFormData] = useState<CourseFormData>({
-    title: initialData?.title || '',
-    description: initialData?.description || '',
-    instructor: initialData?.instructor || '',
-    imageUrl: initialData?.imageUrl || '',
-    courseUrl: initialData?.courseUrl || '',
-    category: initialData?.category || '',
-    difficulty: initialData?.difficulty || '',
-    duration: initialData?.duration || '',
-    tags: initialData?.tags || '',
+    title: '',
+    description: '',
+    instructor: '',
+    imageUrl: '',
+    courseUrl: '',
+    category: '',
+    difficulty: '',
+    duration: '',
+    tags: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        setFormData({
+          title: initialData.title || '',
+          description: initialData.description || '',
+          instructor: initialData.instructor || '',
+          imageUrl: initialData.imageUrl || '',
+          courseUrl: initialData.courseUrl || '',
+          category: initialData.category || '',
+          difficulty: initialData.difficulty || '',
+          duration: initialData.duration || '',
+          tags: initialData.tags || '',
+        });
+      } else {
+        setFormData({
+          title: '',
+          description: '',
+          instructor: '',
+          imageUrl: '',
+          courseUrl: '',
+          category: '',
+          difficulty: '',
+          duration: '',
+          tags: '',
+        });
+      }
+      setErrors({});
+    }
+  }, [open, initialData]);
 
   const handleChange = (field: keyof CourseFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
