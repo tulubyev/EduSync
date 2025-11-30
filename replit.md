@@ -64,7 +64,12 @@ The system is built with mobile portability in mind, adhering to the following p
 -   **Information Architecture**: Landing page with hero section, feature cards, and a comprehensive footer linking to 12 informational pages (Features, Support, Legal).
 
 ### Feature Specifications
--   **Core Functionality**: Course Management, Progress Tracking, Deadline Management, Schedule Planning.
+-   **Core Functionality (IMPLEMENTED)**:
+    - Course Management: CoursesPage, CourseCard, AddCourseModal (create/edit with useEffect sync)
+    - Deadline Management: DeadlinesPage with calendar and list view, date-fns with Russian locale
+    - Notes Management: NotesPage with pinning, search, course filtering
+    - Platforms Catalog: PlatformsPage with 27 global educational platforms
+    - Navigation: Sidebar with wouter routing, Dashboard with stats and quick actions
 -   **User Management**: Login/Registration, User settings, Profile page.
 -   **Admin Panel**: Basic structure for administrative tasks.
 -   **Planned Features**: Analytics dashboard, AI assistant (OpenAI), Notifications, Course recommendations.
