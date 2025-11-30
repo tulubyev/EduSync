@@ -108,11 +108,11 @@ export function AuthForm({ onAuthSuccess }: any) {
 
   const handleLoginIdentifierChange = (e: any) => {
     const value = e.target.value;
-    // Если содержит @, это email - не применяем маску
-    if (value.includes('@')) {
+    const startsWithPhoneChar = /^[+\d]/.test(value);
+    
+    if (value.includes('@') || !startsWithPhoneChar) {
       setLoginForm(prev => ({ ...prev, identifier: value }));
     } else {
-      // Иначе применяем маску телефона
       const maskedPhone = phoneMask(value);
       setLoginForm(prev => ({ ...prev, identifier: maskedPhone }));
     }
