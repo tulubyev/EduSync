@@ -12,6 +12,8 @@ import {
   asyncHandler 
 } from "./errorHandler";
 
+export type { AuthenticatedRequest, OptionalAuthRequest, AsyncMiddleware };
+
 /**
  * Проверка JWT токена и получение пользователя (оптимизирована с кэшем)
  */

@@ -1,13 +1,31 @@
 import { useState, useEffect } from 'react';
+import { Route, Switch, useLocation, Link } from 'wouter';
 import AdminPanel from './components/AdminPanel';
 import { AuthForm } from './components/AuthForm';
 import { LandingPage } from './components/LandingPage';
+import { CoursesPage } from './components/courses/CoursesPage';
+import { DeadlinesPage } from './components/deadlines/DeadlinesPage';
+import { NotesPage } from './components/notes/NotesPage';
+import { PlatformsPage } from './components/platforms/PlatformsPage';
+import { 
+  BookOpen, 
+  Calendar, 
+  FileText, 
+  Globe, 
+  BarChart3, 
+  Settings, 
+  LogOut,
+  Home,
+  Menu,
+  X
+} from 'lucide-react';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showAuthForm, setShowAuthForm] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('currentUser');
@@ -60,24 +78,9 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '100vh',
-        flexDirection: 'column',
-        backgroundColor: '#f8f9fa'
-      }}>
-        <div style={{ 
-          width: '40px', 
-          height: '40px', 
-          border: '4px solid #f3f3f3', 
-          borderTop: '4px solid #667eea', 
-          borderRadius: '50%', 
-          animation: 'spin 1s linear infinite' 
-        }}></div>
-        <h1 style={{ marginTop: '20px', color: '#333' }}>Загрузка My EPA...</h1>
-        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      <div className="flex items-center justify-center h-screen flex-col bg-gray-50">
+        <div className="w-10 h-10 border-4 border-gray-200 border-t-purple-600 rounded-full animate-spin"></div>
+        <h1 className="mt-5 text-gray-700 text-xl">Загрузка My EPA...</h1>
       </div>
     );
   }
@@ -85,24 +88,10 @@ function App() {
   if (!currentUser) {
     if (showAuthForm) {
       return (
-        <div style={{ position: 'relative' }}>
+        <div className="relative">
           <button
             onClick={() => setShowAuthForm(false)}
-            style={{
-              position: 'absolute',
-              top: '20px',
-              left: '20px',
-              padding: '10px 20px',
-              backgroundColor: 'rgba(255,255,255,0.9)',
-              color: '#333',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              zIndex: 1000,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-            }}
+            className="absolute top-5 left-5 px-5 py-2.5 bg-white/90 text-gray-700 border-none rounded-lg text-sm font-medium cursor-pointer z-50 shadow-md hover:bg-white transition-colors"
           >
             ← На главную
           </button>
@@ -123,172 +112,256 @@ function App() {
   }
 
   return (
-    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-      <Header 
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar 
         user={currentUser} 
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
         onAdminClick={() => setShowAdminPanel(true)}
         onLogout={handleLogout}
       />
-      <Dashboard user={currentUser} />
+      <main className={`flex-1 overflow-auto transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <Switch>
+          <Route path="/" component={() => <Dashboard user={currentUser} />} />
+          <Route path="/home" component={() => <Dashboard user={currentUser} />} />
+          <Route path="/courses" component={CoursesPage} />
+          <Route path="/deadlines" component={DeadlinesPage} />
+          <Route path="/notes" component={NotesPage} />
+          <Route path="/platforms" component={PlatformsPage} />
+          <Route path="/analytics" component={AnalyticsPage} />
+          <Route path="/settings" component={SettingsPage} />
+          <Route component={() => <Dashboard user={currentUser} />} />
+        </Switch>
+      </main>
     </div>
   );
 }
 
-function Header({ user, onAdminClick, onLogout }: { user: any; onAdminClick: () => void; onLogout: () => void }) {
+interface SidebarProps {
+  user: any;
+  isOpen: boolean;
+  onToggle: () => void;
+  onAdminClick: () => void;
+  onLogout: () => void;
+}
+
+function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProps) {
+  const [location] = useLocation();
+
+  const navItems = [
+    { path: '/home', icon: Home, label: 'Главная' },
+    { path: '/courses', icon: BookOpen, label: 'Курсы' },
+    { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
+    { path: '/notes', icon: FileText, label: 'Заметки' },
+    { path: '/platforms', icon: Globe, label: 'Платформы' },
+    { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
+    { path: '/settings', icon: Settings, label: 'Настройки' },
+  ];
+
   return (
-    <div style={{ backgroundColor: 'white', padding: '20px 30px', borderBottom: '1px solid #dee2e6' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '18px'
-          }}>
-            E
+    <div className={`fixed left-0 top-0 h-full bg-white border-r border-gray-200 transition-all duration-300 z-40 ${isOpen ? 'w-64' : 'w-16'}`}>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        {isOpen && (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white font-bold text-lg">
+              E
+            </div>
+            <div>
+              <h1 className="font-bold text-gray-800 text-lg">My EPA</h1>
+              <p className="text-xs text-gray-500">Агрегатор курсов</p>
+            </div>
           </div>
-          <div>
-            <h1 style={{ margin: '0', color: '#333', fontSize: '24px' }}>My EPA</h1>
-            <p style={{ margin: '0', color: '#666', fontSize: '14px' }}>
-              Привет, {user.firstName}! Управляйте своими курсами
-            </p>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {user.adminRole && (
-            <button
-              onClick={onAdminClick}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '14px',
-                cursor: 'pointer'
-              }}
-            >
-              ⚙️ Админ-панель
-            </button>
-          )}
+        )}
+        <button 
+          onClick={onToggle}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </div>
+
+      <nav className="p-2 space-y-1">
+        {navItems.map((item) => {
+          const isActive = location === item.path || (location === '/' && item.path === '/home');
+          const Icon = item.icon;
+          
+          return (
+            <Link key={item.path} href={item.path}>
+              <a className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                isActive 
+                  ? 'bg-purple-50 text-purple-700 font-medium' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}>
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                {isOpen && <span>{item.label}</span>}
+              </a>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="absolute bottom-0 left-0 right-0 p-2 border-t border-gray-200">
+        {user.adminRole && (
           <button
-            onClick={onLogout}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#dc3545',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              cursor: 'pointer'
-            }}
+            onClick={onAdminClick}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-left text-purple-600 hover:bg-purple-50 transition-colors mb-1`}
           >
-            🚪 Выход
+            <Settings className="w-5 h-5 flex-shrink-0" />
+            {isOpen && <span>Админ-панель</span>}
           </button>
-        </div>
+        )}
+        <button
+          onClick={onLogout}
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-left text-red-600 hover:bg-red-50 transition-colors`}
+        >
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          {isOpen && <span>Выход</span>}
+        </button>
+
+        {isOpen && (
+          <div className="flex items-center gap-3 px-3 py-3 mt-2 bg-gray-50 rounded-lg">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white text-sm font-medium">
+              {user.firstName?.[0]}{user.lastName?.[0]}
+            </div>
+            <div className="overflow-hidden">
+              <p className="font-medium text-sm text-gray-800 truncate">{user.firstName} {user.lastName}</p>
+              <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 function Dashboard({ user }: { user: any }) {
-  const [courses] = useState([
-    { id: 1, title: 'Python для начинающих', platform: 'Coursera', progress: 45, status: 'in_progress' },
-    { id: 2, title: 'Основы машинного обучения', platform: 'Stepik', progress: 78, status: 'in_progress' },
-    { id: 3, title: 'Web Development Bootcamp', platform: 'Udemy', progress: 100, status: 'completed' },
-    { id: 4, title: 'Data Science Specialization', platform: 'edX', progress: 12, status: 'in_progress' },
-  ]);
+  const [stats, setStats] = useState({
+    totalCourses: 0,
+    inProgress: 0,
+    completed: 0,
+    deadlines: 0,
+  });
+  const [recentCourses, setRecentCourses] = useState<any[]>([]);
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
 
-  const [deadlines] = useState([
-    { id: 1, title: 'Сдать проект по Python', course: 'Python для начинающих', dueDate: '2025-12-05', priority: 'high' },
-    { id: 2, title: 'Тест по ML', course: 'Основы машинного обучения', dueDate: '2025-12-10', priority: 'medium' },
-    { id: 3, title: 'Финальный экзамен', course: 'Data Science', dueDate: '2025-12-15', priority: 'high' },
-  ]);
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    const token = localStorage.getItem('accessToken');
+    
+    try {
+      const [coursesRes, deadlinesRes] = await Promise.all([
+        fetch('/api/courses', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/deadlines', { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+
+      if (coursesRes.ok) {
+        const courses = await coursesRes.json();
+        setRecentCourses(courses.slice(0, 4));
+        setStats(prev => ({
+          ...prev,
+          totalCourses: courses.length,
+          inProgress: courses.filter((c: any) => c.status === 'in_progress').length,
+          completed: courses.filter((c: any) => c.status === 'completed').length,
+        }));
+      }
+
+      if (deadlinesRes.ok) {
+        const deadlines = await deadlinesRes.json();
+        const upcoming = deadlines
+          .filter((d: any) => d.status !== 'completed')
+          .sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+          .slice(0, 3);
+        setUpcomingDeadlines(upcoming);
+        setStats(prev => ({
+          ...prev,
+          deadlines: deadlines.filter((d: any) => d.status !== 'completed').length,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    }
+  };
 
   return (
-    <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto' }}>
-      {/* Stats Cards */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-        gap: '20px',
-        marginBottom: '30px'
-      }}>
-        <StatCard icon="📚" title="Всего курсов" value={courses.length} color="#667eea" />
-        <StatCard icon="🎯" title="В процессе" value={courses.filter(c => c.status === 'in_progress').length} color="#ffc107" />
-        <StatCard icon="✅" title="Завершено" value={courses.filter(c => c.status === 'completed').length} color="#28a745" />
-        <StatCard icon="⏰" title="Дедлайны" value={deadlines.length} color="#dc3545" />
+    <div className="p-8 max-w-6xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-800">Привет, {user.firstName}! 👋</h1>
+        <p className="text-gray-600 mt-1">Вот что происходит с вашим обучением сегодня</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-        {/* Courses Section */}
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '25px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ margin: '0 0 20px 0', color: '#333', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            📚 Мои курсы
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {courses.map(course => (
-              <CourseCard key={course.id} course={course} />
-            ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <StatCard icon="📚" title="Всего курсов" value={stats.totalCourses} color="#667eea" />
+        <StatCard icon="🎯" title="В процессе" value={stats.inProgress} color="#ffc107" />
+        <StatCard icon="✅" title="Завершено" value={stats.completed} color="#28a745" />
+        <StatCard icon="⏰" title="Дедлайны" value={stats.deadlines} color="#dc3545" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-purple-600" />
+              Мои курсы
+            </h2>
+            <Link href="/courses">
+              <a className="text-sm text-purple-600 hover:text-purple-700">Все курсы →</a>
+            </Link>
           </div>
-          <button style={{
-            width: '100%',
-            marginTop: '20px',
-            padding: '12px',
-            backgroundColor: '#667eea',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            cursor: 'pointer'
-          }}>
-            ➕ Добавить курс
-          </button>
+          
+          {recentCourses.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p>У вас пока нет курсов</p>
+              <Link href="/courses">
+                <a className="inline-block mt-3 text-purple-600 hover:text-purple-700">Добавить первый курс</a>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentCourses.map((course) => (
+                <DashboardCourseCard key={course.id} course={course} />
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Deadlines Section */}
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '25px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ margin: '0 0 20px 0', color: '#333', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            ⏰ Ближайшие дедлайны
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {deadlines.map(deadline => (
-              <DeadlineCard key={deadline.id} deadline={deadline} />
-            ))}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-orange-600" />
+              Ближайшие дедлайны
+            </h2>
+            <Link href="/deadlines">
+              <a className="text-sm text-purple-600 hover:text-purple-700">Все дедлайны →</a>
+            </Link>
           </div>
-          <button style={{
-            width: '100%',
-            marginTop: '20px',
-            padding: '12px',
-            backgroundColor: '#764ba2',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            cursor: 'pointer'
-          }}>
-            ➕ Добавить дедлайн
-          </button>
+          
+          {upcomingDeadlines.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p>Нет активных дедлайнов</p>
+              <Link href="/deadlines">
+                <a className="inline-block mt-3 text-purple-600 hover:text-purple-700">Добавить дедлайн</a>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {upcomingDeadlines.map((deadline) => (
+                <DashboardDeadlineCard key={deadline.id} deadline={deadline} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div style={{ 
-        marginTop: '30px',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '15px'
-      }}>
-        <QuickAction icon="📝" title="Заметки" description="Ваши заметки к курсам" />
-        <QuickAction icon="📊" title="Аналитика" description="Статистика обучения" />
-        <QuickAction icon="🔗" title="Платформы" description="Подключенные платформы" />
-        <QuickAction icon="⚙️" title="Настройки" description="Персонализация" />
+      <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <QuickAction href="/notes" icon="📝" title="Заметки" />
+        <QuickAction href="/platforms" icon="🔗" title="Платформы" />
+        <QuickAction href="/analytics" icon="📊" title="Аналитика" />
+        <QuickAction href="/settings" icon="⚙️" title="Настройки" />
       </div>
     </div>
   );
@@ -296,75 +369,54 @@ function Dashboard({ user }: { user: any }) {
 
 function StatCard({ icon, title, value, color }: { icon: string; title: string; value: number; color: string }) {
   return (
-    <div style={{ 
-      backgroundColor: 'white', 
-      padding: '20px', 
-      borderRadius: '12px', 
-      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-      borderLeft: `4px solid ${color}`
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100" style={{ borderLeftColor: color, borderLeftWidth: '4px' }}>
+      <div className="flex items-center justify-between">
         <div>
-          <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '14px' }}>{title}</p>
-          <p style={{ margin: '0', fontSize: '28px', fontWeight: 'bold', color: '#333' }}>{value}</p>
+          <p className="text-gray-500 text-sm mb-1">{title}</p>
+          <p className="text-3xl font-bold text-gray-800">{value}</p>
         </div>
-        <span style={{ fontSize: '32px' }}>{icon}</span>
+        <span className="text-3xl">{icon}</span>
       </div>
     </div>
   );
 }
 
-function CourseCard({ course }: { course: any }) {
-  const platformColors: Record<string, string> = {
-    'Coursera': '#0056D2',
-    'Stepik': '#6BBE66',
-    'Udemy': '#A435F0',
-    'edX': '#02262B'
-  };
-
+function DashboardCourseCard({ course }: { course: any }) {
+  const progress = parseFloat(course.progress) || 0;
+  
   return (
-    <div style={{ 
-      padding: '15px', 
-      backgroundColor: '#f8f9fa', 
-      borderRadius: '8px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    }}>
-      <div style={{ flex: 1 }}>
-        <h4 style={{ margin: '0 0 5px 0', color: '#333' }}>{course.title}</h4>
-        <span style={{ 
-          padding: '2px 8px', 
-          backgroundColor: platformColors[course.platform] || '#667eea',
-          color: 'white',
-          borderRadius: '4px',
-          fontSize: '12px'
-        }}>
-          {course.platform}
-        </span>
-      </div>
-      <div style={{ textAlign: 'right' }}>
-        <div style={{ 
-          width: '80px', 
-          height: '8px', 
-          backgroundColor: '#e9ecef', 
-          borderRadius: '4px',
-          overflow: 'hidden'
-        }}>
-          <div style={{ 
-            width: `${course.progress}%`, 
-            height: '100%', 
-            backgroundColor: course.progress === 100 ? '#28a745' : '#667eea',
-            borderRadius: '4px'
-          }}></div>
+    <div className="p-4 bg-gray-50 rounded-lg flex items-center justify-between">
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-gray-800 truncate">{course.title}</h4>
+        <div className="flex items-center gap-2 mt-1">
+          {course.category && (
+            <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+              {course.category}
+            </span>
+          )}
         </div>
-        <span style={{ fontSize: '12px', color: '#666' }}>{course.progress}%</span>
+      </div>
+      <div className="text-right ml-4">
+        <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div 
+            className="h-full rounded-full transition-all"
+            style={{ 
+              width: `${progress}%`,
+              backgroundColor: progress === 100 ? '#28a745' : '#667eea'
+            }}
+          ></div>
+        </div>
+        <span className="text-xs text-gray-500 mt-1">{Math.round(progress)}%</span>
       </div>
     </div>
   );
 }
 
-function DeadlineCard({ deadline }: { deadline: any }) {
+function DashboardDeadlineCard({ deadline }: { deadline: any }) {
+  const dueDate = new Date(deadline.dueDate);
+  const now = new Date();
+  const daysLeft = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  
   const priorityColors: Record<string, string> = {
     'high': '#dc3545',
     'medium': '#ffc107',
@@ -372,46 +424,72 @@ function DeadlineCard({ deadline }: { deadline: any }) {
   };
 
   return (
-    <div style={{ 
-      padding: '15px', 
-      backgroundColor: '#f8f9fa', 
-      borderRadius: '8px',
-      borderLeft: `4px solid ${priorityColors[deadline.priority]}`
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <div 
+      className="p-4 bg-gray-50 rounded-lg"
+      style={{ borderLeftWidth: '4px', borderLeftColor: priorityColors[deadline.priority] || '#667eea' }}
+    >
+      <div className="flex justify-between items-start">
         <div>
-          <h4 style={{ margin: '0 0 5px 0', color: '#333' }}>{deadline.title}</h4>
-          <p style={{ margin: '0', color: '#666', fontSize: '13px' }}>{deadline.course}</p>
+          <h4 className="font-medium text-gray-800">{deadline.title}</h4>
+          {deadline.course && (
+            <p className="text-sm text-gray-500 mt-0.5">{deadline.course.title}</p>
+          )}
         </div>
-        <span style={{ 
-          padding: '4px 10px', 
-          backgroundColor: priorityColors[deadline.priority],
-          color: 'white',
-          borderRadius: '4px',
-          fontSize: '12px'
-        }}>
-          {deadline.dueDate}
+        <span className={`text-xs px-2 py-1 rounded font-medium ${
+          daysLeft <= 0 ? 'bg-red-100 text-red-700' :
+          daysLeft <= 1 ? 'bg-orange-100 text-orange-700' :
+          daysLeft <= 7 ? 'bg-yellow-100 text-yellow-700' :
+          'bg-gray-100 text-gray-700'
+        }`}>
+          {daysLeft <= 0 ? 'Просрочено' :
+           daysLeft === 1 ? 'Завтра' :
+           `${daysLeft} дн.`}
         </span>
       </div>
     </div>
   );
 }
 
-function QuickAction({ icon, title, description }: { icon: string; title: string; description: string }) {
+function QuickAction({ href, icon, title }: { href: string; icon: string; title: string }) {
   return (
-    <button style={{ 
-      padding: '20px',
-      backgroundColor: 'white',
-      border: '1px solid #dee2e6',
-      borderRadius: '12px',
-      cursor: 'pointer',
-      textAlign: 'left',
-      transition: 'all 0.2s ease'
-    }}>
-      <span style={{ fontSize: '24px' }}>{icon}</span>
-      <h4 style={{ margin: '10px 0 5px 0', color: '#333' }}>{title}</h4>
-      <p style={{ margin: '0', color: '#666', fontSize: '13px' }}>{description}</p>
-    </button>
+    <Link href={href}>
+      <a className="p-5 bg-white border border-gray-200 rounded-xl cursor-pointer text-center hover:shadow-md hover:border-purple-200 transition-all group">
+        <span className="text-2xl block mb-2 group-hover:scale-110 transition-transform">{icon}</span>
+        <h4 className="font-medium text-gray-800">{title}</h4>
+      </a>
+    </Link>
+  );
+}
+
+function AnalyticsPage() {
+  return (
+    <div className="p-8 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+        <BarChart3 className="w-7 h-7 text-purple-600" />
+        Аналитика обучения
+      </h1>
+      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
+        <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+        <h2 className="text-xl font-semibold text-gray-700 mb-2">Скоро</h2>
+        <p className="text-gray-500">Аналитика и статистика обучения будут доступны в следующем обновлении</p>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPage() {
+  return (
+    <div className="p-8 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+        <Settings className="w-7 h-7 text-purple-600" />
+        Настройки
+      </h1>
+      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
+        <Settings className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+        <h2 className="text-xl font-semibold text-gray-700 mb-2">Скоро</h2>
+        <p className="text-gray-500">Настройки профиля и уведомлений будут доступны в следующем обновлении</p>
+      </div>
+    </div>
   );
 }
 
