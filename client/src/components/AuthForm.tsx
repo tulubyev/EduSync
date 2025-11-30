@@ -224,7 +224,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                   📧 Email или 📱 Телефон
                 </label>
                 <input
-                  type={isEmailField ? 'email' : 'tel'}
+                  type="text"
                   value={loginForm.identifier}
                   onChange={handleLoginIdentifierChange}
                   placeholder={isEmailField ? 'user@example.com' : '+7 (___) ___-__-__'}
