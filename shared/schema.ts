@@ -4,309 +4,317 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// ===========================================
+// MY EPA - EDUCATIONAL PLATFORM AGGREGATOR
+// Schema for managing online courses from multiple platforms
+// ===========================================
+
+// Users table - Core user data
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email", { length: 255 }).unique(),
   passwordHash: text("password_hash").notNull(),
   firstName: varchar("first_name", { length: 100 }).notNull(),
   lastName: varchar("last_name", { length: 100 }).notNull(),
-  middleName: varchar("middle_name", { length: 100 }),
   phone: varchar("phone", { length: 20 }).notNull().unique(),
   profileImageUrl: varchar("profile_image_url", { length: 500 }),
-  birthDate: timestamp("birth_date"),
-  gender: varchar("gender", { length: 1 }), // M, F
-  snils: varchar("snils", { length: 14 }).unique(),
-  inn: varchar("inn", { length: 12 }).unique(),
-  esiaOid: varchar("esia_oid", { length: 50 }).unique(),
-  role: varchar("role", { length: 20 }).default("personal"), // personal, family_admin, family_member, business
-  adminRole: varchar("admin_role", { length: 20 }), // super_admin, devops_admin, analytics_admin, finance_admin, api_admin, security_admin
-  planType: varchar("plan_type", { length: 20 }).default("free"), // free, premium, family, business
+  role: varchar("role", { length: 20 }).default("user"), // user, admin
+  planType: varchar("plan_type", { length: 20 }).default("free"), // free, premium, pro
   isVerified: boolean("is_verified").default(false),
   isPhoneVerified: boolean("is_phone_verified").default(false),
   isEmailVerified: boolean("is_email_verified").default(false),
-  verificationLevel2: boolean("verification_level_2").default(false),
-  verificationLevel3: boolean("verification_level_3").default(false),
-  verificationMethod: varchar("verification_method", { length: 20 }), // phone, email, esia
-  twoFactorEnabled: boolean("two_factor_enabled").default(false),
-  twoFactorSecret: varchar("two_factor_secret", { length: 100 }),
-  twoFactorBackupCodes: text("two_factor_backup_codes").array(),
-  smsCodeExpiry: timestamp("sms_code_expiry"),
-  smsCode: varchar("sms_code", { length: 6 }),
+  timezone: varchar("timezone", { length: 50 }).default("Europe/Moscow"),
+  language: varchar("language", { length: 10 }).default("ru"),
+  notificationsEnabled: boolean("notifications_enabled").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
-  emailIdx: index("email_idx").on(table.email),
+  emailIdx: index("users_email_idx").on(table.email),
+  phoneIdx: index("users_phone_idx").on(table.phone),
 }));
 
-export const bankConnections = pgTable("bank_connections", {
+// Sessions table - Web sessions for authentication
+export const sessions = pgTable("sessions", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id).notNull(),
-  bankCode: varchar("bank_code", { length: 50 }).notNull(), // sberbank, vtb, tinkoff
-  bankName: varchar("bank_name", { length: 100 }).notNull(),
+  token: text("token").notNull().unique(),
+  userAgent: text("user_agent"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userSessionIdx: index("sessions_user_idx").on(table.userId),
+  tokenIdx: index("sessions_token_idx").on(table.token),
+}));
+
+// Educational Platforms table - Supported learning platforms
+export const platforms = pgTable("platforms", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code", { length: 50 }).notNull().unique(), // coursera, udemy, edx, stepik, etc.
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  logoUrl: varchar("logo_url", { length: 500 }),
+  websiteUrl: varchar("website_url", { length: 500 }),
+  apiType: varchar("api_type", { length: 20 }), // oauth, api_key, manual
+  isActive: boolean("is_active").default(true),
+  color: varchar("color", { length: 7 }), // hex color for UI
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  codeIdx: index("platforms_code_idx").on(table.code),
+}));
+
+// Platform Connections table - User connections to platforms
+export const platformConnections = pgTable("platform_connections", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  platformId: uuid("platform_id").references(() => platforms.id).notNull(),
   accessToken: text("access_token"), // encrypted
   refreshToken: text("refresh_token"), // encrypted
-  consentId: varchar("consent_id", { length: 100 }),
+  externalUserId: varchar("external_user_id", { length: 255 }),
   status: varchar("status", { length: 20 }).default("active"), // active, expired, revoked
   lastSyncAt: timestamp("last_sync_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
-  userBankIdx: index("user_bank_idx").on(table.userId, table.bankCode),
+  userPlatformIdx: index("platform_connections_user_platform_idx").on(table.userId, table.platformId),
 }));
 
-export const accounts = pgTable("accounts", {
+// Courses table - User's courses from various platforms
+export const courses = pgTable("courses", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id).notNull(),
-  bankConnectionId: uuid("bank_connection_id").references(() => bankConnections.id).notNull(),
-  externalAccountId: varchar("external_account_id", { length: 100 }).notNull(),
-  accountType: varchar("account_type", { length: 50 }).notNull(), // checking, savings, credit
-  accountName: varchar("account_name", { length: 100 }).notNull(),
-  balance: decimal("balance", { precision: 15, scale: 2 }).notNull(),
-  currency: varchar("currency", { length: 3 }).default("RUB"),
-  isActive: boolean("is_active").default(true),
-  lastUpdatedAt: timestamp("last_updated_at").defaultNow(),
-}, (table) => ({
-  userAccountIdx: index("user_account_idx").on(table.userId),
-  bankAccountIdx: index("bank_account_idx").on(table.bankConnectionId),
-}));
-
-export const transactions = pgTable("transactions", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  accountId: uuid("account_id").references(() => accounts.id).notNull(),
-  externalTransactionId: varchar("external_transaction_id", { length: 100 }),
-  amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
-  currency: varchar("currency", { length: 3 }).default("RUB"),
-  description: text("description").notNull(),
-  merchant: varchar("merchant", { length: 200 }),
-  category: varchar("category", { length: 50 }),
-  subcategory: varchar("subcategory", { length: 50 }),
-  transactionDate: timestamp("transaction_date").notNull(),
-  processingDate: timestamp("processing_date").defaultNow(),
-  isRecurring: boolean("is_recurring").default(false),
-  metadata: jsonb("metadata"), // additional transaction data
-}, (table) => ({
-  userTransactionIdx: index("user_transaction_idx").on(table.userId, table.transactionDate),
-  accountTransactionIdx: index("account_transaction_idx").on(table.accountId),
-  categoryIdx: index("category_idx").on(table.category),
-}));
-
-export const savingsGoals = pgTable("savings_goals", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  name: varchar("name", { length: 100 }).notNull(),
+  platformId: uuid("platform_id").references(() => platforms.id),
+  externalCourseId: varchar("external_course_id", { length: 255 }), // ID from the platform
+  title: varchar("title", { length: 500 }).notNull(),
   description: text("description"),
-  targetAmount: decimal("target_amount", { precision: 15, scale: 2 }).notNull(),
-  currentAmount: decimal("current_amount", { precision: 15, scale: 2 }).default("0"),
-  targetDate: timestamp("target_date"),
-  isActive: boolean("is_active").default(true),
+  instructor: varchar("instructor", { length: 255 }),
+  imageUrl: varchar("image_url", { length: 500 }),
+  courseUrl: varchar("course_url", { length: 500 }),
+  category: varchar("category", { length: 100 }),
+  difficulty: varchar("difficulty", { length: 20 }), // beginner, intermediate, advanced
+  duration: integer("duration"), // in minutes
+  progress: decimal("progress", { precision: 5, scale: 2 }).default("0"), // 0-100%
+  status: varchar("status", { length: 20 }).default("not_started"), // not_started, in_progress, completed, paused
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  lastAccessedAt: timestamp("last_accessed_at"),
+  isFavorite: boolean("is_favorite").default(false),
+  tags: text("tags").array(), // custom user tags
+  metadata: jsonb("metadata"), // additional course data from platform
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
-  userGoalIdx: index("user_goal_idx").on(table.userId),
+  userCourseIdx: index("courses_user_idx").on(table.userId),
+  platformCourseIdx: index("courses_platform_idx").on(table.platformId),
+  statusIdx: index("courses_status_idx").on(table.status),
+  categoryIdx: index("courses_category_idx").on(table.category),
 }));
 
-export const budgets = pgTable("budgets", {
+// Deadlines table - Course deadlines and assignments
+export const deadlines = pgTable("deadlines", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id).notNull(),
-  category: varchar("category", { length: 50 }).notNull(),
-  monthlyLimit: decimal("monthly_limit", { precision: 15, scale: 2 }).notNull(),
-  currentSpent: decimal("current_spent", { precision: 15, scale: 2 }).default("0"),
-  month: integer("month").notNull(), // 1-12
-  year: integer("year").notNull(),
-  isActive: boolean("is_active").default(true),
+  courseId: uuid("course_id").references(() => courses.id),
+  title: varchar("title", { length: 500 }).notNull(),
+  description: text("description"),
+  dueDate: timestamp("due_date").notNull(),
+  reminderDate: timestamp("reminder_date"),
+  priority: varchar("priority", { length: 20 }).default("medium"), // low, medium, high, urgent
+  status: varchar("status", { length: 20 }).default("pending"), // pending, completed, overdue, cancelled
+  completedAt: timestamp("completed_at"),
+  isRecurring: boolean("is_recurring").default(false),
+  recurringPattern: jsonb("recurring_pattern"), // { type: 'weekly', days: [1,3,5] }
+  notificationSent: boolean("notification_sent").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
-  userBudgetIdx: index("user_budget_idx").on(table.userId, table.month, table.year),
+  userDeadlineIdx: index("deadlines_user_idx").on(table.userId),
+  courseDeadlineIdx: index("deadlines_course_idx").on(table.courseId),
+  dueDateIdx: index("deadlines_due_date_idx").on(table.dueDate),
+  statusIdx: index("deadlines_status_idx").on(table.status),
 }));
 
-export const aiChatSessions = pgTable("ai_chat_sessions", {
+// Notes table - User notes for courses
+export const notes = pgTable("notes", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id).notNull(),
-  sessionId: varchar("session_id", { length: 100 }).notNull(),
-  messages: jsonb("messages").notNull(), // array of chat messages
+  courseId: uuid("course_id").references(() => courses.id),
+  title: varchar("title", { length: 255 }),
+  content: text("content").notNull(),
+  lessonNumber: integer("lesson_number"),
+  lessonTitle: varchar("lesson_title", { length: 255 }),
+  tags: text("tags").array(),
+  isPinned: boolean("is_pinned").default(false),
+  color: varchar("color", { length: 7 }), // hex color for note card
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
-  userSessionIdx: index("user_session_idx").on(table.userId),
+  userNoteIdx: index("notes_user_idx").on(table.userId),
+  courseNoteIdx: index("notes_course_idx").on(table.courseId),
 }));
 
-// Family Groups table
-export const familyGroups = pgTable("family_groups", {
+// Study Sessions table - Track study time
+export const studySessions = pgTable("study_sessions", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name", { length: 100 }).notNull(),
-  adminUserId: uuid("admin_user_id").references(() => users.id).notNull(),
-  inviteCode: varchar("invite_code", { length: 10 }).unique(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// Family Group Members table
-export const familyGroupMembers = pgTable("family_group_members", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  groupId: uuid("group_id").references(() => familyGroups.id).notNull(),
   userId: uuid("user_id").references(() => users.id).notNull(),
-  role: varchar("role", { length: 20 }).default("member"), // admin, member, observer
-  permissions: jsonb("permissions").default('{}'), // category access, budget limits, etc
-  joinedAt: timestamp("joined_at").defaultNow(),
+  courseId: uuid("course_id").references(() => courses.id),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  duration: integer("duration"), // in minutes
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
-  groupUserIdx: index("group_user_idx").on(table.groupId, table.userId),
+  userStudyIdx: index("study_sessions_user_idx").on(table.userId),
+  courseStudyIdx: index("study_sessions_course_idx").on(table.courseId),
+  startTimeIdx: index("study_sessions_start_idx").on(table.startTime),
 }));
 
-// Admin Roles and Permissions table
-export const adminRoles = pgTable("admin_roles", {
+// User Settings table - User preferences and settings
+export const userSettings = pgTable("user_settings", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name", { length: 50 }).notNull().unique(),
-  displayName: varchar("display_name", { length: 100 }).notNull(),
-  description: text("description").notNull(),
-  permissions: jsonb("permissions").notNull(), // array of permission strings
-  isActive: boolean("is_active").default(true),
+  userId: uuid("user_id").references(() => users.id).notNull().unique(),
+  theme: varchar("theme", { length: 20 }).default("system"), // light, dark, system
+  dashboardLayout: jsonb("dashboard_layout"), // custom dashboard widgets
+  emailNotifications: boolean("email_notifications").default(true),
+  pushNotifications: boolean("push_notifications").default(true),
+  deadlineReminders: boolean("deadline_reminders").default(true),
+  reminderAdvance: integer("reminder_advance").default(24), // hours before deadline
+  weeklyDigest: boolean("weekly_digest").default(true),
+  studyGoalMinutes: integer("study_goal_minutes").default(60), // daily goal
+  preferredStudyTime: varchar("preferred_study_time", { length: 20 }), // morning, afternoon, evening
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  userSettingsIdx: index("user_settings_user_idx").on(table.userId),
+}));
 
-// Admin Activity Logs table
+// Admin Logs table - Admin activity tracking
 export const adminLogs = pgTable("admin_logs", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   adminUserId: uuid("admin_user_id").references(() => users.id).notNull(),
   action: varchar("action", { length: 100 }).notNull(),
-  targetType: varchar("target_type", { length: 50 }), // user, transaction, system, etc
+  targetType: varchar("target_type", { length: 50 }),
   targetId: varchar("target_id", { length: 100 }),
-  details: jsonb("details"), // action details and metadata
+  details: jsonb("details"),
   ipAddress: varchar("ip_address", { length: 45 }),
   userAgent: text("user_agent"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
-  adminUserIdx: index("admin_user_idx").on(table.adminUserId),
-  actionIdx: index("action_idx").on(table.action),
+  adminUserIdx: index("admin_logs_admin_idx").on(table.adminUserId),
+  actionIdx: index("admin_logs_action_idx").on(table.action),
   createdAtIdx: index("admin_logs_created_at_idx").on(table.createdAt),
 }));
 
-// System Settings table
-export const systemSettings = pgTable("system_settings", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  key: varchar("key", { length: 100 }).notNull().unique(),
-  value: jsonb("value").notNull(),
-  category: varchar("category", { length: 50 }).notNull(), // security, api, notifications, etc
-  description: text("description"),
-  isEditable: boolean("is_editable").default(true),
-  updatedBy: uuid("updated_by").references(() => users.id),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => ({
-  categoryIdx: index("system_settings_category_idx").on(table.category),
+// ===========================================
+// RELATIONS
+// ===========================================
+
+export const usersRelations = relations(users, ({ many, one }) => ({
+  sessions: many(sessions),
+  platformConnections: many(platformConnections),
+  courses: many(courses),
+  deadlines: many(deadlines),
+  notes: many(notes),
+  studySessions: many(studySessions),
+  settings: one(userSettings),
+  adminLogs: many(adminLogs),
 }));
 
-// Relations
-export const usersRelations = relations(users, ({ many }) => ({
-  bankConnections: many(bankConnections),
-  accounts: many(accounts),
-  transactions: many(transactions),
-  savingsGoals: many(savingsGoals),
-  budgets: many(budgets),
-  aiChatSessions: many(aiChatSessions),
-  adminFamilyGroups: many(familyGroups),
-  familyGroupMemberships: many(familyGroupMembers),
-  documents: many(documents),
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, { fields: [sessions.userId], references: [users.id] }),
 }));
 
-export const bankConnectionsRelations = relations(bankConnections, ({ one, many }) => ({
-  user: one(users, { fields: [bankConnections.userId], references: [users.id] }),
-  accounts: many(accounts),
+export const platformsRelations = relations(platforms, ({ many }) => ({
+  connections: many(platformConnections),
+  courses: many(courses),
 }));
 
-export const accountsRelations = relations(accounts, ({ one, many }) => ({
-  user: one(users, { fields: [accounts.userId], references: [users.id] }),
-  bankConnection: one(bankConnections, { fields: [accounts.bankConnectionId], references: [bankConnections.id] }),
-  transactions: many(transactions),
+export const platformConnectionsRelations = relations(platformConnections, ({ one }) => ({
+  user: one(users, { fields: [platformConnections.userId], references: [users.id] }),
+  platform: one(platforms, { fields: [platformConnections.platformId], references: [platforms.id] }),
 }));
 
-export const transactionsRelations = relations(transactions, ({ one }) => ({
-  user: one(users, { fields: [transactions.userId], references: [users.id] }),
-  account: one(accounts, { fields: [transactions.accountId], references: [accounts.id] }),
+export const coursesRelations = relations(courses, ({ one, many }) => ({
+  user: one(users, { fields: [courses.userId], references: [users.id] }),
+  platform: one(platforms, { fields: [courses.platformId], references: [platforms.id] }),
+  deadlines: many(deadlines),
+  notes: many(notes),
+  studySessions: many(studySessions),
 }));
 
-export const savingsGoalsRelations = relations(savingsGoals, ({ one }) => ({
-  user: one(users, { fields: [savingsGoals.userId], references: [users.id] }),
+export const deadlinesRelations = relations(deadlines, ({ one }) => ({
+  user: one(users, { fields: [deadlines.userId], references: [users.id] }),
+  course: one(courses, { fields: [deadlines.courseId], references: [courses.id] }),
 }));
 
-export const budgetsRelations = relations(budgets, ({ one }) => ({
-  user: one(users, { fields: [budgets.userId], references: [users.id] }),
+export const notesRelations = relations(notes, ({ one }) => ({
+  user: one(users, { fields: [notes.userId], references: [users.id] }),
+  course: one(courses, { fields: [notes.courseId], references: [courses.id] }),
 }));
 
-export const aiChatSessionsRelations = relations(aiChatSessions, ({ one }) => ({
-  user: one(users, { fields: [aiChatSessions.userId], references: [users.id] }),
+export const studySessionsRelations = relations(studySessions, ({ one }) => ({
+  user: one(users, { fields: [studySessions.userId], references: [users.id] }),
+  course: one(courses, { fields: [studySessions.courseId], references: [courses.id] }),
 }));
 
-export const familyGroupsRelations = relations(familyGroups, ({ one, many }) => ({
-  admin: one(users, { fields: [familyGroups.adminUserId], references: [users.id] }),
-  members: many(familyGroupMembers),
-}));
-
-export const familyGroupMembersRelations = relations(familyGroupMembers, ({ one }) => ({
-  group: one(familyGroups, { fields: [familyGroupMembers.groupId], references: [familyGroups.id] }),
-  user: one(users, { fields: [familyGroupMembers.userId], references: [users.id] }),
-}));
-
-export const adminRolesRelations = relations(adminRoles, ({ many }) => ({
-  logs: many(adminLogs),
+export const userSettingsRelations = relations(userSettings, ({ one }) => ({
+  user: one(users, { fields: [userSettings.userId], references: [users.id] }),
 }));
 
 export const adminLogsRelations = relations(adminLogs, ({ one }) => ({
   admin: one(users, { fields: [adminLogs.adminUserId], references: [users.id] }),
 }));
 
-export const systemSettingsRelations = relations(systemSettings, ({ one }) => ({
-  updatedByUser: one(users, { fields: [systemSettings.updatedBy], references: [users.id] }),
-}));
+// ===========================================
+// INSERT SCHEMAS (Zod validation)
+// ===========================================
 
-// Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const insertBankConnectionSchema = createInsertSchema(bankConnections).omit({
+export const insertSessionSchema = createInsertSchema(sessions).omit({
   id: true,
   createdAt: true,
 });
 
-export const insertAccountSchema = createInsertSchema(accounts).omit({
+export const insertPlatformSchema = createInsertSchema(platforms).omit({
   id: true,
-  lastUpdatedAt: true,
+  createdAt: true,
 });
 
-export const insertTransactionSchema = createInsertSchema(transactions).omit({
-  id: true,
-  processingDate: true,
-});
-
-export const insertSavingsGoalSchema = createInsertSchema(savingsGoals).omit({
+export const insertPlatformConnectionSchema = createInsertSchema(platformConnections).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const insertBudgetSchema = createInsertSchema(budgets).omit({
-  id: true,
-});
-
-export const insertAiChatSessionSchema = createInsertSchema(aiChatSessions).omit({
+export const insertCourseSchema = createInsertSchema(courses).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const insertFamilyGroupSchema = createInsertSchema(familyGroups).omit({
+export const insertDeadlineSchema = createInsertSchema(deadlines).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const insertFamilyGroupMemberSchema = createInsertSchema(familyGroupMembers).omit({
+export const insertNoteSchema = createInsertSchema(notes).omit({
   id: true,
-  joinedAt: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
-export const insertAdminRoleSchema = createInsertSchema(adminRoles).omit({
+export const insertStudySessionSchema = createInsertSchema(studySessions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -317,258 +325,36 @@ export const insertAdminLogSchema = createInsertSchema(adminLogs).omit({
   createdAt: true,
 });
 
-export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
-  id: true,
-  updatedAt: true,
-});
+// ===========================================
+// TYPE EXPORTS
+// ===========================================
 
-// Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type BankConnection = typeof bankConnections.$inferSelect;
-export type InsertBankConnection = z.infer<typeof insertBankConnectionSchema>;
-export type Account = typeof accounts.$inferSelect;
-export type InsertAccount = z.infer<typeof insertAccountSchema>;
-export type Transaction = typeof transactions.$inferSelect;
-export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
-export type SavingsGoal = typeof savingsGoals.$inferSelect;
-export type InsertSavingsGoal = z.infer<typeof insertSavingsGoalSchema>;
-export type Budget = typeof budgets.$inferSelect;
-export type InsertBudget = z.infer<typeof insertBudgetSchema>;
-export type AiChatSession = typeof aiChatSessions.$inferSelect;
-export type InsertAiChatSession = z.infer<typeof insertAiChatSessionSchema>;
-export type FamilyGroup = typeof familyGroups.$inferSelect;
-export type InsertFamilyGroup = z.infer<typeof insertFamilyGroupSchema>;
-export type FamilyGroupMember = typeof familyGroupMembers.$inferSelect;
-export type InsertFamilyGroupMember = z.infer<typeof insertFamilyGroupMemberSchema>;
-export type AdminRole = typeof adminRoles.$inferSelect;
-export type InsertAdminRole = z.infer<typeof insertAdminRoleSchema>;
+
+export type Session = typeof sessions.$inferSelect;
+export type InsertSession = z.infer<typeof insertSessionSchema>;
+
+export type Platform = typeof platforms.$inferSelect;
+export type InsertPlatform = z.infer<typeof insertPlatformSchema>;
+
+export type PlatformConnection = typeof platformConnections.$inferSelect;
+export type InsertPlatformConnection = z.infer<typeof insertPlatformConnectionSchema>;
+
+export type Course = typeof courses.$inferSelect;
+export type InsertCourse = z.infer<typeof insertCourseSchema>;
+
+export type Deadline = typeof deadlines.$inferSelect;
+export type InsertDeadline = z.infer<typeof insertDeadlineSchema>;
+
+export type Note = typeof notes.$inferSelect;
+export type InsertNote = z.infer<typeof insertNoteSchema>;
+
+export type StudySession = typeof studySessions.$inferSelect;
+export type InsertStudySession = z.infer<typeof insertStudySessionSchema>;
+
+export type UserSettings = typeof userSettings.$inferSelect;
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
+
 export type AdminLog = typeof adminLogs.$inferSelect;
 export type InsertAdminLog = z.infer<typeof insertAdminLogSchema>;
-export type SystemSetting = typeof systemSettings.$inferSelect;
-export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
-
-// Document verification system
-export const documentTypes = pgTable("document_types", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(), // "passport", "driver_license", "snils", etc.
-  displayName: varchar("display_name").notNull(),
-  description: text("description"),
-  requiredFields: jsonb("required_fields"), // What fields should be extracted
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const documents = pgTable("documents", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull(),
-  documentTypeId: varchar("document_type_id").notNull().references(() => documentTypes.id),
-  fileName: varchar("file_name").notNull(),
-  filePath: varchar("file_path").notNull(), // Object storage path
-  fileSize: integer("file_size").notNull(),
-  mimeType: varchar("mime_type").notNull(),
-  checksum: varchar("checksum"), // SHA-256 checksum for file integrity
-  status: varchar("status").notNull().default("uploaded"), // uploaded, pending, processing, verified, rejected, expired
-  verificationMethod: varchar("verification_method"), // manual, ai, ocr, hybrid
-  extractedData: jsonb("extracted_data"), // OCR/AI extracted information
-  verificationNotes: text("verification_notes"),
-  verifiedBy: varchar("verified_by"), // admin user ID who verified manually
-  verifiedAt: timestamp("verified_at"),
-  rejectionReason: text("rejection_reason"),
-  expiresAt: timestamp("expires_at"), // For documents with expiration dates
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const documentVerificationHistory = pgTable("document_verification_history", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  documentId: varchar("document_id").notNull().references(() => documents.id),
-  previousStatus: varchar("previous_status").notNull(),
-  newStatus: varchar("new_status").notNull(),
-  changedBy: varchar("changed_by"), // user ID who made the change
-  changeReason: text("change_reason"),
-  metadata: jsonb("metadata"), // Additional verification data
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Document relations
-export const documentTypesRelations = relations(documentTypes, ({ many }) => ({
-  documents: many(documents),
-}));
-
-export const documentsRelations = relations(documents, ({ one, many }) => ({
-  user: one(users, {
-    fields: [documents.userId],
-    references: [users.id],
-  }),
-  documentType: one(documentTypes, {
-    fields: [documents.documentTypeId],
-    references: [documentTypes.id],
-  }),
-  verificationHistory: many(documentVerificationHistory),
-}));
-
-export const documentVerificationHistoryRelations = relations(documentVerificationHistory, ({ one }) => ({
-  document: one(documents, {
-    fields: [documentVerificationHistory.documentId],
-    references: [documents.id],
-  }),
-}));
-
-// Document insert schemas
-export const insertDocumentTypeSchema = createInsertSchema(documentTypes).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertDocumentSchema = createInsertSchema(documents).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertDocumentVerificationHistorySchema = createInsertSchema(documentVerificationHistory).omit({
-  id: true,
-  createdAt: true,
-});
-
-// Verification system tables
-export const verificationLevels = pgTable("verification_levels", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  level: integer("level").notNull().unique(), // 1, 2, 3
-  name: varchar("name").notNull(), // "Упрощенная", "Стандартная", "Полная"
-  description: text("description"),
-  monthlyLimit: decimal("monthly_limit", { precision: 15, scale: 2 }).notNull(),
-  balanceLimit: decimal("balance_limit", { precision: 15, scale: 2 }),
-  requiredVerifications: jsonb("required_verifications").notNull(), // array of verification types
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const userVerifications = pgTable("user_verifications", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  currentLevel: integer("current_level").default(1), // Current verification level
-  phoneVerified: boolean("phone_verified").default(false),
-  phoneVerifiedAt: timestamp("phone_verified_at"),
-  emailVerified: boolean("email_verified").default(false),  
-  emailVerifiedAt: timestamp("email_verified_at"),
-  documentsVerified: boolean("documents_verified").default(false),
-  documentsVerifiedAt: timestamp("documents_verified_at"),
-  gosuslugiVerified: boolean("gosuslugi_verified").default(false),
-  gosuslugiVerifiedAt: timestamp("gosuslugi_verified_at"),
-  bankingVerified: boolean("banking_verified").default(false),
-  bankingVerifiedAt: timestamp("banking_verified_at"),
-  lastUpgradeAttempt: timestamp("last_upgrade_attempt"),
-  nextUpgradeEligible: timestamp("next_upgrade_eligible"),
-  monthlyUsage: decimal("monthly_usage", { precision: 15, scale: 2 }).default("0"),
-  usageResetDate: timestamp("usage_reset_date"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => ({
-  userVerificationIdx: index("user_verification_idx").on(table.userId),
-}));
-
-export const verificationCodes = pgTable("verification_codes", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  type: varchar("type").notNull(), // "sms", "email"
-  code: varchar("code", { length: 10 }).notNull(),
-  target: varchar("target").notNull(), // phone number or email
-  attempts: integer("attempts").default(0),
-  maxAttempts: integer("max_attempts").default(3),
-  isUsed: boolean("is_used").default(false),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-}, (table) => ({
-  userCodeIdx: index("user_code_idx").on(table.userId, table.type),
-  expireIdx: index("verification_codes_expire_idx").on(table.expiresAt),
-}));
-
-export const verificationRequests = pgTable("verification_requests", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").references(() => users.id).notNull(),
-  requestedLevel: integer("requested_level").notNull(),
-  currentLevel: integer("current_level").notNull(),
-  status: varchar("status").default("pending"), // pending, processing, approved, rejected
-  submittedData: jsonb("submitted_data"), // User submitted information
-  verificationResults: jsonb("verification_results"), // Automated checks results
-  reviewedBy: uuid("reviewed_by").references(() => users.id),
-  reviewNotes: text("review_notes"),
-  rejectionReason: text("rejection_reason"),
-  approvedAt: timestamp("approved_at"),
-  rejectedAt: timestamp("rejected_at"),
-  expiresAt: timestamp("expires_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => ({
-  userRequestIdx: index("user_request_idx").on(table.userId),
-  statusIdx: index("verification_request_status_idx").on(table.status),
-}));
-
-// Verification relations
-export const verificationLevelsRelations = relations(verificationLevels, ({ many }) => ({
-  userVerifications: many(userVerifications),
-  verificationRequests: many(verificationRequests),
-}));
-
-export const userVerificationsRelations = relations(userVerifications, ({ one, many }) => ({
-  user: one(users, { fields: [userVerifications.userId], references: [users.id] }),
-  verificationCodes: many(verificationCodes),
-  verificationRequests: many(verificationRequests),
-}));
-
-export const verificationCodesRelations = relations(verificationCodes, ({ one }) => ({
-  user: one(users, { fields: [verificationCodes.userId], references: [users.id] }),
-}));
-
-export const verificationRequestsRelations = relations(verificationRequests, ({ one }) => ({
-  user: one(users, { fields: [verificationRequests.userId], references: [users.id] }),
-  reviewer: one(users, { fields: [verificationRequests.reviewedBy], references: [users.id] }),
-}));
-
-// Verification insert schemas
-export const insertVerificationLevelSchema = createInsertSchema(verificationLevels).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertUserVerificationSchema = createInsertSchema(userVerifications).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertVerificationCodeSchema = createInsertSchema(verificationCodes).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertVerificationRequestSchema = createInsertSchema(verificationRequests).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Document types
-export type DocumentType = typeof documentTypes.$inferSelect;
-export type InsertDocumentType = z.infer<typeof insertDocumentTypeSchema>;
-export type Document = typeof documents.$inferSelect;
-export type InsertDocument = z.infer<typeof insertDocumentSchema>;
-export type DocumentVerificationHistory = typeof documentVerificationHistory.$inferSelect;
-export type InsertDocumentVerificationHistory = z.infer<typeof insertDocumentVerificationHistorySchema>;
-
-// Verification types  
-export type VerificationLevel = typeof verificationLevels.$inferSelect;
-export type InsertVerificationLevel = z.infer<typeof insertVerificationLevelSchema>;
-export type UserVerification = typeof userVerifications.$inferSelect;
-export type InsertUserVerification = z.infer<typeof insertUserVerificationSchema>;
-export type VerificationCode = typeof verificationCodes.$inferSelect;
-export type InsertVerificationCode = z.infer<typeof insertVerificationCodeSchema>;
-export type VerificationRequest = typeof verificationRequests.$inferSelect;
-export type InsertVerificationRequest = z.infer<typeof insertVerificationRequestSchema>;
