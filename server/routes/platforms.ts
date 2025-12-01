@@ -137,6 +137,41 @@ router.get('/by-language/:lang', async (req, res: Response) => {
   }
 });
 
+router.get('/regions', async (req, res: Response) => {
+  try {
+    const regions = await storage.getRegions();
+    res.json(regions);
+  } catch (error) {
+    console.error('Error fetching regions:', error);
+    res.status(500).json({ message: 'Ошибка получения регионов' });
+  }
+});
+
+router.get('/by-region/:regionId', async (req, res: Response) => {
+  try {
+    const { regionId } = req.params;
+    const platforms = await storage.getPlatformsByRegion(regionId);
+    res.json(platforms);
+  } catch (error) {
+    console.error('Error fetching platforms by region:', error);
+    res.status(500).json({ message: 'Ошибка получения платформ по региону' });
+  }
+});
+
+router.get('/connected', async (req, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Не авторизован' });
+    }
+    const connected = await storage.getConnectedPlatforms(userId);
+    res.json(connected);
+  } catch (error) {
+    console.error('Error fetching connected platforms:', error);
+    res.status(500).json({ message: 'Ошибка получения подключённых платформ' });
+  }
+});
+
 router.get('/:id', async (req, res: Response) => {
   try {
     const { id } = req.params;
