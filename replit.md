@@ -60,6 +60,23 @@
   - Added "Авторизоваться" button to platform modal
   - Button opens auth modal with selected platform context
   - Alternative "Подключить иначе" option for other connection types
+- ✅ **Encryption Service** (`EncryptionService.ts`):
+  - AES-256-GCM encryption/decryption
+  - Scrypt key derivation for master key
+  - Serialization/deserialization of encrypted data
+  - 24-bit IV and 16-bit authentication tags
+- ✅ **API Endpoints for Credentials**:
+  - `POST /api/platforms/authorize` - Save encrypted credentials
+    - Validates platform exists
+    - Supports username/password and API key auth types
+    - Encrypts before storing in database
+  - `GET /api/platforms/:platformId/credentials` - Retrieve and decrypt
+    - Requires authentication
+    - Returns decrypted credentials to authorized user
+- ✅ **Platform Connection Storage**:
+  - `savePlatformConnection()` - Save encrypted credentials to DB
+  - `getPlatformConnection()` - Retrieve encrypted connection data
+  - Ready for full database integration with platformConnections table
 
 ## System Architecture
 

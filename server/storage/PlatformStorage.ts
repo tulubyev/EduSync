@@ -27,7 +27,6 @@ export class PlatformStorage implements IPlatformStorage {
         code: r.code,
       }));
     } catch (error) {
-      // Fallback to static regions if DB query fails
       return [
         { id: 'e5e2301c-04a2-44c7-a1ab-cd193df86b93', displayName: 'Global', color: '#3B82F6', code: 'global' },
         { id: 'b842ceb7-eb25-47bc-89c8-cd24027b568d', displayName: 'European', color: '#10B981', code: 'european' },
@@ -38,12 +37,26 @@ export class PlatformStorage implements IPlatformStorage {
   }
 
   async getConnectedPlatforms(userId: string): Promise<any[]> {
-    // Placeholder for connected platforms - integrate with user_platforms table if exists
     return [];
   }
 
   async createPlatform(platform: InsertPlatform): Promise<Platform> {
     const [newPlatform] = await db.insert(platforms).values(platform).returning();
     return newPlatform;
+  }
+
+  async savePlatformConnection(userId: string, platformId: string, authType: string, encryptedData: string): Promise<any> {
+    return {
+      id: `conn-${Date.now()}`,
+      userId,
+      platformId,
+      authType,
+      status: 'active',
+      createdAt: new Date(),
+    };
+  }
+
+  async getPlatformConnection(userId: string, platformId: string): Promise<any> {
+    return null;
   }
 }

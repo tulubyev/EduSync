@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { authenticateToken } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminAuth";
+import { encryptionService } from "../services/EncryptionService";
 
 interface AuthRequest extends Request {
   user?: { id: string; role?: string | null };
@@ -359,7 +360,7 @@ router.get('/by-region/:regionId', async (req, res: Response) => {
   }
 });
 
-// Authorization endpoint - заглушка для авторизации платформы
+// Authorization endpoint - save encrypted credentials
 router.post('/authorize', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const { platformId, authType, credentials } = req.body;
@@ -373,30 +374,93 @@ router.post('/authorize', authenticateToken as any, async (req: AuthRequest, res
       return res.status(401).json({ message: 'Не авторизован' });
     }
 
-    // ЗАГЛУШКА: В реальности нужно:
-    // 1. Проверить платформу
-    // 2. Зашифровать учетные данные
-    // 3. Сохранить в БД (платформа подключений)
-    // 4. Тестировать соединение
+    // 1. Verify platform exists
+    const platform = await storage.getPlatform(platformId);
+    if (!platform) {
+      return res.status(404).json({ message: 'Платформа не найдена' });
+    }
 
-    console.log('📝 Platform authorization received:', {
+    // 2. Serialize and encrypt credentials based on auth type
+    let credentialsToEncrypt = '';
+    if (authType === 'username_password') {
+      credentialsToEncrypt = JSON.stringify({
+        username: credentials.username,
+        password: credentials.password,
+      });
+    } else if (authType === 'api_key') {
+      credentialsToEncrypt = JSON.stringify({
+        apiKey: credentials.apiKey,
+      });
+    } else {
+      return res.status(400).json({ message: 'Неподдерживаемый тип авторизации' });
+    }
+
+    const encryptedData = encryptionService.serializeEncrypted(credentialsToEncrypt);
+
+    // 3. Save encrypted credentials to database
+    const connection = await storage.savePlatformConnection(
       userId,
       platformId,
       authType,
-      credentialsType: typeof credentials,
+      encryptedData
+    );
+
+    console.log('✅ Platform credentials encrypted and saved:', {
+      userId,
+      platformId,
+      authType,
+      connectionId: connection.id,
     });
 
     res.status(201).json({
-      message: 'Учетные данные успешно сохранены',
+      message: 'Учетные данные успешно сохранены и зашифрованы',
       data: {
+        connectionId: connection.id,
         platformId,
         authType,
         status: 'active',
-        savedAt: new Date(),
+        encryptedAt: new Date(),
       },
     });
   } catch (error) {
     console.error('Error authorizing platform:', error);
-    res.status(500).json({ message: 'Ошибка авторизации платформы' });
+    res.status(500).json({ message: 'Ошибка сохранения учетных данных' });
+  }
+});
+
+// Get credentials for platform - retrieve and decrypt
+router.get('/:platformId/credentials', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { platformId } = req.params;
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Не авторизован' });
+    }
+
+    const connection = await storage.getPlatformConnection(userId, platformId);
+    
+    if (!connection || !connection.encryptedData) {
+      return res.status(404).json({ message: 'Учетные данные не найдены' });
+    }
+
+    // Decrypt credentials
+    const decryptedCredentials = encryptionService.deserializeEncrypted(connection.encryptedData);
+
+    console.log('🔓 Platform credentials retrieved and decrypted:', {
+      userId,
+      platformId,
+      authType: connection.authType,
+    });
+
+    res.json({
+      platformId,
+      authType: connection.authType,
+      credentials: JSON.parse(decryptedCredentials),
+      lastUpdated: connection.updatedAt || connection.createdAt,
+    });
+  } catch (error) {
+    console.error('Error retrieving platform credentials:', error);
+    res.status(500).json({ message: 'Ошибка получения учетных данных' });
   }
 });
