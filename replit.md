@@ -124,15 +124,28 @@ The UI/UX adheres to a clean, modern aesthetic provided by Shadcn UI, utilizing 
    - Количество региональных групп
    - Количество категорий
 
-**✅ Миграция платформ завершена (Dec 1, 2025 - FINAL):**
-- **Перенесено: 89 платформ** из фронтенда в backend GLOBAL_PLATFORMS
-- Структура: код платформы, название, страна, языки, цвет, тип авторизации
-- **Из этих 89:**
-  - 37 глобальные платформы (США, Европа, Азия)
-  - 22 российские платформы (Stepik, Skillbox, Netology, Foxford, Яндекс.Практикум, и др.)
-  - Платформы из других стран (Франция, Испания, Китай, Япония, Корея, Индия)
-- Админ-панель теперь показывает 89 платформ вместо 37
-- Note: Остальные ~22 платформы из оригинального списка из 111 могут быть добавлены если требуется расширение
+**✅ Полная синхронизация данных платформ (Dec 1, 2025 - COMPLETED):**
+
+**Структура данных каждой платформы:**
+- ✅ `code` - уникальный код платформы (coursera, udemy, stepik, etc.)
+- ✅ `name` - название платформы 
+- ✅ `description` - подробное описание (функции getDescription + getWebsiteUrl для 89 платформ)
+- ✅ `websiteUrl` - ссылка на сайт платформы
+- ✅ `category` - категория (IT General, IT Programming, IT Data Science, QA Testing, Art & Design, Music, Kids Education, Language Learning, Professional)
+- ✅ `region` - регион (Global, European, Asian, Russian)
+- ✅ `languages` - поддерживаемые языки
+- ✅ `color` - hex цвет для UI
+- ✅ `apiType` - тип авторизации (oauth, api_key, manual, none)
+- ✅ `status` - статус подключения пользователем (в таблице platformConnections)
+
+**Миграция платформ:**
+- **Перенесено: 89 платформ** из фронтенда (PlatformsPage.tsx) в backend (GLOBAL_PLATFORMS)
+- **Расширено: getWebsiteUrl + getDescription** функции для всех 89 платформ
+- **Синхронизация: Админ и пользователи видят ОДИНАКОВЫЕ данные**
+- **89 платформ разбиты:**
+  - 44 глобальные (США, Европа, Азия)
+  - 22 российские (Stepik, Skillbox, Netology, Foxford, Яндекс.Практикум, ВШЭ Online, МФТИ, Лекториум, и др.)
+  - 23 специализированные (Франция, Испания, Китай, Япония, Корея, Индия, и др.)
 
 ## Architecture Notes
 - Desktop-first with responsive mobile design
