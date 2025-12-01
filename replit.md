@@ -29,13 +29,17 @@ The UI/UX adheres to a clean, modern aesthetic provided by Shadcn UI, utilizing 
 - **Analytics Responsive Grid**: Mobile-first (1 col) → Tablet (2-3 cols) → Desktop (5 cols)
 - **Platform Authorization Modal**: Username/password + API key support with encryption
 
-## Data Storage Strategy (Dec 1, 2025 - Updated)
+## Data Storage Strategy (Dec 1, 2025 - Final)
 - **Profile Photos**: Saved as base64 WebP in DB (`profileImage` column), 400x400px, 80% quality
-- **Photo Display**: Sent as data:image/webp;base64,... directly from API to frontend
+- **Photo Display**: Two sizes generated dynamically:
+  - `profileImageUrl`: 400x400 for Settings page display
+  - `profileImageAvatar`: 48x48 optimized for sidebar avatar
+- **Format**: data:image/webp;base64,... sent directly from API
 - **User Credentials**: AES-256-GCM encrypted, stored in platformConnections table
 - **localStorage**: Only stores compact data (URLs, text), not large binary data
 - **Database**: PostgreSQL with Drizzle ORM, migrations via `npm run db:push`
 - **DB Migration**: `npm run db:push` successfully added `profileImage` text column to users table
+- **Avatar Generation**: Sharp library generates optimized 48x48 avatar on-the-fly from 400x400 stored image
 
 ## API Endpoints Summary
 - `POST /api/users/profile` - Update profile (email, phone, name)

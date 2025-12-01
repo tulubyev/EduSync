@@ -222,9 +222,9 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
 
         {/* User Profile Section with Avatar */}
         <div className={`flex items-center gap-3 px-3 py-3 bg-gray-50 rounded-lg transition-all ${isOpen ? '' : 'justify-center'}`}>
-          {user.profileImageUrl ? (
+          {user.profileImageAvatar ? (
             <img
-              src={user.profileImageUrl}
+              src={user.profileImageAvatar}
               alt="Avatar"
               className="w-8 h-8 rounded-full object-cover flex-shrink-0"
             />
