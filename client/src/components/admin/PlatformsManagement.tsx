@@ -1,4 +1,4 @@
-import { Globe } from 'lucide-react';
+import { Globe, Filter } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { AddPlatformModal } from '../platforms/AddPlatformModal';
 
@@ -10,13 +10,22 @@ interface PlatformsManagementProps {
 interface Platform {
   id: string;
   name: string;
+  code?: string;
   displayName?: string;
   websiteUrl?: string;
+  category?: string;
 }
 
 interface Region {
   id: string;
   name: string;
+}
+
+interface Category {
+  id: string;
+  displayName: string;
+  code: string;
+  color?: string;
 }
 
 interface RegionPlatforms {
@@ -26,7 +35,9 @@ interface RegionPlatforms {
 export function PlatformsManagement({ isVisible, userRole }: PlatformsManagementProps) {
   const [platformsByRegion, setPlatformsByRegion] = useState<RegionPlatforms>({});
   const [regions, setRegions] = useState<Region[]>([]);
-  const [selectedRegion, setSelectedRegion] = useState<string>('global');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedRegion, setSelectedRegion] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -35,32 +46,32 @@ export function PlatformsManagement({ isVisible, userRole }: PlatformsManagement
       setIsLoading(true);
       try {
         const token = localStorage.getItem('accessToken');
-        // Загружаем платформы по регионам
-        const response = await fetch('/api/platforms/by-region', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setPlatformsByRegion(data);
+        
+        // Загружаем платформы по регионам параллельно
+        const [platformsRes, categoriesRes] = await Promise.all([
+          fetch('/api/platforms/by-region', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch('/api/platforms/categories', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+        
+        if (platformsRes.ok) {
+          const platformData = await platformsRes.json();
+          setPlatformsByRegion(platformData);
           // Определяем регионы из полученных данных
-          const regionKeys = Object.keys(data);
-          const regionList = regionKeys.map(key => ({ id: key, name: formatRegionName(key) }));
+          const regionKeys = Object.keys(platformData);
+          const regionList = regionKeys.map(key => ({ id: key, name: key }));
           setRegions(regionList);
-          if (regionKeys.length > 0 && !regionKeys.includes(selectedRegion)) {
-            setSelectedRegion(regionKeys[0]);
-          }
+        }
+        
+        if (categoriesRes.ok) {
+          const categoryData = await categoriesRes.json();
+          setCategories(categoryData);
         }
       } catch (error) {
-        console.error('Ошибка загрузки платформ:', error);
-        // Fallback на пустую структуру
-        setRegions([
-          { id: 'global', name: 'Глобальные' },
-          { id: 'russian', name: 'Российские' },
-          { id: 'cis', name: 'СНГ' },
-          { id: 'asia', name: 'Азиатские' },
-        ]);
+        console.error('Ошибка загрузки данных:', error);
       } finally {
         setIsLoading(false);
       }
@@ -68,21 +79,25 @@ export function PlatformsManagement({ isVisible, userRole }: PlatformsManagement
     fetchData();
   }, [refreshKey]);
 
-  const formatRegionName = (regionId: string): string => {
-    const names: Record<string, string> = {
-      'global': 'Глобальные',
-      'russian': 'Российские',
-      'cis': 'СНГ',
-      'asia': 'Азиатские',
-    };
-    return names[regionId] || regionId;
-  };
-
   const handlePlatformAdded = () => {
     setRefreshKey(prev => prev + 1);
   };
 
-  const filteredPlatforms = platformsByRegion[selectedRegion] || [];
+  // Получаем все платформы или из выбранного региона
+  const getAllPlatforms = (): Platform[] => {
+    if (selectedRegion === 'all') {
+      return Object.values(platformsByRegion).flat();
+    }
+    return platformsByRegion[selectedRegion] || [];
+  };
+
+  // Фильтруем по категории
+  const filteredPlatforms = getAllPlatforms().filter(p => {
+    if (selectedCategory === 'all') return true;
+    // Ищем категорию в имени платформы или поле category
+    return p.category?.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+           p.name?.toLowerCase().includes(selectedCategory.toLowerCase());
+  });
 
 
   if (!isVisible) return null;
@@ -100,27 +115,94 @@ export function PlatformsManagement({ isVisible, userRole }: PlatformsManagement
       </div>
 
       {/* Фильтры по регионам */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {regions.map(region => (
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ fontSize: '12px', fontWeight: '600', color: '#666', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Globe size={14} /> Регионы
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
-            key={region.id}
-            onClick={() => setSelectedRegion(region.id)}
+            onClick={() => setSelectedRegion('all')}
             style={{
               padding: '8px 14px',
-              backgroundColor: selectedRegion === region.id ? '#1abc9c' : '#f0f0f0',
-              color: selectedRegion === region.id ? 'white' : '#333',
+              backgroundColor: selectedRegion === 'all' ? '#1abc9c' : '#f0f0f0',
+              color: selectedRegion === 'all' ? 'white' : '#333',
               border: 'none',
               borderRadius: '20px',
               cursor: 'pointer',
               fontSize: '13px',
-              fontWeight: selectedRegion === region.id ? '600' : '500',
+              fontWeight: selectedRegion === 'all' ? '600' : '500',
               transition: 'all 0.2s'
             }}
           >
-            {region.name} ({(platformsByRegion[region.id] || []).length})
+            📋 Все регионы ({Object.values(platformsByRegion).flat().length})
           </button>
-        ))}
+          {regions.map(region => (
+            <button
+              key={region.id}
+              onClick={() => setSelectedRegion(region.id)}
+              style={{
+                padding: '8px 14px',
+                backgroundColor: selectedRegion === region.id ? '#667eea' : '#f0f0f0',
+                color: selectedRegion === region.id ? 'white' : '#333',
+                border: 'none',
+                borderRadius: '20px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: selectedRegion === region.id ? '600' : '500',
+                transition: 'all 0.2s'
+              }}
+            >
+              {region.name} ({(platformsByRegion[region.id] || []).length})
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Фильтры по категориям */}
+      {categories.length > 0 && (
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ fontSize: '12px', fontWeight: '600', color: '#666', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Filter size={14} /> Категории
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setSelectedCategory('all')}
+              style={{
+                padding: '6px 12px',
+                backgroundColor: selectedCategory === 'all' ? '#667eea' : '#f0f0f0',
+                color: selectedCategory === 'all' ? 'white' : '#333',
+                border: 'none',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: selectedCategory === 'all' ? '600' : '400',
+                transition: 'all 0.2s'
+              }}
+            >
+              Все
+            </button>
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.code)}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: selectedCategory === cat.code ? (cat.color || '#667eea') : '#f0f0f0',
+                  color: selectedCategory === cat.code ? 'white' : '#333',
+                  border: 'none',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: selectedCategory === cat.code ? '600' : '400',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {cat.displayName}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
@@ -190,13 +272,17 @@ export function PlatformsManagement({ isVisible, userRole }: PlatformsManagement
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
         <div style={{ padding: '15px', backgroundColor: '#f0f7ff', borderRadius: '8px', textAlign: 'center' }}>
           <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#667eea', marginBottom: '5px' }}>
-            {Object.values(platformsByRegion).reduce((acc, arr) => acc + arr.length, 0)}+
+            {Object.values(platformsByRegion).flat().length}
           </div>
-          <div style={{ fontSize: '13px', color: '#666' }}>Платформ загружено</div>
+          <div style={{ fontSize: '13px', color: '#666' }}>Всего платформ</div>
         </div>
         <div style={{ padding: '15px', backgroundColor: '#f0fff7', borderRadius: '8px', textAlign: 'center' }}>
           <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1abc9c', marginBottom: '5px' }}>{regions.length}</div>
-          <div style={{ fontSize: '13px', color: '#666' }}>Региональных группы</div>
+          <div style={{ fontSize: '13px', color: '#666' }}>Региональных групп</div>
+        </div>
+        <div style={{ padding: '15px', backgroundColor: '#fff5f0', borderRadius: '8px', textAlign: 'center' }}>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF6B6B', marginBottom: '5px' }}>{categories.length}</div>
+          <div style={{ fontSize: '13px', color: '#666' }}>Категорий</div>
         </div>
       </div>
 

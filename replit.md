@@ -108,6 +108,28 @@ The UI/UX adheres to a clean, modern aesthetic provided by Shadcn UI, utilizing 
    - Сообщение при отсутствии данных
    - Синхронизация платформ через перезагрузку страницы
 
+### ✅ Добавлены фильтры в админ-панель PlatformsManagement (Dec 1, 2025 - Latest)
+**Новые фильтры:**
+1. **"Все регионы" кнопка** - показывает все 37 платформ из всех регионов сразу
+   - Регионы: Северная Америка, Европа, Россия и СНГ, Азия
+   - Каждый регион показывает количество платформ
+   
+2. **Фильтры по категориям**
+   - Загружаются динамически с API `/api/platforms/categories`
+   - 9 категорий: IT General, IT Programming, IT Data Science, QA Testing, Art & Design, Music, Kids Education, Language Learning, Professional
+   - Каждая категория отображается с собственным цветом
+
+3. **Статистика в картах**
+   - Всего платформ: 37 (не 111)
+   - Количество региональных групп
+   - Количество категорий
+
+**Важно: Проблема с 111 платформами:**
+- На странице PlatformsPage.tsx это **mock-данные** (111 платформ жестко закодированы в коде)
+- В API/БД всего **37 платформ** (GLOBAL_PLATFORMS в server/routes/platforms.ts)
+- Для добавления остальных 74 платформ нужно расширить GLOBAL_PLATFORMS в backend
+- Mock-данные используются только для демонстрации UI, реальные платформы загружаются из API
+
 ## Architecture Notes
 - Desktop-first with responsive mobile design
 - API-first architecture for web + mobile compatibility
