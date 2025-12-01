@@ -10,9 +10,11 @@ import {
   Globe, 
   BookOpen,
   CheckCircle,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Lock
 } from 'lucide-react';
 import { AddPlatformModal } from './AddPlatformModal';
+import { PlatformAuthModal } from './PlatformAuthModal';
 
 interface Platform {
   id: string;
@@ -1159,6 +1161,8 @@ export function PlatformsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
   const [platformInfo, setPlatformInfo] = useState<any>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authPlatform, setAuthPlatform] = useState<Platform | null>(null);
 
   useEffect(() => {
     fetchCategoriesAndPlatforms();
@@ -1524,17 +1528,32 @@ export function PlatformsPage() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {connectedPlatforms.has(selectedPlatform.id) ? (
                     <Button disabled>
                       <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
                       Подключено
                     </Button>
                   ) : (
-                    <Button onClick={() => handleConnect(selectedPlatform)}>
-                      <LinkIcon className="h-4 w-4 mr-2" />
-                      Подключить
-                    </Button>
+                    <>
+                      <Button 
+                        onClick={() => {
+                          setAuthPlatform(selectedPlatform);
+                          setAuthModalOpen(true);
+                        }}
+                        variant="default"
+                      >
+                        <Lock className="h-4 w-4 mr-2" />
+                        Авторизоваться
+                      </Button>
+                      <Button 
+                        onClick={() => handleConnect(selectedPlatform)}
+                        variant="outline"
+                      >
+                        <LinkIcon className="h-4 w-4 mr-2" />
+                        Подключить иначе
+                      </Button>
+                    </>
                   )}
                   <Button 
                     variant="outline"
@@ -1549,6 +1568,12 @@ export function PlatformsPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <PlatformAuthModal 
+        open={authModalOpen} 
+        onOpenChange={setAuthModalOpen} 
+        platform={authPlatform} 
+      />
     </div>
   );
 }

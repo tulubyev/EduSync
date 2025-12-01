@@ -358,3 +358,45 @@ router.get('/by-region/:regionId', async (req, res: Response) => {
     res.status(500).json({ message: 'Ошибка получения платформ по регионам' });
   }
 });
+
+// Authorization endpoint - заглушка для авторизации платформы
+router.post('/authorize', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { platformId, authType, credentials } = req.body;
+    const userId = (req as any).user?.id;
+
+    if (!platformId || !authType || !credentials) {
+      return res.status(400).json({ message: 'Отсутствуют необходимые поля' });
+    }
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Не авторизован' });
+    }
+
+    // ЗАГЛУШКА: В реальности нужно:
+    // 1. Проверить платформу
+    // 2. Зашифровать учетные данные
+    // 3. Сохранить в БД (платформа подключений)
+    // 4. Тестировать соединение
+
+    console.log('📝 Platform authorization received:', {
+      userId,
+      platformId,
+      authType,
+      credentialsType: typeof credentials,
+    });
+
+    res.status(201).json({
+      message: 'Учетные данные успешно сохранены',
+      data: {
+        platformId,
+        authType,
+        status: 'active',
+        savedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    console.error('Error authorizing platform:', error);
+    res.status(500).json({ message: 'Ошибка авторизации платформы' });
+  }
+});
