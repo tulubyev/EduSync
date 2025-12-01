@@ -57,12 +57,14 @@ export const platforms = pgTable("platforms", {
   websiteUrl: varchar("website_url", { length: 500 }),
   apiType: varchar("api_type", { length: 20 }), // oauth, api_key, manual
   categoryId: uuid("category_id").references(() => platformCategories.id),
+  regionId: uuid("region_id").references(() => platformRegions.id),
   isActive: boolean("is_active").default(true),
   color: varchar("color", { length: 7 }), // hex color for UI
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   codeIdx: index("platforms_code_idx").on(table.code),
   categoryIdx: index("platforms_category_idx").on(table.categoryId),
+  regionIdx: index("platforms_region_idx").on(table.regionId),
 }));
 
 // Platform Categories table - Categorize platforms
@@ -79,6 +81,24 @@ export const platformCategories = pgTable("platform_categories", {
 }, (table) => ({
   codeIdx: index("platform_categories_code_idx").on(table.code),
   sortIdx: index("platform_categories_sort_idx").on(table.sortOrder),
+}));
+
+// Platform Regions table - Organize platforms by geographic regions
+export const platformRegions = pgTable("platform_regions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code", { length: 50 }).notNull().unique(), // european, asian, russian, global
+  name: varchar("name", { length: 100 }).notNull(),
+  displayName: varchar("display_name", { length: 100 }).notNull(),
+  description: text("description"),
+  countries: text("countries").array(), // ['Germany', 'France', 'UK']
+  languages: varchar("languages", { length: 500 }), // supported languages
+  color: varchar("color", { length: 7 }), // hex color for UI
+  icon: varchar("icon", { length: 100 }), // emoji or icon name
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  codeIdx: index("platform_regions_code_idx").on(table.code),
+  sortIdx: index("platform_regions_sort_idx").on(table.sortOrder),
 }));
 
 // Platform Connections table - User connections to platforms
@@ -247,9 +267,14 @@ export const platformsRelations = relations(platforms, ({ many, one }) => ({
   connections: many(platformConnections),
   courses: many(courses),
   category: one(platformCategories, { fields: [platforms.categoryId], references: [platformCategories.id] }),
+  region: one(platformRegions, { fields: [platforms.regionId], references: [platformRegions.id] }),
 }));
 
 export const platformCategoriesRelations = relations(platformCategories, ({ many }) => ({
+  platforms: many(platforms),
+}));
+
+export const platformRegionsRelations = relations(platformRegions, ({ many }) => ({
   platforms: many(platforms),
 }));
 
