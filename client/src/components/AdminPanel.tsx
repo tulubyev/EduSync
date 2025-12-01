@@ -160,83 +160,7 @@ function AdminPanel({ user, onBack }: any) {
         </button>
       </div>
 
-      {/* My EPA Dashboard Statistics */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Пользователей</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#667eea' }}>—</div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>из внешних источников</div>
-        </div>
-        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Курсов</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#764ba2' }}>111</div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>в базе (9 категорий)</div>
-        </div>
-        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Платформ</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1abc9c' }}>8+</div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>интегрировано</div>
-        </div>
-        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Регионы</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f39c12' }}>4</div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>географических</div>
-        </div>
-      </div>
-
-      {showUsersSection && (
-        <UsersSection 
-          isVisible={true}
-          userRole={userRole}
-        />
-      )}
-
-      <CoursesManagement 
-        isVisible={showCoursesManagement}
-        userRole={userRole}
-      />
-
-      <PlatformsManagement 
-        isVisible={showPlatformsManagement}
-        userRole={userRole}
-      />
-
-      <AnalyticsSection 
-        isVisible={showAnalytics}
-        userRole={userRole}
-      />
-
-      {/* Системный мониторинг */}
-      {showSystemMonitoring && (
-        <SystemMonitoring 
-          isVisible={true}
-          systemHealth={systemHealth}
-          systemAlerts={systemAlerts}
-          systemMetrics={systemMetrics}
-          systemLogs={systemLogs}
-          realTimeMetrics={realTimeMetrics}
-          lastUpdateTime={lastUpdateTime}
-          isLoading={isLoadingSystem}
-        />
-      )}
-
-      {/* Управление API */}
-      {showApiManagement && (
-        <ApiManagement 
-          isVisible={true}
-          onShowApiKeys={() => setShowApiKeysModal(true)}
-          onShowSync={() => setShowSyncModal(true)}
-          onShowWebhooks={() => setShowWebhooksModal(true)}
-          onShowSecurity={() => setShowSecurityModal(true)}
-        />
-      )}
-
-      {/* Модальные окна для управления API */}
-      <ApiKeysModal isOpen={showApiKeysModal} onClose={() => setShowApiKeysModal(false)} />
-      <SyncModal isOpen={showSyncModal} onClose={() => setShowSyncModal(false)} />
-      <WebhooksModal isOpen={showWebhooksModal} onClose={() => setShowWebhooksModal(false)} />
-      <SecurityModal isOpen={showSecurityModal} onClose={() => setShowSecurityModal(false)} />
-
+      {/* Доступные функции и Быстрые действия */}
       <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e9ecef', marginBottom: '20px' }}>
         <h2 style={{ margin: '0 0 15px 0', color: '#333' }}>Доступные функции для вашей роли</h2>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
@@ -351,6 +275,83 @@ function AdminPanel({ user, onBack }: any) {
           )}
         </div>
       </div>
+
+      {/* My EPA Dashboard Statistics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Пользователей</div>
+          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#667eea' }}>—</div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>из внешних источников</div>
+        </div>
+        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Курсов</div>
+          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#764ba2' }}>111</div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>в базе (9 категорий)</div>
+        </div>
+        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Платформ</div>
+          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1abc9c' }}>8+</div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>интегрировано</div>
+        </div>
+        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Регионы</div>
+          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f39c12' }}>4</div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>географических</div>
+        </div>
+      </div>
+
+      {showUsersSection && (
+        <UsersSection 
+          isVisible={true}
+          userRole={userRole}
+        />
+      )}
+
+      <CoursesManagement 
+        isVisible={showCoursesManagement}
+        userRole={userRole}
+      />
+
+      <PlatformsManagement 
+        isVisible={showPlatformsManagement}
+        userRole={userRole}
+      />
+
+      <AnalyticsSection 
+        isVisible={showAnalytics}
+        userRole={userRole}
+      />
+
+      {/* Системный мониторинг */}
+      {showSystemMonitoring && (
+        <SystemMonitoring 
+          isVisible={true}
+          systemHealth={systemHealth}
+          systemAlerts={systemAlerts}
+          systemMetrics={systemMetrics}
+          systemLogs={systemLogs}
+          realTimeMetrics={realTimeMetrics}
+          lastUpdateTime={lastUpdateTime}
+          isLoading={isLoadingSystem}
+        />
+      )}
+
+      {/* Управление API */}
+      {showApiManagement && (
+        <ApiManagement 
+          isVisible={true}
+          onShowApiKeys={() => setShowApiKeysModal(true)}
+          onShowSync={() => setShowSyncModal(true)}
+          onShowWebhooks={() => setShowWebhooksModal(true)}
+          onShowSecurity={() => setShowSecurityModal(true)}
+        />
+      )}
+
+      {/* Модальные окна для управления API */}
+      <ApiKeysModal isOpen={showApiKeysModal} onClose={() => setShowApiKeysModal(false)} />
+      <SyncModal isOpen={showSyncModal} onClose={() => setShowSyncModal(false)} />
+      <WebhooksModal isOpen={showWebhooksModal} onClose={() => setShowWebhooksModal(false)} />
+      <SecurityModal isOpen={showSecurityModal} onClose={() => setShowSecurityModal(false)} />
 
       <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e9ecef' }}>
         <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>Системная информация</h3>
