@@ -5,8 +5,6 @@ import { eq } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import multer from "multer";
 import sharp from "sharp";
-import path from "path";
-import fs from "fs";
 
 interface AuthRequest extends Request {
   user?: { id: string; role?: string | null };
@@ -14,7 +12,7 @@ interface AuthRequest extends Request {
 
 const router = Router();
 
-// Configure multer for photo uploads
+// Configure multer for photo uploads (memory storage)
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
@@ -27,12 +25,6 @@ const upload = multer({
     }
   },
 });
-
-// Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), "public", "uploads", "profiles");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
 
 // Get user profile
 router.get("/profile", authenticateToken as any, async (req: AuthRequest, res: Response) => {
@@ -48,9 +40,13 @@ router.get("/profile", authenticateToken as any, async (req: AuthRequest, res: R
       return res.status(404).json({ message: "Пользователь не найден" });
     }
 
-    // Return user profile without password hash
-    const { passwordHash, ...profileData } = user;
-    res.json(profileData);
+    // Return user profile without password hash, return profile image as data URI
+    const { passwordHash, profileImage, ...profileData } = user;
+    const responseData = {
+      ...profileData,
+      profileImageUrl: profileImage ? `data:image/webp;base64,${profileImage}` : null,
+    };
+    res.json(responseData);
   } catch (error) {
     console.error("Error fetching profile:", error);
     res.status(500).json({ message: "Ошибка получения профиля" });
@@ -111,15 +107,19 @@ router.post("/profile", authenticateToken as any, async (req: AuthRequest, res: 
 
     console.log("✅ User profile updated:", { userId, email, phone });
 
-    const { passwordHash, ...profileData } = updatedUser;
-    res.json(profileData);
+    const { passwordHash, profileImage, ...profileData } = updatedUser;
+    const responseData = {
+      ...profileData,
+      profileImageUrl: profileImage ? `data:image/webp;base64,${profileImage}` : null,
+    };
+    res.json(responseData);
   } catch (error) {
     console.error("Error updating profile:", error);
     res.status(500).json({ message: "Ошибка обновления профиля" });
   }
 });
 
-// Upload profile photo
+// Upload profile photo - stored directly in database
 router.post(
   "/profile/photo",
   authenticateToken as any,
@@ -135,34 +135,36 @@ router.post(
         return res.status(400).json({ message: "Файл не загружен" });
       }
 
-      // Generate unique filename
-      const filename = `${userId}-${Date.now()}.webp`;
-      const filepath = path.join(uploadsDir, filename);
-
-      // Convert and optimize image
-      await sharp(req.file.buffer)
+      // Convert image to WebP and optimize
+      const webpBuffer = await sharp(req.file.buffer)
         .webp({ quality: 80 })
         .resize(400, 400, {
           fit: "cover",
           position: "center",
         })
-        .toFile(filepath);
+        .toBuffer();
 
-      // Update user with new photo URL
-      const photoUrl = `/uploads/profiles/${filename}`;
+      // Convert to base64 for storage in database
+      const base64Image = webpBuffer.toString("base64");
+
+      // Update user with photo stored in database
       const [updatedUser] = await db
         .update(users)
         .set({
-          profileImageUrl: photoUrl,
+          profileImage: base64Image,
           updatedAt: new Date(),
         })
         .where(eq(users.id, userId))
         .returning();
 
-      console.log("✅ Profile photo uploaded:", { userId, photoUrl });
+      console.log("✅ Profile photo uploaded to database:", { userId, size: base64Image.length });
 
-      const { passwordHash, ...profileData } = updatedUser;
-      res.json(profileData);
+      const { passwordHash, profileImage, ...profileData } = updatedUser;
+      const responseData = {
+        ...profileData,
+        profileImageUrl: profileImage ? `data:image/webp;base64,${profileImage}` : null,
+      };
+      res.json(responseData);
     } catch (error) {
       console.error("Error uploading photo:", error);
       res.status(500).json({ message: "Ошибка загрузки фото" });
