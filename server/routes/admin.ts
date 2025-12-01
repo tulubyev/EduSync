@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { storage } from "../storage";
 import { authenticateToken, type AuthenticatedRequest } from "../middleware/auth";
 import { requireAdmin, requirePermission, getAdminSections, hasPermission } from "../middleware/adminAuth";
@@ -8,8 +8,21 @@ import { documentService } from "../services/DocumentService";
 import { getMetrics, checkAlerts, getSystemHealth, getPerformanceStats } from "../middleware/metrics";
 import { getCacheStats } from "../middleware/caching";
 import { tokenCache } from "../services/tokenCache";
+import { asyncHandler } from "../middleware/errorHandler";
 
 const adminRouter = Router();
+
+// Global error handler для admin router
+adminRouter.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error('Admin Router Error:', err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(500).json({ 
+    message: err.message || 'Ошибка администратора',
+    error: process.env.NODE_ENV === 'development' ? err : undefined
+  });
+});
 
 // Cache stats helper functions
 interface CacheStatsInput {
@@ -64,46 +77,36 @@ const logAdminAction = async (userId: string, action: string, targetType?: strin
 // ===========================================
 
 // Administrative routes for document storage monitoring
-adminRouter.get('/storage/info', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const storageInfo = await documentStorageService.getStorageInfo();
-    res.json({
-      ...storageInfo,
-      totalSizeMB: Math.round(storageInfo.totalSize / (1024 * 1024) * 100) / 100,
-      securityFeatures: [
-        'AES-256 encryption',
-        'File integrity verification (SHA-256)',
-        'Access control (user-based)',
-        'Secure file paths',
-        'Directory permissions (700)',
-        'Path traversal protection'
-      ]
-    });
-  } catch (error) {
-    console.error('Storage info error:', error);
-    res.status(500).json({ message: 'Ошибка получения информации о хранилище' });
-  }
-});
+adminRouter.get('/storage/info', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const storageInfo = await documentStorageService.getStorageInfo();
+  res.json({
+    ...storageInfo,
+    totalSizeMB: Math.round(storageInfo.totalSize / (1024 * 1024) * 100) / 100,
+    securityFeatures: [
+      'AES-256 encryption',
+      'File integrity verification (SHA-256)',
+      'Access control (user-based)',
+      'Secure file paths',
+      'Directory permissions (700)',
+      'Path traversal protection'
+    ]
+  });
+}));
 
 // System monitoring endpoints - ПРОДВИНУТАЯ СИСТЕМА МОНИТОРИНГА
-adminRouter.get('/system/metrics', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const metrics = getMetrics();
-    const alerts = checkAlerts();
-    const performanceStats = getPerformanceStats();
-    
-    res.json({
-      timestamp: new Date().toISOString(),
-      metrics,
-      alerts,
-      performanceStats,
-      status: alerts.length === 0 ? 'healthy' : 'warning'
-    });
-  } catch (error) {
-    console.error('Error fetching advanced system metrics:', error);
-    res.status(500).json({ message: 'Ошибка получения продвинутых системных метрик' });
-  }
-});
+adminRouter.get('/system/metrics', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const metrics = getMetrics();
+  const alerts = checkAlerts();
+  const performanceStats = getPerformanceStats();
+  
+  res.json({
+    timestamp: new Date().toISOString(),
+    metrics,
+    alerts,
+    performanceStats,
+    status: alerts.length === 0 ? 'healthy' : 'warning'
+  });
+}));
 
 adminRouter.get('/system/health', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -520,42 +523,37 @@ adminRouter.get('/roles', authenticateToken, requireAdmin, async (req: Authentic
 });
 
 // Get users with detailed info (courses, platforms, subscription)
-adminRouter.get('/users/detailed/all', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { page = 1, limit = 50, search = '' } = req.query;
-    const users = await storage.getAllUsers(Number(page), Number(limit), search as string);
-    
-    // Enrich users with additional info
-    const enrichedUsers = users.users?.map((user: any) => ({
-      ...user,
-      subscription: user.subscriptionPlan || 'free',
-      connectedPlatforms: user.platformConnections?.length || 0,
-      enrolledCourses: user.enrolledCourses?.length || 0,
-      joinedDate: user.createdAt,
-      profileComplete: user.firstName && user.lastName && user.email ? true : false
-    })) || [];
+adminRouter.get('/users/detailed/all', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { page = 1, limit = 50, search = '' } = req.query;
+  const users = await storage.getAllUsers(Number(page), Number(limit), search as string);
+  
+  // Enrich users with additional info
+  const enrichedUsers = users.users?.map((user: any) => ({
+    ...user,
+    subscription: user.subscriptionPlan || 'free',
+    connectedPlatforms: user.platformConnections?.length || 0,
+    enrolledCourses: user.enrolledCourses?.length || 0,
+    joinedDate: user.createdAt,
+    profileComplete: user.firstName && user.lastName && user.email ? true : false
+  })) || [];
 
-    await logAdminAction(
-      req.user!.id, 
-      'users_detailed_list_viewed', 
-      'admin_panel', 
-      undefined, 
-      { page, limit, search, count: enrichedUsers.length }, 
-      req
-    );
-    
-    res.json({
-      users: enrichedUsers,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total: users.total || enrichedUsers.length
-      }
-    });
-  } catch (error) {
-    console.error('Ошибка получения подробного списка пользователей:', error);
-    res.status(500).json({ message: 'Ошибка получения подробного списка пользователей' });
-  }
-});
+  await logAdminAction(
+    req.user!.id, 
+    'users_detailed_list_viewed', 
+    'admin_panel', 
+    undefined, 
+    { page, limit, search, count: enrichedUsers.length }, 
+    req
+  );
+  
+  res.json({
+    users: enrichedUsers,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      total: users.total || enrichedUsers.length
+    }
+  });
+}));
 
 export default adminRouter;
