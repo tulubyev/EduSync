@@ -296,30 +296,6 @@ function AdminPanel({ user, onBack }: any) {
         </div>
       </div>
 
-      {/* My EPA Dashboard Statistics */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Пользователей</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#667eea' }}>—</div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>из внешних источников</div>
-        </div>
-        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Курсов</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#764ba2' }}>111</div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>в базе (9 категорий)</div>
-        </div>
-        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Платформ</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1abc9c' }}>8+</div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>интегрировано</div>
-        </div>
-        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Регионы</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f39c12' }}>4</div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>географических</div>
-        </div>
-      </div>
-
       {showUsersSection && (
         <UsersSection 
           isVisible={true}
