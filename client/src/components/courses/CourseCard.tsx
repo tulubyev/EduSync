@@ -18,7 +18,8 @@ import {
   Edit, 
   Play,
   Pause,
-  CheckCircle
+  CheckCircle,
+  Lightbulb
 } from 'lucide-react';
 
 interface Course {
@@ -35,6 +36,8 @@ interface Course {
   status: string;
   isFavorite: boolean;
   platformId?: string;
+  platformName?: string;
+  cost?: number | null;
   tags?: string[];
 }
 
@@ -45,6 +48,7 @@ interface CourseCardProps {
   onToggleFavorite?: (courseId: string) => void;
   onUpdateProgress?: (courseId: string, progress: number) => void;
   onUpdateStatus?: (courseId: string, status: string) => void;
+  onShowSimilar?: (course: Course) => void;
 }
 
 const difficultyColors: Record<string, string> = {
@@ -79,7 +83,8 @@ export function CourseCard({
   onDelete, 
   onToggleFavorite,
   onUpdateProgress,
-  onUpdateStatus 
+  onUpdateStatus,
+  onShowSimilar
 }: CourseCardProps) {
   const progress = parseFloat(course.progress) || 0;
   
@@ -91,6 +96,11 @@ export function CourseCard({
       return `${hours}ч ${mins > 0 ? `${mins}м` : ''}`;
     }
     return `${mins}м`;
+  };
+
+  const formatCost = (cost?: number | null) => {
+    if (cost === null || cost === undefined || cost === 0) return 'Бесплатно';
+    return `₽${cost.toFixed(2)}`;
   };
 
   const handleStartCourse = () => {
@@ -186,11 +196,19 @@ export function CourseCard({
               {difficultyLabels[course.difficulty]}
             </Badge>
           )}
+          {course.platformName && (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              {course.platformName}
+            </Badge>
+          )}
           {course.category && (
             <Badge variant="outline">{course.category}</Badge>
           )}
           {course.duration && (
             <Badge variant="outline">{formatDuration(course.duration)}</Badge>
+          )}
+          {course.cost !== undefined && course.cost !== null && (
+            <Badge variant="outline" className="font-medium">{formatCost(course.cost)}</Badge>
           )}
         </div>
 
@@ -247,6 +265,16 @@ export function CourseCard({
             </Button>
           )}
         </div>
+
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="w-full mt-2"
+          onClick={() => onShowSimilar?.(course)}
+        >
+          <Lightbulb className="h-4 w-4 mr-2" />
+          Подобные курсы
+        </Button>
 
         {course.tags && course.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-3">

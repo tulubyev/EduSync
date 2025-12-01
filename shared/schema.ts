@@ -99,6 +99,7 @@ export const courses = pgTable("courses", {
   completedAt: timestamp("completed_at"),
   lastAccessedAt: timestamp("last_accessed_at"),
   isFavorite: boolean("is_favorite").default(false),
+  cost: decimal("cost", { precision: 10, scale: 2 }), // course cost, null = free
   tags: text("tags").array(), // custom user tags
   metadata: jsonb("metadata"), // additional course data from platform
   createdAt: timestamp("created_at").defaultNow(),

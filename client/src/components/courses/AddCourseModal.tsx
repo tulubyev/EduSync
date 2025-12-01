@@ -27,6 +27,7 @@ interface CourseFormData {
   category: string;
   difficulty: string;
   duration: string;
+  cost: string;
   tags: string;
 }
 
@@ -68,6 +69,7 @@ export function AddCourseModal({
     category: '',
     difficulty: '',
     duration: '',
+    cost: '',
     tags: '',
   });
 
@@ -98,6 +100,7 @@ export function AddCourseModal({
           category: '',
           difficulty: '',
           duration: '',
+          cost: '',
           tags: '',
         });
       }
@@ -131,6 +134,10 @@ export function AddCourseModal({
       newErrors.duration = 'Длительность должна быть числом';
     }
 
+    if (formData.cost && isNaN(parseFloat(formData.cost))) {
+      newErrors.cost = 'Стоимость должна быть числом';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -159,6 +166,7 @@ export function AddCourseModal({
         category: formData.category || undefined,
         difficulty: formData.difficulty || undefined,
         duration: formData.duration ? parseInt(formData.duration) : undefined,
+        cost: formData.cost ? parseFloat(formData.cost) : null,
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
       };
       
@@ -173,6 +181,7 @@ export function AddCourseModal({
         category: '',
         difficulty: '',
         duration: '',
+        cost: '',
         tags: '',
       });
     } catch (error) {
@@ -242,6 +251,25 @@ export function AddCourseModal({
                 <p className="text-sm text-red-500">{errors.duration}</p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cost">Стоимость курса (₽)</Label>
+            <Input
+              id="cost"
+              type="number"
+              step="0.01"
+              value={formData.cost}
+              onChange={(e) => handleChange('cost', e.target.value)}
+              placeholder="0 - бесплатный курс"
+              className={errors.cost ? 'border-red-500' : ''}
+            />
+            <p className="text-xs text-muted-foreground">
+              Оставьте пустым или введите 0 для бесплатного курса
+            </p>
+            {errors.cost && (
+              <p className="text-sm text-red-500">{errors.cost}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

@@ -66,6 +66,9 @@ The system is built with mobile portability in mind, adhering to the following p
 ### Feature Specifications
 -   **Core Functionality (IMPLEMENTED)**:
     - Course Management: CoursesPage, CourseCard, AddCourseModal (create/edit with useEffect sync)
+      - **NEW**: Platform info displayed on course cards (platform name as badge)
+      - **NEW**: Cost field for courses (free or specified price in ₽)
+      - **NEW**: "Similar Courses" modal for comparing courses across platforms by category/difficulty
     - Deadline Management: DeadlinesPage with calendar and list view, date-fns with Russian locale
     - Notes Management: NotesPage with pinning, search, course filtering
     - Platforms Catalog: PlatformsPage with 27 global educational platforms

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CourseCard } from './CourseCard';
 import { AddCourseModal } from './AddCourseModal';
+import { SimilarCoursesModal } from './SimilarCoursesModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,36 +28,75 @@ interface Course {
   status: string;
   isFavorite: boolean;
   platformId?: string;
+  platformName?: string;
+  cost?: number | null;
   tags?: string[];
+}
+
+interface Platform {
+  id: string;
+  name: string;
+  color: string;
 }
 
 export function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [platforms, setPlatforms] = useState<Record<string, Platform>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [selectedCourseForSimilar, setSelectedCourseForSimilar] = useState<Course | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('updated');
 
-  const fetchCourses = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/courses', {
+      
+      // Fetch courses
+      const coursesResponse = await fetch('/api/courses', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
       
-      if (!response.ok) {
+      if (!coursesResponse.ok) {
         throw new Error('Ошибка загрузки курсов');
       }
       
-      const data = await response.json();
-      setCourses(data);
+      const coursesData = await coursesResponse.json();
+      setCourses(coursesData);
+
+      // Fetch platforms
+      const platformsResponse = await fetch('/api/platforms', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (platformsResponse.ok) {
+        const platformsData = await platformsResponse.json();
+        const platformsMap: Record<string, Platform> = {};
+        platformsData.forEach((p: any) => {
+          platformsMap[p.id] = {
+            id: p.id,
+            name: p.name,
+            color: p.color || '#667eea',
+          };
+        });
+        setPlatforms(platformsMap);
+
+        // Add platform names to courses
+        const coursesWithPlatforms = coursesData.map((course: Course) => ({
+          ...course,
+          platformName: course.platformId && platformsMap[course.platformId] ? platformsMap[course.platformId].name : undefined,
+        }));
+        setCourses(coursesWithPlatforms);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки');
     } finally {
@@ -65,7 +105,7 @@ export function CoursesPage() {
   };
 
   useEffect(() => {
-    fetchCourses();
+    fetchData();
   }, []);
 
   const handleAddCourse = async (data: any) => {
@@ -83,7 +123,7 @@ export function CoursesPage() {
       throw new Error('Ошибка создания курса');
     }
     
-    await fetchCourses();
+    await fetchData();
   };
 
   const handleEditCourse = async (data: any) => {
@@ -104,7 +144,7 @@ export function CoursesPage() {
     }
     
     setEditingCourse(null);
-    await fetchCourses();
+    await fetchData();
   };
 
   const handleDeleteCourse = async (courseId: string) => {
@@ -122,7 +162,7 @@ export function CoursesPage() {
       throw new Error('Ошибка удаления курса');
     }
     
-    await fetchCourses();
+    await fetchData();
   };
 
   const handleToggleFavorite = async (courseId: string) => {
@@ -138,7 +178,7 @@ export function CoursesPage() {
       throw new Error('Ошибка обновления избранного');
     }
     
-    await fetchCourses();
+    await fetchData();
   };
 
   const handleUpdateProgress = async (courseId: string, progress: number) => {
@@ -156,7 +196,7 @@ export function CoursesPage() {
       throw new Error('Ошибка обновления прогресса');
     }
     
-    await fetchCourses();
+    await fetchData();
   };
 
   const handleUpdateStatus = async (courseId: string, status: string) => {
@@ -174,7 +214,7 @@ export function CoursesPage() {
       throw new Error('Ошибка обновления статуса');
     }
     
-    await fetchCourses();
+    await fetchData();
   };
 
   const filteredCourses = courses
@@ -329,6 +369,7 @@ export function CoursesPage() {
               onToggleFavorite={handleToggleFavorite}
               onUpdateProgress={handleUpdateProgress}
               onUpdateStatus={handleUpdateStatus}
+              onShowSimilar={(c) => setSelectedCourseForSimilar(c)}
             />
           ))}
         </div>
@@ -353,9 +394,18 @@ export function CoursesPage() {
           category: editingCourse.category || '',
           difficulty: editingCourse.difficulty || '',
           duration: editingCourse.duration?.toString() || '',
+          cost: editingCourse.cost?.toString() || '',
           tags: editingCourse.tags?.join(', ') || '',
         } : undefined}
         isEditing={true}
+      />
+
+      <SimilarCoursesModal
+        open={!!selectedCourseForSimilar}
+        onClose={() => setSelectedCourseForSimilar(null)}
+        currentCourse={selectedCourseForSimilar}
+        allCourses={courses}
+        platforms={platforms}
       />
     </div>
   );
