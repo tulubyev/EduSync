@@ -1,4 +1,5 @@
 import { BookOpen } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface CoursesManagementProps {
   isVisible: boolean;
@@ -6,7 +7,33 @@ interface CoursesManagementProps {
 }
 
 export function CoursesManagement({ isVisible, userRole }: CoursesManagementProps) {
+  const [coursesCount, setCoursesCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+
   if (!isVisible) return null;
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/courses', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const courses = data.courses || data || [];
+          setCoursesCount(Array.isArray(courses) ? courses.length : 0);
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки курсов:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCourses();
+  }, []);
 
   return (
     <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e9ecef', marginBottom: '20px' }}>
@@ -17,7 +44,9 @@ export function CoursesManagement({ isVisible, userRole }: CoursesManagementProp
 
       <div style={{ backgroundColor: '#f8f9fa', padding: '40px', borderRadius: '8px', textAlign: 'center' }}>
         <div style={{ fontSize: '32px', marginBottom: '10px' }}>📚</div>
-        <div style={{ color: '#666', marginBottom: '5px', fontWeight: '500' }}>111 курсов в базе</div>
+        <div style={{ color: '#666', marginBottom: '5px', fontWeight: '500' }}>
+          {isLoading ? 'Загрузка...' : `${coursesCount} курсов в базе`}
+        </div>
         <div style={{ color: '#999', fontSize: '14px', marginBottom: '20px' }}>
           Распределены по 9 категориям и 4 региональным группам
         </div>
