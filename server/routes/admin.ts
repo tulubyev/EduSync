@@ -524,34 +524,22 @@ adminRouter.get('/roles', authenticateToken, requireAdmin, async (req: Authentic
 
 // Get users with detailed info (courses, platforms, subscription)
 adminRouter.get('/users/detailed/all', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  const { page = 1, limit = 50, search = '' } = req.query;
-  const users = await storage.getAllUsers(Number(page), Number(limit), search as string);
+  const users = await storage.getAllUsers();
   
   // Enrich users with additional info
-  const enrichedUsers = users.users?.map((user: any) => ({
+  const enrichedUsers = (users || []).map((user: any) => ({
     ...user,
     subscription: user.subscriptionPlan || 'free',
     connectedPlatforms: user.platformConnections?.length || 0,
     enrolledCourses: user.enrolledCourses?.length || 0,
     joinedDate: user.createdAt,
     profileComplete: user.firstName && user.lastName && user.email ? true : false
-  })) || [];
+  }));
 
-  await logAdminAction(
-    req.user!.id, 
-    'users_detailed_list_viewed', 
-    'admin_panel', 
-    undefined, 
-    { page, limit, search, count: enrichedUsers.length }, 
-    req
-  );
-  
   res.json({
     users: enrichedUsers,
     pagination: {
-      page: Number(page),
-      limit: Number(limit),
-      total: users.total || enrichedUsers.length
+      total: enrichedUsers.length
     }
   });
 }));
