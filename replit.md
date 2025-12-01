@@ -1,5 +1,13 @@
 # My EPA — Агрегатор Образовательных Программ
 
+## Recent Changes (Dec 1, 2025) ✅
+- **SettingsPage fully implemented**: User profile management with photo upload, email/phone editing, form validation
+- **Users API endpoints**: GET/POST profile, photo upload with WebP optimization via sharp
+- **localStorage quota fix**: Now stores only URL strings, not base64 images - prevents "quota exceeded" errors
+- **Analytics responsive grid**: sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 - 5 metric cards on desktop without wraps
+- **Encryption system**: AES-256-GCM for platform credentials with secure key derivation
+- **Platform authorization API**: POST /api/platforms/authorize and GET /api/platforms/:platformId/credentials
+
 ## Overview
 **My EPA** is an educational program aggregator platform for the Russian market. It centralizes online course management from various platforms (e.g., Coursera, edX, Udemy, Stepik). Evolving from a financial application, it's developed Desktop-first (web) with a full architectural design for mobile portability (Web + iOS/Android apps sharing backend and business logic). The vision is to provide a secure, user-friendly online education management experience.
 

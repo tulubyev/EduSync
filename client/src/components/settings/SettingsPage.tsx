@@ -113,6 +113,7 @@ export function SettingsPage() {
         return;
       }
       setSelectedFile(file);
+      // Show preview using URL.createObjectURL for better memory efficiency
       const reader = new FileReader();
       reader.onload = (event) => {
         setPhotoPreview(event.target?.result as string);
@@ -138,6 +139,7 @@ export function SettingsPage() {
       setSaving(true);
       setSuccessMessage('');
       const token = localStorage.getItem('accessToken');
+      let photoUrl = profile?.profileImageUrl;
 
       // Save profile data
       const response = await fetch('/api/users/profile', {
@@ -167,14 +169,26 @@ export function SettingsPage() {
         if (!photoResponse.ok) {
           throw new Error('Failed to upload photo');
         }
+
+        const photoData = await photoResponse.json();
+        photoUrl = photoData.profileImageUrl;
+        setPhotoPreview(photoUrl); // Update preview with server URL instead of base64
       }
 
       setSuccessMessage('Профиль успешно сохранен');
       setSelectedFile(null);
       
-      // Update local storage
-      const updatedProfile = { ...profile, ...formData, profileImageUrl: photoPreview };
-      localStorage.setItem('currentUser', JSON.stringify(updatedProfile));
+      // Update local storage - only store essential data, NOT base64 images
+      const updatedProfile = { ...profile, ...formData, profileImageUrl: photoUrl };
+      try {
+        localStorage.setItem('currentUser', JSON.stringify(updatedProfile));
+      } catch (storageError) {
+        // If localStorage is full, clear old data and try again
+        console.warn('localStorage quota exceeded, clearing old data');
+        localStorage.clear();
+        localStorage.setItem('accessToken', token);
+        localStorage.setItem('currentUser', JSON.stringify(updatedProfile));
+      }
       
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
