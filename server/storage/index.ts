@@ -45,6 +45,8 @@ export class DatabaseStorage implements IStorage {
   getPlatforms(...args: Parameters<PlatformStorage['getPlatforms']>) { return this.platformStorage.getPlatforms(...args); }
   getPlatform(...args: Parameters<PlatformStorage['getPlatform']>) { return this.platformStorage.getPlatform(...args); }
   getPlatformsByRegion(...args: Parameters<PlatformStorage['getPlatformsByRegion']>) { return this.platformStorage.getPlatformsByRegion(...args); }
+  getRegions(...args: Parameters<PlatformStorage['getRegions']>) { return this.platformStorage.getRegions(...args); }
+  getConnectedPlatforms(...args: Parameters<PlatformStorage['getConnectedPlatforms']>) { return this.platformStorage.getConnectedPlatforms(...args); }
   createPlatform(...args: Parameters<PlatformStorage['createPlatform']>) { return this.platformStorage.createPlatform(...args); }
 
   // Deadline methods
