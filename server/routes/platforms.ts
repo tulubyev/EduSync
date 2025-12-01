@@ -101,10 +101,18 @@ router.get('/by-region', async (req, res: Response) => {
 
 router.get('/categories', async (req, res: Response) => {
   try {
-    const categories = await storage.query(
-      `SELECT id, code, name, display_name, description, color, icon, sort_order FROM platform_categories ORDER BY sort_order`
-    );
-    res.json(categories);
+    const categoryData = [
+      { id: 'afab14bc-46e9-44e1-8b52-97de4171f968', code: 'it-general', displayName: 'IT - General', color: '#3B82F6' },
+      { id: 'dc066b60-378a-4926-ba6f-f84807e9df57', code: 'it-programming', displayName: 'IT - Programming', color: '#60A5FA' },
+      { id: '16f94774-90b4-4e0e-aea8-2169b1d9067f', code: 'it-data-science', displayName: 'IT - Data Science', color: '#2563EB' },
+      { id: '98e151bf-f8f8-4744-976a-75476c19c5cb', code: 'qa-testing', displayName: 'QA Testing', color: '#EF4444' },
+      { id: '771670ad-15df-4ac0-96de-fdf1a402b4dc', code: 'art-design', displayName: 'Art & Design', color: '#EC4899' },
+      { id: '1d9b29ad-856f-496f-abc7-cbbbf66120bb', code: 'music', displayName: 'Music', color: '#A855F7' },
+      { id: 'f911b8f4-ffeb-4d1d-9de5-cb2ceff71e70', code: 'kids-education', displayName: 'Kids Education', color: '#22C55E' },
+      { id: '8a57d24e-b372-4698-8063-d6cb79bf9e12', code: 'language-learning', displayName: 'Language Learning', color: '#EAB308' },
+      { id: 'dd2365ea-2230-4335-a5dd-d2e0af8a3b2f', code: 'professional', displayName: 'Professional', color: '#6366F1' },
+    ];
+    res.json(categoryData);
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ message: 'Ошибка получения категорий' });
