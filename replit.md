@@ -67,12 +67,36 @@ The UI/UX adheres to a clean, modern aesthetic provided by Shadcn UI, utilizing 
 
 **Компоненты (Dec 1, 2025):**
 - `UsersSection.tsx` - таблица пользователей с фильтрами и статистикой
-- `CoursesManagement.tsx` - управление курсами (заглушка с кнопками действий)
-- `PlatformsManagement.tsx` - управление платформами (заглушка с картами платформ)
+- `CoursesManagement.tsx` - управление курсами (исправлены React hooks violations)
+- `PlatformsManagement.tsx` - управление платформами с регион-фильтрами и модальным окном добавления
 - `AnalyticsSection.tsx` - аналитика и статистика (заглушка)
+
+## Последние обновления (Dec 1, 2025 - Final Session)
+
+### ✅ Исправления React Hooks
+- **CoursesManagement & PlatformsManagement**: Перемещены `if (!isVisible) return null;` ПОСЛЕ `useEffect` для соблюдения правила hooks (нельзя вызывать hooks после условного return)
+- Это исправило ошибку "Rendered more hooks than during the previous render"
+
+### ✅ Улучшение секции Платформы в админ-панели
+**PlatformsManagement.tsx** теперь включает:
+1. **Фильтры по регионам** - 4 региональные группы (Глобальные, Российские, СНГ, Азиатские)
+   - Динамически загружаются с API или используют fallback значения
+   - Показывают количество платформ в каждом регионе
+2. **Модальное окно добавления платформы** (для super_admin)
+   - Поля: Название платформы, Регион, Категория
+   - POST запрос на `/api/platforms`
+   - Перезагружает список после добавления
+3. **Кнопка синхронизации** - выполняет `window.location.reload()`
+4. **Типизация TypeScript** - правильные интерфейсы для Platform и Region
+5. **UX улучшения**:
+   - Счётчик платформ на каждом фильтре
+   - Сообщение об отсутствии данных при выборе региона
+   - Визуальные индикаторы активного фильтра (цвет)
 
 ## Architecture Notes
 - Desktop-first with responsive mobile design
 - API-first architecture for web + mobile compatibility
 - No direct database access from frontend (all via REST API)
 - Security: AES-256-GCM encryption, Scrypt key derivation, rate limiting, Helmet middleware
+- React Hooks compliance: All hooks called unconditionally before any early returns
+- Component structure: Stateful components with proper hook ordering
