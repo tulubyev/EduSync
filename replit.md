@@ -70,6 +70,13 @@ The system is built with mobile portability in mind, adhering to the following p
       - **NEW**: Platform info displayed on course cards (platform name as badge)
       - **NEW**: Cost field for courses (free or specified price in ₽)
       - **NEW**: "Similar Courses" modal for comparing courses across platforms by category/difficulty
+    - Analytics Dashboard: Full course and study metrics with charts
+      - Total courses, completed, in-progress counters
+      - Study time tracking (hours)
+      - Cost analysis (total spent in ₽)
+      - Daily/weekly/monthly progress visualization
+      - Course status breakdown (pie/bar charts)
+      - Time range filtering (week/month/all time)
     - Deadline Management: DeadlinesPage with calendar and list view, date-fns with Russian locale
     - Notes Management: NotesPage with pinning, search, course filtering
     - Platforms Catalog: PlatformsPage with 27 global educational platforms
