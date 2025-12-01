@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { 
   Search, 
   ExternalLink, 
@@ -1156,6 +1157,7 @@ export function PlatformsPage() {
   const [regions, setRegions] = useState<Region[]>([]);
   const [dbPlatforms, setDbPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
 
   useEffect(() => {
     fetchCategoriesAndPlatforms();
@@ -1252,6 +1254,11 @@ export function PlatformsPage() {
     .filter(p => {
       if (selectedCategory === 'all') return true;
       if (selectedCategory === 'connected') return connectedPlatforms.has(p.id);
+      // Find category ID by displayName match
+      const categoryObj = categories.find(c => c.displayName === selectedCategory);
+      if (categoryObj) {
+        return p.categoryId === categoryObj.id;
+      }
       return p.category === selectedCategory;
     })
     .filter(p => {
@@ -1377,7 +1384,11 @@ export function PlatformsPage() {
             const displayName = platform.displayName || platform.name || 'Unknown';
             
             return (
-              <Card key={platform.id} className="hover:shadow-md transition-shadow">
+              <Card 
+                key={platform.id} 
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => setSelectedPlatform(platform)}
+              >
                 <CardHeader className="pb-2">
                   <div className="flex items-start gap-3">
                     <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -1414,7 +1425,7 @@ export function PlatformsPage() {
                     {platform.description || 'Образовательная платформа'}
                   </CardDescription>
                   
-                  <div className="flex gap-2">
+                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                     {isConnected ? (
                       <Button variant="outline" size="sm" className="flex-1" disabled>
                         <CheckCircle className="h-4 w-4 mr-1 text-green-500" />
@@ -1444,6 +1455,60 @@ export function PlatformsPage() {
             );
           })}
         </div>
+      )}
+
+      {selectedPlatform && (
+        <Dialog open={!!selectedPlatform} onOpenChange={() => setSelectedPlatform(null)}>
+          <DialogContent className="max-w-2xl">
+            <div className="flex items-start gap-4">
+              <div className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                {selectedPlatform.logoUrl ? (
+                  <img 
+                    src={selectedPlatform.logoUrl} 
+                    alt={selectedPlatform.name}
+                    className="w-16 h-16 object-contain"
+                  />
+                ) : (
+                  <BookOpen className="h-12 w-12 text-gray-400" />
+                )}
+              </div>
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold mb-2">{selectedPlatform.name}</h2>
+                <p className="text-muted-foreground mb-4">{selectedPlatform.description}</p>
+                <div className="flex gap-2 mb-4">
+                  <Badge className="bg-blue-100 text-blue-800">
+                    {categories.find(c => c.id === selectedPlatform.categoryId)?.displayName || 'Other'}
+                  </Badge>
+                  {selectedPlatform.regionId && (
+                    <Badge className="bg-green-100 text-green-800">
+                      {regions.find(r => r.id === selectedPlatform.regionId)?.displayName}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {connectedPlatforms.has(selectedPlatform.id) ? (
+                    <Button disabled>
+                      <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                      Подключено
+                    </Button>
+                  ) : (
+                    <Button onClick={() => handleConnect(selectedPlatform)}>
+                      <LinkIcon className="h-4 w-4 mr-2" />
+                      Подключить
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outline"
+                    onClick={() => window.open(selectedPlatform.websiteUrl, '_blank')}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Посетить сайт
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
