@@ -49,10 +49,27 @@ The UI/UX adheres to a clean, modern aesthetic provided by Shadcn UI, utilizing 
 - `GET /api/platforms/:platformId/credentials` - Retrieve decrypted credentials
 - `GET /api/admin/users/detailed/all` - Get users list with courses/platforms/subscription data
 
-## Test Admin Accounts (Dec 1, 2025)
-- **Super Admin**: `admin@myepa.ru` / `admin123` → Full access to admin panel, all features
-- **Analytics Admin**: `analytics@myepa.ru` / `admin123` → Can view users section + analytics
-- Both accounts pre-verified with Full profile completion
+## Admin Panel (Dec 1, 2025 - My EPA Edition)
+**Адаптирована с FinTrack на My EPA** - полностью переработана для платформы
+
+**Разделы для Super Admin & Analytics Admin:**
+- 👥 **Пользователи** - просмотр всех пользователей с данными о курсах, платформах и подписке
+- 📖 **Курсы** - управление 111 курсами в 9 категориях
+- 🌐 **Платформы** - управление 8+ интегрированными платформами
+- 📊 **Аналитика** - статистика использования и отчеты
+- 🔧 **Системный мониторинг** - для DevOps
+- 🔗 **Управление API** - для API администраторов
+
+**Test Admin Accounts:**
+- **Super Admin**: `admin@myepa.ru` / `admin123` → Full access to all admin sections
+- **Analytics Admin**: `analytics@myepa.ru` / `admin123` → Users, Courses, Platforms, Analytics
+- Both accounts pre-verified with full profile completion
+
+**Компоненты (Dec 1, 2025):**
+- `UsersSection.tsx` - таблица пользователей с фильтрами и статистикой
+- `CoursesManagement.tsx` - управление курсами (заглушка с кнопками действий)
+- `PlatformsManagement.tsx` - управление платформами (заглушка с картами платформ)
+- `AnalyticsSection.tsx` - аналитика и статистика (заглушка)
 
 ## Architecture Notes
 - Desktop-first with responsive mobile design

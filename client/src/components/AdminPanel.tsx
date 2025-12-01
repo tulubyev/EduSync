@@ -3,31 +3,25 @@ import { ApiKeysModal } from './modals/ApiKeysModal';
 import { SyncModal } from './modals/SyncModal'; 
 import { WebhooksModal } from './modals/WebhooksModal';
 import { SecurityModal } from './modals/SecurityModal';
-import { AdminDashboardStats } from './admin/AdminDashboardStats';
-import { PendingDocumentsList } from './admin/PendingDocumentsList';
-import { UserManagement } from './admin/UserManagement';
-import { DocumentArchive } from './admin/DocumentArchive';
 import { SystemMonitoring } from './admin/SystemMonitoring';
 import { ApiManagement } from './admin/ApiManagement';
 import { UsersSection } from './admin/UsersSection';
+import { CoursesManagement } from './admin/CoursesManagement';
+import { PlatformsManagement } from './admin/PlatformsManagement';
+import { AnalyticsSection } from './admin/AnalyticsSection';
 
 // AdminPanel component for administrators
 function AdminPanel({ user, onBack }: any) {
-  const [pendingDocuments, setPendingDocuments] = useState([]);
-  const [isLoadingDocs, setIsLoadingDocs] = useState(true);
-  const [showUserManagement, setShowUserManagement] = useState(false);
   const [showUsersSection, setShowUsersSection] = useState(false);
-  const [showDocumentArchive, setShowDocumentArchive] = useState(false);
+  const [showCoursesManagement, setShowCoursesManagement] = useState(false);
+  const [showPlatformsManagement, setShowPlatformsManagement] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSystemMonitoring, setShowSystemMonitoring] = useState(false);
   const [showApiManagement, setShowApiManagement] = useState(false);
   const [showApiKeysModal, setShowApiKeysModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [showWebhooksModal, setShowWebhooksModal] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
-  const [archivedDocuments, setArchivedDocuments] = useState([]);
-  const [isLoadingArchive, setIsLoadingArchive] = useState(false);
-  const [users, setUsers] = useState([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [systemMetrics, setSystemMetrics] = useState(null);
   const [systemHealth, setSystemHealth] = useState(null);
   const [systemLogs, setSystemLogs] = useState([]);
@@ -81,85 +75,9 @@ function AdminPanel({ user, onBack }: any) {
   }, [showSystemMonitoring]);
 
   // Функция для обновления статуса документа
-  const updateDocumentStatus = async (docId: string, status: string, reason?: string) => {
-    try {
-      const response = await fetch(`/api/documents/${docId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        },
-        body: JSON.stringify({
-          status,
-          changeReason: reason,
-          verificationNotes: status === 'verified' ? 'Утверждено администратором' : 'Отклонено администратором'
-        })
-      });
 
-      if (response.ok) {
-        // Обновляем список документов
-        setPendingDocuments(prev => prev.filter((doc: any) => doc.id !== docId));
-        return true;
-      } else {
-        console.error('Ошибка обновления статуса документа');
-        return false;
-      }
-    } catch (error) {
-      console.error('Ошибка при обновлении документа:', error);
-      return false;
-    }
-  };
-
-  // Функция для загрузки пользователей
-  const fetchUsers = async () => {
-    setIsLoadingUsers(true);
-    try {
-      const response = await fetch('/api/admin/users?page=1&limit=50', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users || []);
-      } else {
-        console.error('Ошибка загрузки пользователей:', response.status);
-      }
-    } catch (error) {
-      console.error('Ошибка при загрузке пользователей:', error);
-    } finally {
-      setIsLoadingUsers(false);
-    }
-  };
 
   // Функция для загрузки архивных документов
-  const fetchArchivedDocuments = async () => {
-    setIsLoadingArchive(true);
-    try {
-      const response = await fetch('/api/admin/documents/archived', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
-      if (response.ok) {
-        const docs = await response.json();
-        setArchivedDocuments(docs);
-      } else if (response.status === 403 || response.status === 401) {
-        // Токен истек - выходим из админ панели  
-        console.log('Токен истек, требуется повторная авторизация');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('currentUser');
-        onBack(); // Выходим из админ панели
-        return;
-      } else {
-        console.error('Ошибка загрузки архивных документов:', response.status);
-      }
-    } catch (error) {
-      console.error('Ошибка при загрузке архивных документов:', error);
-    } finally {
-      setIsLoadingArchive(false);
-    }
-  };
 
   // Функция для загрузки системных метрик (расширенная версия)
   const fetchSystemData = async () => {
@@ -306,23 +224,20 @@ function AdminPanel({ user, onBack }: any) {
         />
       )}
 
-      {showUserManagement && (
-        <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e9ecef', marginBottom: '20px' }}>
-          <h2 style={{ margin: '0 0 15px 0', color: '#333' }}>📖 Управление курсами</h2>
-          <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-            Компонент управления курсами (в разработке)
-          </div>
-        </div>
-      )}
+      <CoursesManagement 
+        isVisible={showCoursesManagement}
+        userRole={userRole}
+      />
 
-      {showDocumentArchive && (
-        <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e9ecef', marginBottom: '20px' }}>
-          <h2 style={{ margin: '0 0 15px 0', color: '#333' }}>🌐 Управление платформами</h2>
-          <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-            Компонент управления платформами (в разработке)
-          </div>
-        </div>
-      )}
+      <PlatformsManagement 
+        isVisible={showPlatformsManagement}
+        userRole={userRole}
+      />
+
+      <AnalyticsSection 
+        isVisible={showAnalytics}
+        userRole={userRole}
+      />
 
       {/* Системный мониторинг */}
       {showSystemMonitoring && (
@@ -393,10 +308,10 @@ function AdminPanel({ user, onBack }: any) {
           
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
             <button 
-              onClick={() => setShowUserManagement(!showUserManagement)}
+              onClick={() => setShowCoursesManagement(!showCoursesManagement)}
               style={{ 
                 padding: '15px 20px', 
-                backgroundColor: showUserManagement ? '#764ba2' : '#764ba2', 
+                backgroundColor: showCoursesManagement ? '#667eea' : '#764ba2', 
                 color: 'white', 
                 border: 'none', 
                 borderRadius: '8px',
@@ -405,16 +320,16 @@ function AdminPanel({ user, onBack }: any) {
                 fontWeight: '500'
               }}
             >
-              📖 {showUserManagement ? 'Скрыть курсы' : 'Курсы'}
+              📖 {showCoursesManagement ? 'Скрыть курсы' : 'Курсы'}
             </button>
           )}
           
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
             <button 
-              onClick={() => setShowDocumentArchive(!showDocumentArchive)}
+              onClick={() => setShowPlatformsManagement(!showPlatformsManagement)}
               style={{ 
                 padding: '15px 20px', 
-                backgroundColor: showDocumentArchive ? '#1abc9c' : '#1abc9c', 
+                backgroundColor: showPlatformsManagement ? '#667eea' : '#1abc9c', 
                 color: 'white', 
                 border: 'none', 
                 borderRadius: '8px',
@@ -423,7 +338,25 @@ function AdminPanel({ user, onBack }: any) {
                 fontWeight: '500'
               }}
             >
-              🌐 {showDocumentArchive ? 'Скрыть платформы' : 'Платформы'}
+              🌐 {showPlatformsManagement ? 'Скрыть платформы' : 'Платформы'}
+            </button>
+          )}
+
+          {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
+            <button 
+              onClick={() => setShowAnalytics(!showAnalytics)}
+              style={{ 
+                padding: '15px 20px', 
+                backgroundColor: showAnalytics ? '#667eea' : '#f39c12', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              📊 {showAnalytics ? 'Скрыть аналитику' : 'Аналитика'}
             </button>
           )}
           
