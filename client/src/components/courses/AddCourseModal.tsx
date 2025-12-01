@@ -241,16 +241,33 @@ export function AddCourseModal({
           {!isEditing && (
             <div className="space-y-2">
               <Label htmlFor="platform">Образовательная платформа *</Label>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowPlatformSelector(true)}
-                className="w-full justify-start text-left"
-              >
-                {formData.platformId
-                  ? platforms.find(p => p.id === formData.platformId)?.name || 'Выбрать платформу'
-                  : 'Выбрать платформу'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowPlatformSelector(true)}
+                  className="flex-1 justify-start text-left truncate"
+                >
+                  {formData.platformId && platforms.find(p => p.id === formData.platformId)
+                    ? platforms.find(p => p.id === formData.platformId)?.name
+                    : 'Выбрать платформу'}
+                </Button>
+                {formData.platformId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleChange('platformId', '')}
+                  >
+                    ✕
+                  </Button>
+                )}
+              </div>
+              {formData.platformId && (
+                <p className="text-xs text-green-600">
+                  ✓ Платформа выбрана: {platforms.find(p => p.id === formData.platformId)?.name}
+                </p>
+              )}
               {!formData.platformId && (
                 <p className="text-xs text-amber-600">
                   Выберите платформу, чтобы начать добавление курса
