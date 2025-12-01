@@ -79,7 +79,7 @@ The system is built with mobile portability in mind, adhering to the following p
       - Time range filtering (week/month/all time)
     - Deadline Management: DeadlinesPage with calendar and list view, date-fns with Russian locale
     - Notes Management: NotesPage with pinning, search, course filtering
-    - Platforms Catalog: PlatformsPage with 27 global educational platforms
+    - Platforms Catalog: PlatformsPage with 110+ educational platforms organized by 9 categories and 3 regions
     - Navigation: Sidebar with wouter routing, Dashboard with stats and quick actions
 -   **User Management**: Login/Registration, User settings, Profile page.
 -   **Admin Panel**: Basic structure for administrative tasks.
@@ -87,6 +87,48 @@ The system is built with mobile portability in mind, adhering to the following p
 
 ### Navigation Structure
 A unified navigation structure is planned for both web and mobile platforms, including routes for `/`, `/auth`, `/home`, `/courses`, `/deadlines`, `/notes`, `/analytics`, `/settings`, and `/admin-panel`.
+
+## Platform Categories & Regions
+
+### 9 Main Categories with Color Coding:
+- 🔵 **IT - General** (Coursera, edX, Udemy, Pluralsight, Udacity)
+- 🔵 **IT - Programming** (Codecademy, freeCodeCamp, SoloLearn, Treehouse, GeekBrains, Яндекс.Практикум, Lavush)
+- 🔵 **IT - Data Science** (DataCamp)
+- 🔴 **QA Testing** (LambdaTest, BrowserStack, Edureka, Test Automation University)
+- 🩷 **Art & Design** (Skillshare, Domestika, MasterClass, LinkedIn Learning, CreativeLive)
+- 🟣 **Music** (Berklee, Coursera Music, Noiselab, Splice Learning)
+- 🟢 **Kids Education** (Khan Academy, SplashLearn, IXL, Code.org, Prodigy, JetLearn, CodaKid, Фоксфорд, Максимум)
+- 🟡 **Language Learning** (Duolingo, Babbel, Busuu, italki, Preply, Memrise, Mondly, Lingoda, Rosetta Stone)
+- 🟣 **Professional** (Stepik, Skillbox, Нетология, MIT OCW, FutureLearn, YouTube Learning, Brilliant, Alison, OpenUNED)
+
+### 3 Regional Groups:
+1. **European Platforms** (10 platforms)
+   - Germany: Lecturio, iversity, Akademy.net
+   - France: Coursera France, France Education Platform
+   - Poland: Polska Moodle
+   - Netherlands: Learning Hub Netherlands
+   - UK: EdAssist
+   - Multi-EU: Open Education EU
+
+2. **Asian Platforms** (16 platforms)
+   - India: BYJU'S, Upgrad, Vedantu
+   - China: Zhihu Learning, Netease Cloud Classroom, Tencent Classroom
+   - Japan: Udemy Japan, Schoo, CodeCamp
+   - South Korea: Inflearn, FastCampus
+   - Southeast Asia: Coursera Singapore, Kickstart.id, Edukasyon.ph, Thai MOOC
+
+3. **Russian-Specific Platforms** (13 platforms)
+   - Schools: Фоксфорд, Максимум, Tutor Online
+   - Universities: ВШЭ Online, МФТИ Онлайн, LMS МГУ
+   - Tech: Яндекс.Практикум, Lavush, SkillBranch
+   - General: Skillbox, Нетология, Stepik, Лекториум, Универсариум, OpenCourses
+
+### Total Platform Statistics:
+- **Global Platforms**: 90+
+- **Regional Platforms**: 20+
+- **Russian-Specific Platforms**: 13
+- **Total Platforms**: 110+
+- **Supported Languages**: 50+ including English, Russian, Chinese, Japanese, Korean, German, French, Spanish, and more
 
 ## External Dependencies
 -   **PostgreSQL (Beget)**: Primary database.
