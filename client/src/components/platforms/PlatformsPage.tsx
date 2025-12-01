@@ -1259,7 +1259,7 @@ export function PlatformsPage() {
             {stats.total} платформ • {stats.connected} подключено • {stats.global} глобальных
           </p>
         </div>
-        <AddPlatformModal onPlatformAdded={fetchConnectedPlatforms} />
+        <AddPlatformModal onPlatformAdded={fetchCategoriesAndPlatforms} />
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">

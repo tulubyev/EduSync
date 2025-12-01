@@ -17,6 +17,14 @@
 - **Git commits**: Descriptive messages in English
 - **PR reviews**: Check mobile portability before merge
 
+## Recent Changes (Dec 1, 2025)
+- ✅ **Platform Categories Migration**: Added 9 database-driven categories (platform_categories table)
+- ✅ **Category API Endpoint**: GET /api/platforms/categories returns all categories with metadata
+- ✅ **PlatformsPage Integration**: Updated to fetch categories dynamically from API
+- ✅ **Platform Regions Schema**: Added platform_regions table for geographic organization (global, european, asian, russian)
+- ✅ **Scalability Improvement**: regionId foreign key added to platforms table for region-based filtering
+- ✅ **Bug Fix**: Fixed fetchConnectedPlatforms reference in AddPlatformModal callback
+
 ## System Architecture
 
 ### Core Principles for Mobile Portability
@@ -57,7 +65,10 @@ The system is built with mobile portability in mind, adhering to the following p
 
 ### Database (PostgreSQL)
 -   **Host**: Beget.com (`quoquuquosijo.beget.app:5432/myepa_db`)
--   **Core Tables**: `users`, `courses`, `platforms`, `deadlines`, `notes`, `sessions`.
+-   **Core Tables**: `users`, `courses`, `platforms`, `deadlines`, `notes`, `sessions`, `platform_categories`, `platform_regions`.
+-   **New Scalability Tables**:
+    - `platform_categories` (9 categories): IT-General, IT-Programming, IT-Data Science, QA-Testing, Art-Design, Music, Kids-Education, Language-Learning, Professional
+    - `platform_regions` (4 regions): Global, European, Asian, Russian with country/language metadata
 
 ### UI/UX Decisions
 -   **Branding**: EduSync-inspired design with a purple/blue gradient (`#667eea` → `#764ba2`) for the landing page.
@@ -80,10 +91,11 @@ The system is built with mobile portability in mind, adhering to the following p
     - Deadline Management: DeadlinesPage with calendar and list view, date-fns with Russian locale
     - Notes Management: NotesPage with pinning, search, course filtering
     - Platforms Catalog: PlatformsPage with 111 educational platforms (including TestPro.io, GeekBrains)
-      - **NEW**: 9 categories with color coding (IT-General, IT-Programming, IT-Data Science, QA Testing, Art & Design, Music, Kids Education, Language Learning, Professional)
-      - **NEW**: 3 regional groups (European, Asian, Russian-specific)
-      - **NEW**: Database table `platform_categories` with 9 categories populated
-      - Foreign key `categoryId` in platforms table for database-driven categorization
+      - ✅ **9 categories with color coding**: IT-General, IT-Programming, IT-Data Science, QA Testing, Art & Design, Music, Kids Education, Language Learning, Professional
+      - ✅ **Database-driven categories**: platform_categories table with color, icon, sort_order metadata
+      - ✅ **Category API Endpoint**: GET /api/platforms/categories returns all 9 categories with UI metadata
+      - ✅ **Regional organization**: platform_regions table (Global, European, Asian, Russian) with country/language support
+      - ✅ **Foreign keys**: categoryId and regionId in platforms table for scalable filtering
     - Navigation: Sidebar with wouter routing, Dashboard with stats and quick actions
 -   **User Management**: Login/Registration, User settings, Profile page.
 -   **Admin Panel**: Basic structure for administrative tasks.
