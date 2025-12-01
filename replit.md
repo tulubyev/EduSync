@@ -47,6 +47,12 @@ The UI/UX adheres to a clean, modern aesthetic provided by Shadcn UI, utilizing 
 - `GET /api/users/profile` - Get user profile
 - `POST /api/platforms/authorize` - Save encrypted platform credentials
 - `GET /api/platforms/:platformId/credentials` - Retrieve decrypted credentials
+- `GET /api/admin/users/detailed/all` - Get users list with courses/platforms/subscription data
+
+## Test Admin Accounts (Dec 1, 2025)
+- **Super Admin**: `admin@myepa.ru` / `admin123` → Full access to admin panel, all features
+- **Analytics Admin**: `analytics@myepa.ru` / `admin123` → Can view users section + analytics
+- Both accounts pre-verified with Full profile completion
 
 ## Architecture Notes
 - Desktop-first with responsive mobile design

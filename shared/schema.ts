@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url", { length: 500 }), // URL to profile image
   profileImage: text("profile_image"), // Base64 encoded WebP image
   role: varchar("role", { length: 20 }).default("user"), // user, admin
+  adminRole: varchar("admin_role", { length: 50 }), // super_admin, analytics_admin, devops_admin, etc.
   planType: varchar("plan_type", { length: 20 }).default("free"), // free, premium, pro
   isVerified: boolean("is_verified").default(false),
   isPhoneVerified: boolean("is_phone_verified").default(false),
