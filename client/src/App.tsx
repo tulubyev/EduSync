@@ -63,6 +63,16 @@ function App() {
     } else {
       setLoading(false);
     }
+
+    // Listen for user updates from SettingsPage and other components
+    const handleUserUpdate = (event: any) => {
+      if (event.detail) {
+        setCurrentUser(event.detail);
+      }
+    };
+
+    window.addEventListener('userUpdated', handleUserUpdate);
+    return () => window.removeEventListener('userUpdated', handleUserUpdate);
   }, []);
 
   const handleAuthSuccess = (user: any) => {

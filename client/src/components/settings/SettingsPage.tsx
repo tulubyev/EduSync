@@ -184,6 +184,11 @@ export function SettingsPage() {
         localStorage.setItem('currentUser', JSON.stringify(updatedProfileData));
       }
       
+      // Dispatch custom event to notify App component about user update
+      window.dispatchEvent(new CustomEvent('userUpdated', { 
+        detail: updatedProfileData 
+      }));
+      
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       setErrors(prev => ({
