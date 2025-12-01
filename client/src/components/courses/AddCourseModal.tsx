@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { PlatformSelector } from './PlatformSelector';
 
 interface CourseFormData {
   platformId: string;
@@ -85,6 +86,8 @@ export function AddCourseModal({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPlatformSelector, setShowPlatformSelector] = useState(false);
+  const [connectedPlatforms, setConnectedPlatforms] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (open) {
@@ -118,8 +121,27 @@ export function AddCourseModal({
         });
       }
       setErrors({});
+      fetchConnectedPlatforms();
     }
   }, [open, initialData]);
+
+  const fetchConnectedPlatforms = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/platforms/connected', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setConnectedPlatforms(new Set(data.map((p: any) => p.platformId)));
+      }
+    } catch (err) {
+      console.error('Error fetching connected platforms:', err);
+    }
+  };
 
   const handleChange = (field: keyof CourseFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -219,21 +241,16 @@ export function AddCourseModal({
           {!isEditing && (
             <div className="space-y-2">
               <Label htmlFor="platform">Образовательная платформа *</Label>
-              <Select 
-                value={formData.platformId} 
-                onValueChange={(value) => handleChange('platformId', value)}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowPlatformSelector(true)}
+                className="w-full justify-start text-left"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите платформу" />
-                </SelectTrigger>
-                <SelectContent>
-                  {platforms.map((platform) => (
-                    <SelectItem key={platform.id} value={platform.id}>
-                      {platform.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {formData.platformId
+                  ? platforms.find(p => p.id === formData.platformId)?.name || 'Выбрать платформу'
+                  : 'Выбрать платформу'}
+              </Button>
               {!formData.platformId && (
                 <p className="text-xs text-amber-600">
                   Выберите платформу, чтобы начать добавление курса
@@ -397,6 +414,13 @@ export function AddCourseModal({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <PlatformSelector
+        open={showPlatformSelector}
+        onClose={() => setShowPlatformSelector(false)}
+        onSelect={(platformId) => handleChange('platformId', platformId)}
+        connectedPlatforms={connectedPlatforms}
+      />
     </Dialog>
   );
 }
