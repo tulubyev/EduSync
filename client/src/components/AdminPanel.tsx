@@ -180,87 +180,95 @@ function AdminPanel({ user, onBack }: any) {
         <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>Быстрые действия</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <div style={{ fontSize: '12px', color: '#666', fontWeight: '500' }}>Пользователей: —</div>
-              <button 
-                onClick={() => setShowUsersSection(!showUsersSection)}
-                style={{ 
-                  padding: '15px 20px', 
-                  backgroundColor: showUsersSection ? '#667eea' : '#667eea', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}
-              >
-                👥 {showUsersSection ? 'Скрыть пользователей' : 'Пользователи'}
-              </button>
-            </div>
+            <button 
+              onClick={() => setShowUsersSection(!showUsersSection)}
+              style={{ 
+                padding: '15px 20px', 
+                backgroundColor: showUsersSection ? '#667eea' : '#667eea', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <span>👥 {showUsersSection ? 'Скрыть пользователей' : 'Пользователи'}</span>
+              <span style={{ fontSize: '11px', opacity: 0.8 }}>—</span>
+            </button>
           )}
           
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <div style={{ fontSize: '12px', color: '#666', fontWeight: '500' }}>Курсов: 111</div>
-              <button 
-                onClick={() => setShowCoursesManagement(!showCoursesManagement)}
-                style={{ 
-                  padding: '15px 20px', 
-                  backgroundColor: showCoursesManagement ? '#667eea' : '#764ba2', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}
-              >
-                📖 {showCoursesManagement ? 'Скрыть курсы' : 'Курсы'}
-              </button>
-            </div>
+            <button 
+              onClick={() => setShowCoursesManagement(!showCoursesManagement)}
+              style={{ 
+                padding: '15px 20px', 
+                backgroundColor: showCoursesManagement ? '#667eea' : '#764ba2', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <span>📖 {showCoursesManagement ? 'Скрыть курсы' : 'Курсы'}</span>
+              <span style={{ fontSize: '11px', opacity: 0.8 }}>111</span>
+            </button>
           )}
           
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <div style={{ fontSize: '12px', color: '#666', fontWeight: '500' }}>Платформ: 8+</div>
-              <button 
-                onClick={() => setShowPlatformsManagement(!showPlatformsManagement)}
-                style={{ 
-                  padding: '15px 20px', 
-                  backgroundColor: showPlatformsManagement ? '#667eea' : '#1abc9c', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}
-              >
-                🌐 {showPlatformsManagement ? 'Скрыть платформы' : 'Платформы'}
-              </button>
-            </div>
+            <button 
+              onClick={() => setShowPlatformsManagement(!showPlatformsManagement)}
+              style={{ 
+                padding: '15px 20px', 
+                backgroundColor: showPlatformsManagement ? '#667eea' : '#1abc9c', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <span>🌐 {showPlatformsManagement ? 'Скрыть платформы' : 'Платформы'}</span>
+              <span style={{ fontSize: '11px', opacity: 0.8 }}>8+</span>
+            </button>
           )}
 
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <div style={{ fontSize: '12px', color: '#666', fontWeight: '500' }}>Регионы: 4</div>
-              <button 
-                onClick={() => setShowAnalytics(!showAnalytics)}
-                style={{ 
-                  padding: '15px 20px', 
-                  backgroundColor: showAnalytics ? '#667eea' : '#f39c12', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}
-              >
-                📊 {showAnalytics ? 'Скрыть аналитику' : 'Аналитика'}
-              </button>
-            </div>
+            <button 
+              onClick={() => setShowAnalytics(!showAnalytics)}
+              style={{ 
+                padding: '15px 20px', 
+                backgroundColor: showAnalytics ? '#667eea' : '#f39c12', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <span>📊 {showAnalytics ? 'Скрыть аналитику' : 'Аналитика'}</span>
+              <span style={{ fontSize: '11px', opacity: 0.8 }}>4</span>
+            </button>
           )}
           
           {(userRole === 'super_admin' || userRole === 'devops_admin') && (
