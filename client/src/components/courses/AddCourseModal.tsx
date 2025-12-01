@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 
 interface CourseFormData {
+  platformId: string;
   title: string;
   description: string;
   instructor: string;
@@ -31,12 +32,19 @@ interface CourseFormData {
   tags: string;
 }
 
+interface Platform {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface AddCourseModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
   initialData?: Partial<CourseFormData>;
   isEditing?: boolean;
+  platforms?: Platform[];
 }
 
 const categories = [
@@ -58,9 +66,11 @@ export function AddCourseModal({
   onClose, 
   onSubmit, 
   initialData,
-  isEditing = false 
+  isEditing = false,
+  platforms = []
 }: AddCourseModalProps) {
   const [formData, setFormData] = useState<CourseFormData>({
+    platformId: '',
     title: '',
     description: '',
     instructor: '',
@@ -80,6 +90,7 @@ export function AddCourseModal({
     if (open) {
       if (initialData) {
         setFormData({
+          platformId: (initialData as any).platformId || '',
           title: initialData.title || '',
           description: initialData.description || '',
           instructor: initialData.instructor || '',
@@ -88,10 +99,12 @@ export function AddCourseModal({
           category: initialData.category || '',
           difficulty: initialData.difficulty || '',
           duration: initialData.duration || '',
+          cost: (initialData as any).cost || '',
           tags: initialData.tags || '',
         });
       } else {
         setFormData({
+          platformId: '',
           title: '',
           description: '',
           instructor: '',
@@ -158,6 +171,7 @@ export function AddCourseModal({
     
     try {
       const submitData = {
+        platformId: formData.platformId || undefined,
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
         instructor: formData.instructor.trim() || undefined,
@@ -173,6 +187,7 @@ export function AddCourseModal({
       await onSubmit(submitData);
       onClose();
       setFormData({
+        platformId: '',
         title: '',
         description: '',
         instructor: '',
@@ -201,6 +216,32 @@ export function AddCourseModal({
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
+          {!isEditing && (
+            <div className="space-y-2">
+              <Label htmlFor="platform">Образовательная платформа *</Label>
+              <Select 
+                value={formData.platformId} 
+                onValueChange={(value) => handleChange('platformId', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите платформу" />
+                </SelectTrigger>
+                <SelectContent>
+                  {platforms.map((platform) => (
+                    <SelectItem key={platform.id} value={platform.id}>
+                      {platform.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!formData.platformId && (
+                <p className="text-xs text-amber-600">
+                  Выберите платформу, чтобы начать добавление курса
+                </p>
+              )}
+            </div>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="title">Название курса *</Label>
             <Input

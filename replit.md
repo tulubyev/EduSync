@@ -66,6 +66,7 @@ The system is built with mobile portability in mind, adhering to the following p
 ### Feature Specifications
 -   **Core Functionality (IMPLEMENTED)**:
     - Course Management: CoursesPage, CourseCard, AddCourseModal (create/edit with useEffect sync)
+      - **NEW**: Platform selection when adding courses (first step in AddCourseModal)
       - **NEW**: Platform info displayed on course cards (platform name as badge)
       - **NEW**: Cost field for courses (free or specified price in ₽)
       - **NEW**: "Similar Courses" modal for comparing courses across platforms by category/difficulty

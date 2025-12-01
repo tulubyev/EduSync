@@ -379,6 +379,7 @@ export function CoursesPage() {
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleAddCourse}
+        platforms={Object.values(platforms)}
       />
 
       <AddCourseModal
