@@ -56,11 +56,29 @@ export const platforms = pgTable("platforms", {
   logoUrl: varchar("logo_url", { length: 500 }),
   websiteUrl: varchar("website_url", { length: 500 }),
   apiType: varchar("api_type", { length: 20 }), // oauth, api_key, manual
+  categoryId: uuid("category_id").references(() => platformCategories.id),
   isActive: boolean("is_active").default(true),
   color: varchar("color", { length: 7 }), // hex color for UI
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   codeIdx: index("platforms_code_idx").on(table.code),
+  categoryIdx: index("platforms_category_idx").on(table.categoryId),
+}));
+
+// Platform Categories table - Categorize platforms
+export const platformCategories = pgTable("platform_categories", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code", { length: 50 }).notNull().unique(), // it-general, qatesting, art-design, etc.
+  name: varchar("name", { length: 100 }).notNull(),
+  displayName: varchar("display_name", { length: 100 }).notNull(),
+  description: text("description"),
+  color: varchar("color", { length: 7 }).notNull(), // hex color for UI
+  icon: varchar("icon", { length: 100 }), // emoji or icon name
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  codeIdx: index("platform_categories_code_idx").on(table.code),
+  sortIdx: index("platform_categories_sort_idx").on(table.sortOrder),
 }));
 
 // Platform Connections table - User connections to platforms
@@ -225,9 +243,14 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, { fields: [sessions.userId], references: [users.id] }),
 }));
 
-export const platformsRelations = relations(platforms, ({ many }) => ({
+export const platformsRelations = relations(platforms, ({ many, one }) => ({
   connections: many(platformConnections),
   courses: many(courses),
+  category: one(platformCategories, { fields: [platforms.categoryId], references: [platformCategories.id] }),
+}));
+
+export const platformCategoriesRelations = relations(platformCategories, ({ many }) => ({
+  platforms: many(platforms),
 }));
 
 export const platformConnectionsRelations = relations(platformConnections, ({ one }) => ({

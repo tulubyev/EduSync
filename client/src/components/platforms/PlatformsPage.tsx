@@ -211,6 +211,18 @@ const globalPlatforms: Platform[] = [
     isGlobal: true,
     supportedLanguages: ['en'],
   },
+  {
+    id: 'testpro-io',
+    name: 'testpro-io',
+    displayName: 'TestPro.io',
+    websiteUrl: 'https://testpro.io',
+    logoUrl: 'https://testpro.io/favicon.ico',
+    description: 'Автоматизированное тестирование: Selenium, webdriverio',
+    category: 'QA Testing',
+    authType: 'oauth',
+    isGlobal: true,
+    supportedLanguages: ['en', 'ru'],
+  },
 
   // ===== ART & DESIGN =====
   {
