@@ -1140,11 +1140,21 @@ interface PlatformCategory {
   sortOrder: number;
 }
 
+interface Region {
+  id: string;
+  code: string;
+  displayName: string;
+  color: string;
+}
+
 export function PlatformsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedRegion, setSelectedRegion] = useState<string>('all');
   const [connectedPlatforms, setConnectedPlatforms] = useState<Set<string>>(new Set());
   const [categories, setCategories] = useState<PlatformCategory[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [dbPlatforms, setDbPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1158,6 +1168,20 @@ export function PlatformsPage() {
       if (catResponse.ok) {
         const catData = await catResponse.json();
         setCategories(catData);
+      }
+      
+      // Fetch regions from API
+      const regResponse = await fetch('/api/platforms/regions');
+      if (regResponse.ok) {
+        const regData = await regResponse.json();
+        setRegions(regData);
+      }
+      
+      // Fetch all platforms from API
+      const platResponse = await fetch('/api/platforms');
+      if (platResponse.ok) {
+        const platData = await platResponse.json();
+        setDbPlatforms(platData);
       }
       
       // Fetch connected platforms
@@ -1209,14 +1233,18 @@ export function PlatformsPage() {
     }
   };
 
-  const filteredPlatforms = globalPlatforms
+  // Use dbPlatforms if available, otherwise fallback to globalPlatforms
+  const platformsToUse = dbPlatforms.length > 0 ? dbPlatforms : globalPlatforms;
+  
+  const filteredPlatforms = platformsToUse
     .filter(p => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
-          p.displayName.toLowerCase().includes(query) ||
+          p.displayName?.toLowerCase().includes(query) ||
+          p.name?.toLowerCase().includes(query) ||
           p.description?.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query)
+          p.category?.toLowerCase().includes(query)
         );
       }
       return true;
@@ -1224,19 +1252,22 @@ export function PlatformsPage() {
     .filter(p => {
       if (selectedCategory === 'all') return true;
       if (selectedCategory === 'connected') return connectedPlatforms.has(p.id);
-      if (selectedCategory === 'russian') return !p.isGlobal;
       return p.category === selectedCategory;
+    })
+    .filter(p => {
+      if (selectedRegion === 'all') return true;
+      return p.region === selectedRegion || (p.regionId && p.regionId === selectedRegion);
     });
 
   const dbCategories = categories.length > 0 
     ? categories.map(c => c.displayName)
-    : Array.from(new Set(globalPlatforms.map(p => p.category)));
+    : Array.from(new Set(platformsToUse.map(p => p.category).filter(Boolean)));
 
   const stats = {
-    total: globalPlatforms.length,
+    total: platformsToUse.length,
     connected: connectedPlatforms.size,
-    global: globalPlatforms.filter(p => p.isGlobal).length,
-    russian: globalPlatforms.filter(p => !p.isGlobal).length,
+    global: platformsToUse.filter(p => p.isGlobal).length,
+    russian: platformsToUse.filter(p => !p.isGlobal).length,
   };
 
   if (loading) {
@@ -1274,38 +1305,58 @@ export function PlatformsPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-        <Button
-          variant={selectedCategory === 'all' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setSelectedCategory('all')}
-        >
-          Все ({stats.total})
-        </Button>
-        <Button
-          variant={selectedCategory === 'connected' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setSelectedCategory('connected')}
-        >
-          Подключённые ({stats.connected})
-        </Button>
-        <Button
-          variant={selectedCategory === 'russian' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setSelectedCategory('russian')}
-        >
-          🇷🇺 Российские ({stats.russian})
-        </Button>
-        {dbCategories.map((cat) => (
+      <div className="mb-4">
+        <p className="text-sm font-medium text-muted-foreground mb-2">Регионы:</p>
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           <Button
-            key={cat}
-            variant={selectedCategory === cat ? 'default' : 'outline'}
+            variant={selectedRegion === 'all' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setSelectedCategory(cat)}
+            onClick={() => setSelectedRegion('all')}
           >
-            {cat}
+            Все регионы
           </Button>
-        ))}
+          {regions.map((reg) => (
+            <Button
+              key={reg.id}
+              variant={selectedRegion === reg.id ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectedRegion(reg.id)}
+              style={selectedRegion === reg.id ? { backgroundColor: reg.color } : {}}
+            >
+              {reg.displayName}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <p className="text-sm font-medium text-muted-foreground mb-2">Категории:</p>
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          <Button
+            variant={selectedCategory === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSelectedCategory('all')}
+          >
+            Все ({stats.total})
+          </Button>
+          <Button
+            variant={selectedCategory === 'connected' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSelectedCategory('connected')}
+          >
+            Подключённые ({stats.connected})
+          </Button>
+          {dbCategories.map((cat) => (
+            <Button
+              key={cat}
+              variant={selectedCategory === cat ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectedCategory(cat)}
+            >
+              {cat}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {filteredPlatforms.length === 0 ? (
@@ -1320,6 +1371,10 @@ export function PlatformsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredPlatforms.map((platform) => {
             const isConnected = connectedPlatforms.has(platform.id);
+            const categoryId = platform.categoryId || (platform as any).category;
+            const categoryObj = categories.find(c => c.id === categoryId);
+            const categoryName = categoryObj?.displayName || platform.category || 'Other';
+            const displayName = platform.displayName || platform.name || 'Unknown';
             
             return (
               <Card key={platform.id} className="hover:shadow-md transition-shadow">
@@ -1329,7 +1384,7 @@ export function PlatformsPage() {
                       {platform.logoUrl ? (
                         <img 
                           src={platform.logoUrl} 
-                          alt={platform.displayName}
+                          alt={displayName}
                           className="w-8 h-8 object-contain"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
@@ -1341,39 +1396,23 @@ export function PlatformsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-base flex items-center gap-2">
-                        {platform.displayName}
+                        {displayName}
                         {isConnected && (
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         )}
                       </CardTitle>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        <Badge className={categoryColors[platform.category] || 'bg-gray-100'}>
-                          {platform.category}
+                        <Badge className={categoryColors[categoryName] || 'bg-gray-100'}>
+                          {categoryName}
                         </Badge>
-                        {!platform.isGlobal && (
-                          <Badge variant="outline">🇷🇺</Badge>
-                        )}
                       </div>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <CardDescription className="mb-3 line-clamp-2">
-                    {platform.description}
+                    {platform.description || 'Образовательная платформа'}
                   </CardDescription>
-                  
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {platform.supportedLanguages.slice(0, 5).map((lang) => (
-                      <Badge key={lang} variant="secondary" className="text-xs">
-                        {lang.toUpperCase()}
-                      </Badge>
-                    ))}
-                    {platform.supportedLanguages.length > 5 && (
-                      <Badge variant="secondary" className="text-xs">
-                        +{platform.supportedLanguages.length - 5}
-                      </Badge>
-                    )}
-                  </div>
                   
                   <div className="flex gap-2">
                     {isConnected ? (

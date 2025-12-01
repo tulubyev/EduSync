@@ -280,3 +280,29 @@ function getDescription(code: string): string {
 }
 
 export default router;
+
+router.get('/regions', async (req, res: Response) => {
+  try {
+    const regions = [
+      { id: 'e5e2301c-04a2-44c7-a1ab-cd193df86b93', code: 'global', displayName: 'Global', color: '#3B82F6' },
+      { id: 'b842ceb7-eb25-47bc-89c8-cd24027b568d', code: 'european', displayName: 'European', color: '#10B981' },
+      { id: '82a10db3-2978-4a7b-89a1-5db7c03d1e33', code: 'asian', displayName: 'Asian', color: '#F59E0B' },
+      { id: 'ccbca2ab-a637-4d00-8f14-87f73205d82c', code: 'russian', displayName: 'Russian', color: '#EF4444' },
+    ];
+    res.json(regions);
+  } catch (error) {
+    console.error('Error fetching regions:', error);
+    res.status(500).json({ message: 'Ошибка получения регионов' });
+  }
+});
+
+router.get('/by-region/:regionId', async (req, res: Response) => {
+  try {
+    const { regionId } = req.params;
+    const platforms = await storage.getPlatformsByRegion(regionId);
+    res.json(platforms || []);
+  } catch (error) {
+    console.error('Error fetching platforms by region:', error);
+    res.status(500).json({ message: 'Ошибка получения платформ по регионам' });
+  }
+});

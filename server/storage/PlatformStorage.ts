@@ -13,6 +13,10 @@ export class PlatformStorage implements IPlatformStorage {
     return platform || undefined;
   }
 
+  async getPlatformsByRegion(regionId: string): Promise<Platform[]> {
+    return await db.select().from(platforms).where(eq(platforms.regionId, regionId));
+  }
+
   async createPlatform(platform: InsertPlatform): Promise<Platform> {
     const [newPlatform] = await db.insert(platforms).values(platform).returning();
     return newPlatform;
