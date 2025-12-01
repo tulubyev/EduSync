@@ -224,7 +224,8 @@ const globalPlatforms: Platform[] = [
     supportedLanguages: ['en', 'ru'],
   },
 
-  // ===== ART & DESIGN =====
+  // Category mapping helper
+  // (After migration: platforms will have categoryId in database)
   {
     id: 'skillshare',
     name: 'skillshare',
@@ -1129,35 +1130,55 @@ const categoryColors: Record<string, string> = {
   'Professional': 'bg-indigo-500 text-white',
 };
 
+interface PlatformCategory {
+  id: string;
+  code: string;
+  name: string;
+  displayName: string;
+  color: string;
+  icon: string;
+  sortOrder: number;
+}
+
 export function PlatformsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [connectedPlatforms, setConnectedPlatforms] = useState<Set<string>>(new Set());
+  const [categories, setCategories] = useState<PlatformCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchConnectedPlatforms();
+    fetchCategoriesAndPlatforms();
   }, []);
 
-  const fetchConnectedPlatforms = async () => {
+  const fetchCategoriesAndPlatforms = async () => {
     try {
+      // Fetch categories from API
+      const catResponse = await fetch('/api/platforms/categories');
+      if (catResponse.ok) {
+        const catData = await catResponse.json();
+        setCategories(catData);
+      }
+      
+      // Fetch connected platforms
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/platforms/connected', {
+      const connResponse = await fetch('/api/platforms/connected', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
       
-      if (response.ok) {
-        const data = await response.json();
+      if (connResponse.ok) {
+        const data = await connResponse.json();
         setConnectedPlatforms(new Set(data.map((p: any) => p.platformId)));
       }
     } catch (err) {
-      console.error('Error fetching connected platforms:', err);
+      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleConnect = async (platform: Platform) => {
     if (platform.authType === 'none') {
@@ -1207,7 +1228,9 @@ export function PlatformsPage() {
       return p.category === selectedCategory;
     });
 
-  const categories = Array.from(new Set(globalPlatforms.map(p => p.category)));
+  const dbCategories = categories.length > 0 
+    ? categories.map(c => c.displayName)
+    : Array.from(new Set(globalPlatforms.map(p => p.category)));
 
   const stats = {
     total: globalPlatforms.length,
@@ -1273,7 +1296,7 @@ export function PlatformsPage() {
         >
           🇷🇺 Российские ({stats.russian})
         </Button>
-        {categories.map((cat) => (
+        {dbCategories.map((cat) => (
           <Button
             key={cat}
             variant={selectedCategory === cat ? 'default' : 'outline'}

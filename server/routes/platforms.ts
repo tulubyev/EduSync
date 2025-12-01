@@ -99,6 +99,18 @@ router.get('/by-region', async (req, res: Response) => {
   }
 });
 
+router.get('/categories', async (req, res: Response) => {
+  try {
+    const categories = await storage.query(
+      `SELECT id, code, name, display_name, description, color, icon, sort_order FROM platform_categories ORDER BY sort_order`
+    );
+    res.json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ message: 'Ошибка получения категорий' });
+  }
+});
+
 router.get('/by-language/:lang', async (req, res: Response) => {
   try {
     const { lang } = req.params;
