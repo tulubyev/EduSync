@@ -519,4 +519,43 @@ adminRouter.get('/roles', authenticateToken, requireAdmin, async (req: Authentic
   }
 });
 
+// Get users with detailed info (courses, platforms, subscription)
+adminRouter.get('/users/detailed/all', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { page = 1, limit = 50, search = '' } = req.query;
+    const users = await storage.getAllUsers(Number(page), Number(limit), search as string);
+    
+    // Enrich users with additional info
+    const enrichedUsers = users.users?.map((user: any) => ({
+      ...user,
+      subscription: user.subscriptionPlan || 'free',
+      connectedPlatforms: user.platformConnections?.length || 0,
+      enrolledCourses: user.enrolledCourses?.length || 0,
+      joinedDate: user.createdAt,
+      profileComplete: user.firstName && user.lastName && user.email ? true : false
+    })) || [];
+
+    await logAdminAction(
+      req.user!.id, 
+      'users_detailed_list_viewed', 
+      'admin_panel', 
+      undefined, 
+      { page, limit, search, count: enrichedUsers.length }, 
+      req
+    );
+    
+    res.json({
+      users: enrichedUsers,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total: users.total || enrichedUsers.length
+      }
+    });
+  } catch (error) {
+    console.error('Ошибка получения подробного списка пользователей:', error);
+    res.status(500).json({ message: 'Ошибка получения подробного списка пользователей' });
+  }
+});
+
 export default adminRouter;

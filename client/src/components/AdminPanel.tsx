@@ -9,12 +9,14 @@ import { UserManagement } from './admin/UserManagement';
 import { DocumentArchive } from './admin/DocumentArchive';
 import { SystemMonitoring } from './admin/SystemMonitoring';
 import { ApiManagement } from './admin/ApiManagement';
+import { UsersSection } from './admin/UsersSection';
 
 // AdminPanel component for administrators
 function AdminPanel({ user, onBack }: any) {
   const [pendingDocuments, setPendingDocuments] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showUsersSection, setShowUsersSection] = useState(false);
   const [showDocumentArchive, setShowDocumentArchive] = useState(false);
   const [showSystemMonitoring, setShowSystemMonitoring] = useState(false);
   const [showApiManagement, setShowApiManagement] = useState(false);
@@ -286,6 +288,14 @@ function AdminPanel({ user, onBack }: any) {
         onUpdateStatus={updateDocumentStatus}
       />
 
+      {showUsersSection && (
+        <UsersSection 
+          isVisible={true}
+          userRole={userRole}
+          isLoading={isLoadingUsers}
+        />
+      )}
+
       {showUserManagement && (
         <UserManagement 
           isVisible={true}
@@ -352,6 +362,24 @@ function AdminPanel({ user, onBack }: any) {
 
         <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>Быстрые действия</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+          {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
+            <button 
+              onClick={() => setShowUsersSection(!showUsersSection)}
+              style={{ 
+                padding: '15px 20px', 
+                backgroundColor: showUsersSection ? '#007bff' : '#1abc9c', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              👥 {showUsersSection ? 'Скрыть пользователей' : 'Пользователи'}
+            </button>
+          )}
+          
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
             <button 
               onClick={() => {
