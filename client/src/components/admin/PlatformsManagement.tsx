@@ -10,8 +10,6 @@ export function PlatformsManagement({ isVisible, userRole }: PlatformsManagement
   const [platforms, setPlatforms] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  if (!isVisible) return null;
-
   useEffect(() => {
     const fetchPlatforms = async () => {
       setIsLoading(true);
@@ -33,6 +31,8 @@ export function PlatformsManagement({ isVisible, userRole }: PlatformsManagement
     };
     fetchPlatforms();
   }, []);
+
+  if (!isVisible) return null;
 
   return (
     <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e9ecef', marginBottom: '20px' }}>

@@ -10,8 +10,6 @@ export function CoursesManagement({ isVisible, userRole }: CoursesManagementProp
   const [coursesCount, setCoursesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  if (!isVisible) return null;
-
   useEffect(() => {
     const fetchCourses = async () => {
       setIsLoading(true);
@@ -34,6 +32,8 @@ export function CoursesManagement({ isVisible, userRole }: CoursesManagementProp
     };
     fetchCourses();
   }, []);
+
+  if (!isVisible) return null;
 
   return (
     <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e9ecef', marginBottom: '20px' }}>
