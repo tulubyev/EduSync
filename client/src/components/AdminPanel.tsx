@@ -32,38 +32,6 @@ function AdminPanel({ user, onBack }: any) {
   const [realTimeMetrics, setRealTimeMetrics] = useState(null);
   const [lastUpdateTime, setLastUpdateTime] = useState(new Date());
   
-  // Загружаем документы на модерацию
-  useEffect(() => {
-    const fetchPendingDocuments = async () => {
-      try {
-        const response = await fetch('/api/admin/documents/pending', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-          }
-        });
-        if (response.ok) {
-          const docs = await response.json();
-          setPendingDocuments(docs);
-        } else if (response.status === 403 || response.status === 401) {
-          // Токен истек - выходим из админ панели
-          console.log('Токен истек, требуется повторная авторизация');
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('currentUser');
-          onBack(); // Выходим из админ панели
-          return; // Прерываем выполнение
-        }
-      } catch (error) {
-        console.error('Ошибка загрузки документов на модерацию:', error);
-      } finally {
-        setIsLoadingDocs(false);
-      }
-    };
-
-    fetchPendingDocuments();
-    // Обновляем каждые 30 секунд
-    const interval = setInterval(fetchPendingDocuments, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Автоматическое обновление системного мониторинга (аккуратно добавляем)
   useEffect(() => {
@@ -220,7 +188,6 @@ function AdminPanel({ user, onBack }: any) {
         <UsersSection 
           isVisible={true}
           userRole={userRole}
-          isLoading={isLoadingUsers}
         />
       )}
 
