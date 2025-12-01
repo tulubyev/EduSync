@@ -79,7 +79,11 @@ The system is built with mobile portability in mind, adhering to the following p
       - Time range filtering (week/month/all time)
     - Deadline Management: DeadlinesPage with calendar and list view, date-fns with Russian locale
     - Notes Management: NotesPage with pinning, search, course filtering
-    - Platforms Catalog: PlatformsPage with 110+ educational platforms organized by 9 categories and 3 regions
+    - Platforms Catalog: PlatformsPage with 111 educational platforms (including TestPro.io, GeekBrains)
+      - **NEW**: 9 categories with color coding (IT-General, IT-Programming, IT-Data Science, QA Testing, Art & Design, Music, Kids Education, Language Learning, Professional)
+      - **NEW**: 3 regional groups (European, Asian, Russian-specific)
+      - **NEW**: Database table `platform_categories` with 9 categories populated
+      - Foreign key `categoryId` in platforms table for database-driven categorization
     - Navigation: Sidebar with wouter routing, Dashboard with stats and quick actions
 -   **User Management**: Login/Registration, User settings, Profile page.
 -   **Admin Panel**: Basic structure for administrative tasks.
