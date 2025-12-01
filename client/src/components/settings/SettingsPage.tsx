@@ -260,40 +260,50 @@ export function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Photo Upload */}
-          <div>
-            <label className="block text-sm font-semibold mb-3">Фото профиля</label>
-            <div
-              className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-purple-400 transition-colors"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-            >
+          {/* Photo Upload - Two Column Layout */}
+          <div className="grid grid-cols-3 gap-6">
+            {/* Left - Current Photo */}
+            <div className="col-span-1 flex flex-col items-center">
+              <label className="block text-sm font-semibold mb-3 text-center">Текущее фото</label>
               {photoPreview ? (
-                <div className="space-y-3">
-                  <img
-                    src={photoPreview}
-                    alt="Preview"
-                    className="h-32 w-32 rounded-full mx-auto object-cover"
-                  />
-                  <p className="text-sm text-muted-foreground">Перетащите новое фото или нажмите для изменения</p>
-                </div>
+                <img
+                  src={photoPreview}
+                  alt="Current Profile"
+                  className="w-full rounded-lg object-cover shadow-md border-2 border-purple-100"
+                />
               ) : (
-                <div className="space-y-2">
-                  <Upload className="h-8 w-8 mx-auto text-gray-400" />
-                  <p className="text-sm font-medium">Перетащите фото сюда или нажмите для выбора</p>
-                  <p className="text-xs text-muted-foreground">PNG, JPG, GIF до 5MB</p>
+                <div className="w-full aspect-square rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                  <div className="text-center">
+                    <User className="h-12 w-12 mx-auto text-gray-300 mb-2" />
+                    <p className="text-xs text-gray-500">Нет фото</p>
+                  </div>
                 </div>
               )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePhotoUpload}
-              />
             </div>
-            {errors.photo && <p className="text-sm text-red-600 mt-2">{errors.photo}</p>}
+
+            {/* Right - Upload Zone (2/3 width) */}
+            <div className="col-span-2 flex flex-col">
+              <label className="block text-sm font-semibold mb-3">Загрузить новое фото</label>
+              <div
+                className="flex-1 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-purple-400 transition-colors flex flex-col items-center justify-center"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-10 w-10 mx-auto text-gray-400 mb-2" />
+                <p className="text-sm font-medium">Перетащите фото сюда</p>
+                <p className="text-xs text-muted-foreground mt-1">или нажмите для выбора</p>
+                <p className="text-xs text-gray-500 mt-2">PNG, JPG, GIF до 5MB</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
+              </div>
+              {errors.photo && <p className="text-sm text-red-600 mt-2">{errors.photo}</p>}
+            </div>
           </div>
 
           {/* Form Fields */}

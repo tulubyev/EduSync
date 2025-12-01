@@ -23,3 +23,27 @@ The UI/UX adheres to a clean, modern aesthetic provided by Shadcn UI, utilizing 
 - **Internal REST API Endpoints**:
     - `/api/users/profile`: For fetching and updating user profile data.
     - `/api/users/profile/photo`: For uploading and updating the user's profile picture.
+## Implemented UI Components (Dec 1, 2025)
+- **SettingsPage**: Two-column photo layout (current photo left 1/3, upload zone right 2/3)
+- **Sidebar Avatar**: Profile photo display (or initials fallback) with user info
+- **Analytics Responsive Grid**: Mobile-first (1 col) → Tablet (2-3 cols) → Desktop (5 cols)
+- **Platform Authorization Modal**: Username/password + API key support with encryption
+
+## Data Storage Strategy
+- **Profile Photos**: Saved as WebP on filesystem (`/public/uploads/profiles/`), URL stored in DB
+- **User Credentials**: AES-256-GCM encrypted, stored in platformConnections table
+- **localStorage**: Only stores compact data (URLs, text), not large binary data
+- **Database**: PostgreSQL with Drizzle ORM, migrations via `npm run db:push`
+
+## API Endpoints Summary
+- `POST /api/users/profile` - Update profile (email, phone, name)
+- `POST /api/users/profile/photo` - Upload and process photo
+- `GET /api/users/profile` - Get user profile
+- `POST /api/platforms/authorize` - Save encrypted platform credentials
+- `GET /api/platforms/:platformId/credentials` - Retrieve decrypted credentials
+
+## Architecture Notes
+- Desktop-first with responsive mobile design
+- API-first architecture for web + mobile compatibility
+- No direct database access from frontend (all via REST API)
+- Security: AES-256-GCM encryption, Scrypt key derivation, rate limiting, Helmet middleware
