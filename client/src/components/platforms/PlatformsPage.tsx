@@ -1158,10 +1158,20 @@ export function PlatformsPage() {
   const [dbPlatforms, setDbPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
+  const [platformInfo, setPlatformInfo] = useState<any>(null);
 
   useEffect(() => {
     fetchCategoriesAndPlatforms();
   }, []);
+
+  useEffect(() => {
+    if (selectedPlatform) {
+      fetch(`/api/platforms/${selectedPlatform.id}/extended`)
+        .then(res => res.json())
+        .then(data => setPlatformInfo(data))
+        .catch(err => console.error('Error fetching extended info:', err));
+    }
+  }, [selectedPlatform]);
 
   const fetchCategoriesAndPlatforms = async () => {
     try {
@@ -1459,7 +1469,7 @@ export function PlatformsPage() {
 
       {selectedPlatform && (
         <Dialog open={!!selectedPlatform} onOpenChange={() => setSelectedPlatform(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-96 overflow-y-auto">
             <div className="flex items-start gap-4">
               <div className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                 {selectedPlatform.logoUrl ? (
@@ -1485,6 +1495,35 @@ export function PlatformsPage() {
                     </Badge>
                   )}
                 </div>
+
+                {platformInfo?.supportedLanguages && (
+                  <div className="mb-3">
+                    <p className="text-sm font-medium mb-1">Языки поддержки:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {platformInfo.supportedLanguages.map((lang: string) => (
+                        <Badge key={lang} variant="secondary" className="text-xs">{lang}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {platformInfo?.keyFeatures && (
+                  <div className="mb-3">
+                    <p className="text-sm font-medium mb-1">Основные возможности:</p>
+                    <ul className="text-sm list-disc list-inside">
+                      {platformInfo.keyFeatures.map((feature: string) => (
+                        <li key={feature} className="text-muted-foreground">{feature}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {platformInfo?.bestFor && (
+                  <div className="mb-3 p-2 bg-blue-50 rounded">
+                    <p className="text-sm"><strong>Для кого:</strong> {platformInfo.bestFor}</p>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   {connectedPlatforms.has(selectedPlatform.id) ? (
                     <Button disabled>

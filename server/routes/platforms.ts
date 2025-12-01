@@ -172,6 +172,23 @@ router.get('/connected', async (req, res: Response) => {
   }
 });
 
+router.get('/:id/extended', async (req, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { platformInfoService } = await import('../services/PlatformInfoService');
+    const platformInfo = await platformInfoService.getPlatformInfo(id);
+    
+    if (!platformInfo) {
+      return res.status(404).json({ message: 'Платформа не найдена' });
+    }
+    
+    res.json(platformInfo);
+  } catch (error) {
+    console.error('Error fetching platform info:', error);
+    res.status(500).json({ message: 'Ошибка получения информации о платформе' });
+  }
+});
+
 router.get('/:id', async (req, res: Response) => {
   try {
     const { id } = req.params;
