@@ -49,7 +49,22 @@ The UI/UX adheres to a clean, modern aesthetic provided by Shadcn UI, utilizing 
 - `GET /api/platforms/:platformId/credentials` - Retrieve decrypted credentials
 - `GET /api/admin/users/detailed/all` - Get users list with courses/platforms/subscription data
 
-## Admin Panel (Dec 1, 2025 - My EPA Edition)
+## 🧹 **Очистка финансовых остатков (Dec 1, 2025 - FINAL):**
+- ✅ Удалены финансовые dashboard компоненты (ConnectedBanks, RecentTransactions, SavingsGoals, SpendingChart, StatsCards, AIAssistant)
+- ✅ Удалены документ-компоненты (DocumentArchive, PendingDocumentsList)
+- ✅ Удалены системные компоненты (AdminDashboardStats, UserManagement, SystemMonitoring)
+- ✅ Удалены финансовые API (bankAPI, transactionAPI, dashboardAPI, accountAPI, budgetAPI, savingsAPI)
+- ✅ Очищена папка dashboard (удалена полностью)
+- ✅ Обновлена AdminPanel.tsx - удаален импорт SystemMonitoring и вся связанная логика
+
+**Что осталось актуального для My EPA:**
+- ✅ UsersSection - управление пользователями
+- ✅ AnalyticsSection - аналитика курсов/платформ
+- ✅ CoursesManagement - управление курсами
+- ✅ PlatformsManagement - управление платформами
+- ✅ ApiManagement - управление API
+
+## Admin Panel (Dec 1, 2025 - My EPA Edition - CLEANED)
 **Адаптирована с FinTrack на My EPA** - полностью переработана для платформы
 
 **Разделы для Super Admin & Analytics Admin:**

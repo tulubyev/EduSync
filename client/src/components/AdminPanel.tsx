@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ApiKeysModal } from './modals/ApiKeysModal';
 import { SyncModal } from './modals/SyncModal'; 
 import { WebhooksModal } from './modals/WebhooksModal';
 import { SecurityModal } from './modals/SecurityModal';
-import { SystemMonitoring } from './admin/SystemMonitoring';
 import { ApiManagement } from './admin/ApiManagement';
 import { UsersSection } from './admin/UsersSection';
 import { CoursesManagement } from './admin/CoursesManagement';
@@ -16,94 +15,11 @@ function AdminPanel({ user, onBack }: any) {
   const [showCoursesManagement, setShowCoursesManagement] = useState(false);
   const [showPlatformsManagement, setShowPlatformsManagement] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showSystemMonitoring, setShowSystemMonitoring] = useState(false);
   const [showApiManagement, setShowApiManagement] = useState(false);
   const [showApiKeysModal, setShowApiKeysModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [showWebhooksModal, setShowWebhooksModal] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
-  const [systemMetrics, setSystemMetrics] = useState(null);
-  const [systemHealth, setSystemHealth] = useState(null);
-  const [systemLogs, setSystemLogs] = useState([]);
-  const [isLoadingSystem, setIsLoadingSystem] = useState(false);
-  
-  // Новые состояния для продвинутого мониторинга (аккуратно добавляем)
-  const [systemAlerts, setSystemAlerts] = useState(null);
-  const [realTimeMetrics, setRealTimeMetrics] = useState(null);
-  const [lastUpdateTime, setLastUpdateTime] = useState(new Date());
-  
-
-  // Автоматическое обновление системного мониторинга (аккуратно добавляем)
-  useEffect(() => {
-    if (showSystemMonitoring) {
-      // Обновляем каждые 10 секунд при открытом мониторинге
-      const interval = setInterval(fetchSystemData, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [showSystemMonitoring]);
-
-  // Функция для обновления статуса документа
-
-
-  // Функция для загрузки архивных документов
-
-  // Функция для загрузки системных метрик (расширенная версия)
-  const fetchSystemData = async () => {
-    setIsLoadingSystem(true);
-    try {
-      const [metricsResponse, healthResponse, logsResponse, alertsResponse, realtimeResponse] = await Promise.all([
-        fetch('/api/admin/system/metrics', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-        }),
-        fetch('/api/admin/system/health', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-        }),
-        fetch('/api/admin/system/logs?limit=50', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-        }),
-        // Новые endpoints для продвинутого мониторинга
-        fetch('/api/admin/monitoring/alerts', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-        }),
-        fetch('/api/admin/monitoring/realtime', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-        })
-      ]);
-
-      // Существующие данные (сохраняем совместимость)
-      if (metricsResponse.ok) {
-        const metrics = await metricsResponse.json();
-        setSystemMetrics(metrics);
-      }
-      
-      if (healthResponse.ok) {
-        const health = await healthResponse.json();
-        setSystemHealth(health);
-      }
-      
-      if (logsResponse.ok) {
-        const logs = await logsResponse.json();
-        setSystemLogs(logs);
-      }
-
-      // Новые данные для продвинутого мониторинга
-      if (alertsResponse.ok) {
-        const alerts = await alertsResponse.json();
-        setSystemAlerts(alerts);
-      }
-
-      if (realtimeResponse.ok) {
-        const realtime = await realtimeResponse.json();
-        setRealTimeMetrics(realtime);
-      }
-
-      setLastUpdateTime(new Date());
-    } catch (error) {
-      console.error('Ошибка при загрузке системных данных:', error);
-    } finally {
-      setIsLoadingSystem(false);
-    }
-  };
 
   const adminRoles = {
     super_admin: 'Супер Администратор',
@@ -271,28 +187,6 @@ function AdminPanel({ user, onBack }: any) {
             </button>
           )}
           
-          {(userRole === 'super_admin' || userRole === 'devops_admin') && (
-            <button 
-              onClick={() => {
-                setShowSystemMonitoring(!showSystemMonitoring);
-                if (!showSystemMonitoring) {
-                  fetchSystemData();
-                }
-              }}
-              style={{ 
-                padding: '15px 20px', 
-                backgroundColor: showSystemMonitoring ? '#6c757d' : '#6c757d', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              🔧 {showSystemMonitoring ? 'Скрыть мониторинг' : 'Системный мониторинг'}
-            </button>
-          )}
         </div>
       </div>
 
@@ -317,20 +211,6 @@ function AdminPanel({ user, onBack }: any) {
         isVisible={showAnalytics}
         userRole={userRole}
       />
-
-      {/* Системный мониторинг */}
-      {showSystemMonitoring && (
-        <SystemMonitoring 
-          isVisible={true}
-          systemHealth={systemHealth}
-          systemAlerts={systemAlerts}
-          systemMetrics={systemMetrics}
-          systemLogs={systemLogs}
-          realTimeMetrics={realTimeMetrics}
-          lastUpdateTime={lastUpdateTime}
-          isLoading={isLoadingSystem}
-        />
-      )}
 
       {/* Управление API */}
       {showApiManagement && (
