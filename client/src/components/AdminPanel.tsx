@@ -229,12 +229,12 @@ function AdminPanel({ user, onBack }: any) {
   };
 
   const adminPermissions = {
-    super_admin: ['Полный доступ', 'Управление пользователями', 'Системные настройки'],
+    super_admin: ['Все разделы', 'Управление курсами', 'Управление платформами', 'Пользователи'],
     devops_admin: ['Мониторинг системы', 'Производительность', 'Логи системы'],
-    analytics_admin: ['Просмотр аналитики', 'Экспорт отчетов', 'Метрики пользователей'],
-    finance_admin: ['Просмотр транзакций', 'Управление банками', 'Финансовые отчеты'],
-    api_admin: ['Мониторинг API', 'Управление интеграциями', 'Статус сервисов'],
-    security_admin: ['Мониторинг безопасности', 'Логи аутентификации', 'Анализ угроз']
+    analytics_admin: ['Просмотр пользователей', 'Просмотр курсов', 'Просмотр платформ', 'Аналитика'],
+    finance_admin: ['Просмотр подписок', 'Финансовые отчеты'],
+    api_admin: ['Мониторинг API', 'Управление интеграциями'],
+    security_admin: ['Мониторинг безопасности', 'Логи', 'Анализ']
   };
 
   const userRole = user.adminRole || 'super_admin';
@@ -243,10 +243,10 @@ function AdminPanel({ user, onBack }: any) {
     <div style={{ padding: '20px', backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <div>
-          <h1 style={{ margin: '0 0 10px 0', color: '#333' }}>🛡️ Админ-панель FinTrack</h1>
+          <h1 style={{ margin: '0 0 10px 0', color: '#333' }}>📚 My EPA - Админ-панель</h1>
           <p style={{ color: '#666', margin: 0 }}>
-            Роль: <span style={{ 
-              backgroundColor: '#dc3545', 
+            Агрегатор образовательных программ | Роль: <span style={{ 
+              backgroundColor: '#667eea', 
               color: 'white', 
               padding: '4px 8px', 
               borderRadius: '4px',
@@ -274,19 +274,29 @@ function AdminPanel({ user, onBack }: any) {
         </button>
       </div>
 
-      <AdminDashboardStats 
-        pendingDocsCount={pendingDocuments.length}
-        archivedDocsCount={archivedDocuments.length}
-        systemAlerts={systemAlerts}
-        isLoadingDocs={isLoadingDocs}
-        isLoadingArchive={isLoadingArchive}
-      />
-
-      <PendingDocumentsList 
-        documents={pendingDocuments}
-        isLoading={isLoadingDocs}
-        onUpdateStatus={updateDocumentStatus}
-      />
+      {/* My EPA Dashboard Statistics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Пользователей</div>
+          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#667eea' }}>—</div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>из внешних источников</div>
+        </div>
+        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Курсов</div>
+          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#764ba2' }}>111</div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>в базе (9 категорий)</div>
+        </div>
+        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Платформ</div>
+          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1abc9c' }}>8+</div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>интегрировано</div>
+        </div>
+        <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef', textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>Регионы</div>
+          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f39c12' }}>4</div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>географических</div>
+        </div>
+      </div>
 
       {showUsersSection && (
         <UsersSection 
@@ -297,20 +307,21 @@ function AdminPanel({ user, onBack }: any) {
       )}
 
       {showUserManagement && (
-        <UserManagement 
-          isVisible={true}
-          users={users}
-          isLoading={isLoadingUsers}
-          userRole={userRole}
-        />
+        <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e9ecef', marginBottom: '20px' }}>
+          <h2 style={{ margin: '0 0 15px 0', color: '#333' }}>📖 Управление курсами</h2>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+            Компонент управления курсами (в разработке)
+          </div>
+        </div>
       )}
 
       {showDocumentArchive && (
-        <DocumentArchive 
-          isVisible={true}
-          documents={archivedDocuments}
-          isLoading={isLoadingArchive}
-        />
+        <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e9ecef', marginBottom: '20px' }}>
+          <h2 style={{ margin: '0 0 15px 0', color: '#333' }}>🌐 Управление платформами</h2>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+            Компонент управления платформами (в разработке)
+          </div>
+        </div>
       )}
 
       {/* Системный мониторинг */}
@@ -367,7 +378,7 @@ function AdminPanel({ user, onBack }: any) {
               onClick={() => setShowUsersSection(!showUsersSection)}
               style={{ 
                 padding: '15px 20px', 
-                backgroundColor: showUsersSection ? '#007bff' : '#1abc9c', 
+                backgroundColor: showUsersSection ? '#667eea' : '#667eea', 
                 color: 'white', 
                 border: 'none', 
                 borderRadius: '8px',
@@ -382,15 +393,10 @@ function AdminPanel({ user, onBack }: any) {
           
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
             <button 
-              onClick={() => {
-                setShowUserManagement(!showUserManagement);
-                if (!showUserManagement) {
-                  fetchUsers();
-                }
-              }}
+              onClick={() => setShowUserManagement(!showUserManagement)}
               style={{ 
                 padding: '15px 20px', 
-                backgroundColor: showUserManagement ? '#007bff' : '#28a745', 
+                backgroundColor: showUserManagement ? '#764ba2' : '#764ba2', 
                 color: 'white', 
                 border: 'none', 
                 borderRadius: '8px',
@@ -399,75 +405,25 @@ function AdminPanel({ user, onBack }: any) {
                 fontWeight: '500'
               }}
             >
-              📊 {showUserManagement ? 'Скрыть управление' : 'Управление пользователями'}
-            </button>
-          )}
-          
-          {(userRole === 'super_admin' || userRole === 'security_admin') && (
-            <button 
-              onClick={() => {
-                setShowDocumentArchive(!showDocumentArchive);
-                if (!showDocumentArchive) {
-                  fetchArchivedDocuments();
-                }
-              }}
-              style={{ 
-                padding: '15px 20px', 
-                backgroundColor: showDocumentArchive ? '#007bff' : '#17a2b8', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              🗃️ {showDocumentArchive ? 'Скрыть архив' : 'Архив документов'}
+              📖 {showUserManagement ? 'Скрыть курсы' : 'Курсы'}
             </button>
           )}
           
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
-            <button style={{ 
-              padding: '15px 20px', 
-              backgroundColor: '#17a2b8', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}>
-              📈 Просмотр аналитики
-            </button>
-          )}
-          
-          {(userRole === 'super_admin' || userRole === 'security_admin') && (
-            <button style={{ 
-              padding: '15px 20px', 
-              backgroundColor: '#dc3545', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}>
-              🔒 Логи безопасности
-            </button>
-          )}
-          
-          {(userRole === 'super_admin' || userRole === 'finance_admin') && (
-            <button style={{ 
-              padding: '15px 20px', 
-              backgroundColor: '#ffc107', 
-              color: '#212529', 
-              border: 'none', 
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}>
-              💰 Финансовые отчеты
+            <button 
+              onClick={() => setShowDocumentArchive(!showDocumentArchive)}
+              style={{ 
+                padding: '15px 20px', 
+                backgroundColor: showDocumentArchive ? '#1abc9c' : '#1abc9c', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              🌐 {showDocumentArchive ? 'Скрыть платформы' : 'Платформы'}
             </button>
           )}
           
@@ -481,7 +437,7 @@ function AdminPanel({ user, onBack }: any) {
               }}
               style={{ 
                 padding: '15px 20px', 
-                backgroundColor: showSystemMonitoring ? '#6f42c1' : '#6c757d', 
+                backgroundColor: showSystemMonitoring ? '#6c757d' : '#6c757d', 
                 color: 'white', 
                 border: 'none', 
                 borderRadius: '8px',
@@ -491,23 +447,6 @@ function AdminPanel({ user, onBack }: any) {
               }}
             >
               🔧 {showSystemMonitoring ? 'Скрыть мониторинг' : 'Системный мониторинг'}
-            </button>
-          )}
-          
-          {(userRole === 'super_admin' || userRole === 'api_admin') && (
-            <button 
-              onClick={() => setShowApiManagement(!showApiManagement)}
-              style={{ 
-                padding: '15px 20px', 
-                backgroundColor: showApiManagement ? '#20c997' : '#17a2b8', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}>
-              🔗 {showApiManagement ? 'Скрыть API' : 'Управление API'}
             </button>
           )}
         </div>
