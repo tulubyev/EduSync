@@ -8,6 +8,7 @@ import coursesRouter from "./courses.js";
 import deadlinesRouter from "./deadlines.js";
 import notesRouter from "./notes.js";
 import platformsRouter from "./platforms.js";
+import usersRouter from "./users.js";
 
 const mainRouter = Router();
 
@@ -19,6 +20,7 @@ mainRouter.use(queryOptimizationMiddleware);
 mainRouter.use('/auth', rateLimiters.auth, authRouter);
 mainRouter.use('/config', rateLimiters.general, configRouter);
 mainRouter.use('/profile', rateLimiters.general, profileRouter);
+mainRouter.use('/users', rateLimiters.general, usersRouter);
 
 mainRouter.use('/courses', rateLimiters.general, coursesRouter);
 mainRouter.use('/deadlines', rateLimiters.general, deadlinesRouter);

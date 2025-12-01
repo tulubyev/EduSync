@@ -8,6 +8,7 @@ import { DeadlinesPage } from './components/deadlines/DeadlinesPage';
 import { NotesPage } from './components/notes/NotesPage';
 import { PlatformsPage } from './components/platforms/PlatformsPage';
 import { AnalyticsPage } from './components/analytics/AnalyticsPage';
+import { SettingsPage } from './components/settings/SettingsPage';
 import { 
   BookOpen, 
   Calendar, 
@@ -459,22 +460,6 @@ function QuickAction({ href, icon, title }: { href: string; icon: string; title:
         <h4 className="font-medium text-gray-800">{title}</h4>
       </a>
     </Link>
-  );
-}
-
-function SettingsPage() {
-  return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-        <Settings className="w-7 h-7 text-purple-600" />
-        Настройки
-      </h1>
-      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
-        <Settings className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-        <h2 className="text-xl font-semibold text-gray-700 mb-2">Скоро</h2>
-        <p className="text-gray-500">Настройки профиля и уведомлений будут доступны в следующем обновлении</p>
-      </div>
-    </div>
   );
 }
 
