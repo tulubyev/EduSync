@@ -9,6 +9,7 @@ import deadlinesRouter from "./deadlines.js";
 import notesRouter from "./notes.js";
 import platformsRouter from "./platforms.js";
 import usersRouter from "./users.js";
+import adminRouter from "./admin.js";
 
 const mainRouter = Router();
 
@@ -26,5 +27,7 @@ mainRouter.use('/courses', rateLimiters.general, coursesRouter);
 mainRouter.use('/deadlines', rateLimiters.general, deadlinesRouter);
 mainRouter.use('/notes', rateLimiters.general, notesRouter);
 mainRouter.use('/platforms', rateLimiters.general, platformsRouter);
+
+mainRouter.use('/admin', rateLimiters.general, adminRouter);
 
 export default mainRouter;
