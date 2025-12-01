@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User, Upload, Mail, Phone, LogOut } from 'lucide-react';
+import { User, Upload, Mail, Phone } from 'lucide-react';
 
 interface UserProfile {
   id: string;
@@ -21,7 +21,7 @@ export function SettingsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [newPhotoPreview, setNewPhotoPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -56,9 +56,8 @@ export function SettingsPage() {
           lastName: data.lastName || '',
           phone: data.phone || '',
         });
-        if (data.profileImageUrl) {
-          setPhotoPreview(data.profileImageUrl);
-        }
+        setNewPhotoPreview(null);
+        setSelectedFile(null);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -113,10 +112,9 @@ export function SettingsPage() {
         return;
       }
       setSelectedFile(file);
-      // Show preview using URL.createObjectURL for better memory efficiency
       const reader = new FileReader();
       reader.onload = (event) => {
-        setPhotoPreview(event.target?.result as string);
+        setNewPhotoPreview(event.target?.result as string);
       };
       reader.readAsDataURL(file);
       setErrors(prev => ({ ...prev, photo: '' }));
@@ -139,9 +137,7 @@ export function SettingsPage() {
       setSaving(true);
       setSuccessMessage('');
       const token = localStorage.getItem('accessToken');
-      let photoUrl = profile?.profileImageUrl;
 
-      // Save profile data
       const response = await fetch('/api/users/profile', {
         method: 'POST',
         headers: {
@@ -155,7 +151,8 @@ export function SettingsPage() {
         throw new Error('Failed to save profile');
       }
 
-      // Upload photo if selected
+      let updatedProfileData = await response.json();
+
       if (selectedFile) {
         const formDataWithPhoto = new FormData();
         formDataWithPhoto.append('photo', selectedFile);
@@ -170,24 +167,21 @@ export function SettingsPage() {
           throw new Error('Failed to upload photo');
         }
 
-        const photoData = await photoResponse.json();
-        photoUrl = photoData.profileImageUrl;
-        setPhotoPreview(photoUrl); // Update preview with server URL instead of base64
+        updatedProfileData = await photoResponse.json();
       }
 
       setSuccessMessage('Профиль успешно сохранен');
       setSelectedFile(null);
+      setNewPhotoPreview(null);
+      setProfile(updatedProfileData);
       
-      // Update local storage - only store essential data, NOT base64 images
-      const updatedProfile = { ...profile, ...formData, profileImageUrl: photoUrl };
       try {
-        localStorage.setItem('currentUser', JSON.stringify(updatedProfile));
+        localStorage.setItem('currentUser', JSON.stringify(updatedProfileData));
       } catch (storageError) {
-        // If localStorage is full, clear old data and try again
         console.warn('localStorage quota exceeded, clearing old data');
         localStorage.clear();
         localStorage.setItem('accessToken', token);
-        localStorage.setItem('currentUser', JSON.stringify(updatedProfile));
+        localStorage.setItem('currentUser', JSON.stringify(updatedProfileData));
       }
       
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -262,12 +256,12 @@ export function SettingsPage() {
         <CardContent className="space-y-6">
           {/* Photo Upload - Two Column Layout */}
           <div className="grid grid-cols-3 gap-6">
-            {/* Left - Current Photo */}
+            {/* Left - Current Photo (1/3) */}
             <div className="col-span-1 flex flex-col items-center">
               <label className="block text-sm font-semibold mb-3 text-center">Текущее фото</label>
-              {photoPreview ? (
+              {profile?.profileImageUrl ? (
                 <img
-                  src={photoPreview}
+                  src={profile.profileImageUrl}
                   alt="Current Profile"
                   className="w-full rounded-lg object-cover shadow-md border-2 border-purple-100"
                 />
@@ -281,7 +275,7 @@ export function SettingsPage() {
               )}
             </div>
 
-            {/* Right - Upload Zone (2/3 width) */}
+            {/* Right - Upload Zone (2/3) */}
             <div className="col-span-2 flex flex-col">
               <label className="block text-sm font-semibold mb-3">Загрузить новое фото</label>
               <div
@@ -290,10 +284,23 @@ export function SettingsPage() {
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload className="h-10 w-10 mx-auto text-gray-400 mb-2" />
-                <p className="text-sm font-medium">Перетащите фото сюда</p>
-                <p className="text-xs text-muted-foreground mt-1">или нажмите для выбора</p>
-                <p className="text-xs text-gray-500 mt-2">PNG, JPG, GIF до 5MB</p>
+                {newPhotoPreview ? (
+                  <div className="space-y-3 w-full">
+                    <img
+                      src={newPhotoPreview}
+                      alt="Preview"
+                      className="h-40 w-40 rounded-lg mx-auto object-cover"
+                    />
+                    <p className="text-sm text-muted-foreground">Нажмите или перетащите для изменения</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Upload className="h-10 w-10 mx-auto text-gray-400" />
+                    <p className="text-sm font-medium">Перетащите фото сюда</p>
+                    <p className="text-xs text-muted-foreground mt-1">или нажмите для выбора</p>
+                    <p className="text-xs text-gray-500 mt-2">PNG, JPG, GIF до 5MB</p>
+                  </div>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -410,7 +417,7 @@ export function SettingsPage() {
           
           <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
             <p className="text-sm text-blue-700">
-              Функциональность платежей YooMoney для России находится в разработке и будет добавлена в следующих версиях.
+              Функциональность платежей будет добавлена в следующих версиях.
             </p>
           </div>
         </CardContent>
