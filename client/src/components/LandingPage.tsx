@@ -83,16 +83,19 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
       {/* Header */}
       <header style={{
         backgroundColor: 'white',
-        padding: '15px 40px',
+        padding: '20px 40px',
         borderBottom: '1px solid #e0e0e0',
         display: 'flex',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         alignItems: 'center',
         position: 'sticky',
         top: 0,
         zIndex: 100
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{
+          position: 'absolute',
+          left: '40px'
+        }}>
           <div style={{
             width: '40px',
             height: '40px',
@@ -107,14 +110,23 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
           }}>
             E
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '22px', fontWeight: '600', color: '#333' }}>My EPA</span>
-            <span style={{ fontSize: '12px', color: '#666', fontWeight: '400', lineHeight: '1.2' }}>Агрегатор Онлайн Обучения</span>
-          </div>
         </div>
+        <span style={{
+          fontSize: '24px',
+          fontWeight: '700',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          letterSpacing: '2px'
+        }}>
+          АГРЕГАТОР ОНЛАЙН ОБУЧЕНИЯ
+        </span>
         <button
           onClick={onLoginClick}
           style={{
+            position: 'absolute',
+            right: '40px',
             padding: '10px 24px',
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: 'white',
