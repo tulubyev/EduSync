@@ -139,23 +139,6 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         </button>
       </header>
 
-      {/* Hero Section */}
-      <section style={{
-        textAlign: 'center',
-        padding: '40px 40px 20px',
-        backgroundColor: 'white'
-      }}>
-        <p style={{
-          fontSize: '18px',
-          color: '#666',
-          margin: '0 0 20px 0',
-          maxWidth: '600px',
-          marginLeft: 'auto',
-          marginRight: 'auto'
-        }}>
-          Объединяйте и управляйте онлайн-курсами с разных платформ в одном удобном месте
-        </p>
-      </section>
 
       {/* Features Grid */}
       <section style={{
