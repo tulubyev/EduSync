@@ -342,9 +342,14 @@ export function LibraryPage() {
           <LibraryTreeNav 
             notes={notes} 
             selectedNodeId={selectedNodeId}
+            selectedMaterialId={selectedNote?.id}
             onSelectNode={(nodeId, type) => {
               setSelectedNodeId(nodeId);
               setSelectedNodeType(type);
+            }}
+            onSelectMaterial={(note) => {
+              setSelectedNote(note);
+              setViewingNote(note);
             }}
           />
         </div>

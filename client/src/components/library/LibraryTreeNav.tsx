@@ -42,10 +42,12 @@ interface TreeNode {
 interface LibraryTreeNavProps {
   notes: Note[];
   selectedNodeId: string | null;
+  selectedMaterialId?: string | null;
   onSelectNode: (nodeId: string, type: string) => void;
+  onSelectMaterial?: (note: Note) => void;
 }
 
-export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode }: LibraryTreeNavProps) {
+export function LibraryTreeNav({ notes, selectedNodeId, selectedMaterialId, onSelectNode, onSelectMaterial }: LibraryTreeNavProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
     new Set(['platforms', 'courses', 'tags'])
   );
@@ -94,6 +96,11 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode }: LibraryT
     }
   });
 
+  // Получаем Note объект для материала
+  const getNoteById = (materialId: string): Note | undefined => {
+    return notes.find(n => n.id === materialId);
+  };
+
   const renderTreeNode = (
     node: TreeNode,
     level: number = 0
@@ -101,18 +108,27 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode }: LibraryT
     const isExpanded = expandedNodes.has(node.id);
     const hasChildren = node.children && node.children.length > 0;
     const isSelected = selectedNodeId === node.id;
+    const isMaterialSelected = selectedMaterialId === node.id.replace('material-', '');
 
     return (
       <div key={node.id}>
         <Button
-          variant={isSelected ? 'default' : 'ghost'}
+          variant={isSelected || (node.type === 'material' && isMaterialSelected) ? 'default' : 'ghost'}
           size="sm"
           className="w-full justify-start text-left h-8 mb-1"
           style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={() => {
-            onSelectNode(node.id, node.type);
-            if (hasChildren) {
-              toggleNode(node.id);
+            if (node.type === 'material') {
+              const materialId = node.id.replace('material-', '');
+              const material = getNoteById(materialId);
+              if (material && onSelectMaterial) {
+                onSelectMaterial(material);
+              }
+            } else {
+              onSelectNode(node.id, node.type);
+              if (hasChildren) {
+                toggleNode(node.id);
+              }
             }
           }}
         >
@@ -135,6 +151,7 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode }: LibraryT
           {node.type === 'course' && <Folder className="h-4 w-4 mr-2 text-purple-500" />}
           {node.type === 'tag' && <FileText className="h-4 w-4 mr-2 text-green-500" />}
           {node.type === 'uncategorized' && <FileText className="h-4 w-4 mr-2 text-gray-500" />}
+          {node.type === 'material' && <FileText className="h-3 w-3 mr-2 text-slate-400" />}
 
           <span className="flex-1 truncate">{node.label}</span>
           {node.count !== undefined && (

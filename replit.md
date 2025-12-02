@@ -17,6 +17,19 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 - **Form Validation**: Client-side validation for all input fields.
 - **Admin Panel**: Features user management (view, edit, delete unverified users), course management, platform management (with dynamic regional and category filters), and analytics. Access is role-based (Super Admin, Analytics Admin).
 - **Platform Integration**: Manages 89+ educational platforms, categorized by region (Global, European, Asian, Russian) and subject (e.g., IT, Art & Design). Platform data includes `code`, `name`, `description`, `websiteUrl`, `category`, `region`, `languages`, `color`, `apiType`, and user `status`.
+- **Library (Materials Management)**: Renamed from "Notes", now supports:
+  - Web resource URLs with automatic content type detection (video 🎥, audio 🎵, images 🖼️, text 🔗)
+  - Platform and course linking with optional dropdown selectors
+  - Category tags for materials
+  - Material pinning for quick access
+  - Tree-based navigation with hierarchical organization:
+    - Закреплённые (Pinned materials)
+    - Платформы (Platforms) - grouped by platform
+    - Курсы (Courses) - grouped by course
+    - Теги (Tags) - grouped by tags
+    - Без категории (Uncategorized)
+  - Three-column layout: Navigation tree | Material list | Detail view
+  - Modal view for full material details on all screen sizes
 - **Security**: Implements AES-256-GCM encryption for sensitive data (e.g., user credentials), Scrypt key derivation, rate limiting, and Helmet middleware.
 - **API-first Architecture**: All frontend-backend communication is via REST API, ensuring compatibility across web and mobile.
 
@@ -24,6 +37,7 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 - **Database**: PostgreSQL with Drizzle ORM for schema management.
 - **Data Storage**: Profile images are stored as base64 WebP strings (400x400px) in the database. User credentials for external platforms are AES-256-GCM encrypted. `localStorage` is used only for compact data.
 - **React Hooks Compliance**: Adherence to React Hooks rules, ensuring unconditional calls.
+- **Library Component**: Uses hierarchical tree navigation for intuitive material organization with multi-select capabilities.
 
 # External Dependencies
 - **Shadcn UI**: UI component library.
@@ -38,3 +52,34 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
     - `/api/platforms/authorize` (POST) - Save encrypted platform credentials.
     - `/api/platforms/:platformId/credentials` (GET) - Retrieve decrypted credentials.
     - `/api/admin/users/detailed/all` (GET) - Get detailed list of all users.
+    - `/api/library` (GET, POST) - Fetch and create library materials.
+    - `/api/library/:id` (GET, PUT, DELETE) - Material CRUD operations.
+
+# Recent Changes (December 2, 2025)
+
+## Library (Materials) Implementation
+- ✅ Renamed "Notes" section to "Library" across application
+- ✅ Added platform and course linking with optional dropdown selectors
+- ✅ Implemented URL resource attachment with content type detection
+- ✅ Fixed Radix UI Select validation (using "none" value instead of empty string)
+- ✅ Backend schema updated to handle nullable platformId and courseId
+- ✅ Created modal view for material details (desktop and mobile)
+
+## Tree Navigation System (NEW)
+- ✅ Created `LibraryTreeNav.tsx` component for hierarchical material organization
+- ✅ Automatic grouping by: Platforms | Courses | Tags | Pinned status
+- ✅ Expandable/collapsible nodes with chevron indicators
+- ✅ Material counters for each category
+- ✅ Click handlers for tree nodes and individual materials
+- ✅ Integrated 3-column layout: Navigation | List | Details
+- ✅ Material selection from tree displays in detail panel
+- ✅ Responsive design (tree hidden on mobile/tablet, visible on desktop)
+
+# File Structure
+```
+client/src/components/
+├── library/
+│   ├── LibraryPage.tsx          # Main library component with 3-column layout
+│   └── LibraryTreeNav.tsx       # Tree navigation component (NEW)
+└── ...
+```
