@@ -1,5 +1,5 @@
 # Overview
-This project is a web application providing user profile management capabilities. It allows users to view and edit their personal information, including name, email, phone number, and profile picture. The application also displays subscription status and basic account information. The core purpose is to offer a user-friendly interface for managing personal account details within a larger system.
+My EPA (Агрегатор Онлайн Обучения) — an educational platform aggregator for the Russian market managing online courses from global platforms (Coursera, edX, Udemy, Stepik, etc.) organized across 9 specialized categories and 4 regional groups. The application provides user profile management, course aggregation, deadline tracking, progress analytics, and comprehensive admin panel. Desktop-first development with mobile portability, full PostgreSQL backend with 89+ integrated educational platforms.
 
 # User Preferences
 I want to develop this project iteratively. Please provide clear and detailed explanations for any proposed changes or new features. When suggesting code, aim for modern React practices and ensure type safety with TypeScript. I prefer that you ask for my confirmation before making any significant architectural changes or adding new external dependencies.

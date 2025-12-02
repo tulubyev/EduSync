@@ -101,7 +101,10 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
           }}>
             E
           </div>
-          <span style={{ fontSize: '22px', fontWeight: '600', color: '#333' }}>My EPA</span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '22px', fontWeight: '600', color: '#333' }}>My EPA</span>
+            <span style={{ fontSize: '12px', color: '#666', fontWeight: '400', lineHeight: '1.2' }}>Агрегатор Онлайн Обучения</span>
+          </div>
         </div>
         <button
           onClick={onLoginClick}
@@ -143,7 +146,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
           margin: '0 0 16px 0',
           letterSpacing: '-0.5px'
         }}>
-          My EPA — Агрегатор Образовательных Программ
+          My EPA — Агрегатор Онлайн Обучения
         </h1>
         <p style={{
           fontSize: '18px',

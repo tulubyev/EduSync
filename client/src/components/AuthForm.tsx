@@ -163,7 +163,7 @@ export function AuthForm({ onAuthSuccess }: any) {
             opacity: '0.9',
             fontWeight: '400'
           }}>
-            Агрегатор Образовательных Программ
+            Агрегатор Онлайн Обучения
           </p>
         </div>
 
@@ -541,7 +541,7 @@ export function AuthForm({ onAuthSuccess }: any) {
               Сертифицированная система безопасности
             </p>
             <p style={{ margin: '0', fontSize: '11px', opacity: '0.8' }}>
-              Агрегатор Образовательных Программ
+              Агрегатор Онлайн Обучения
             </p>
           </div>
         </div>
