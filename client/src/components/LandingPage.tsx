@@ -10,6 +10,13 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
 
   const features = [
     {
+      icon: '🔗',
+      title: 'Интеграции платформ',
+      description: 'Подключайте Coursera, edX, Stepik и другие',
+      color: '#5f6368',
+      page: 'documentation'
+    },
+    {
       icon: '📚',
       title: 'Управление курсами',
       description: 'Объединяйте курсы с разных платформ в одном месте',
@@ -36,13 +43,6 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
       description: 'Никогда не пропустите важный срок',
       color: '#fbbc04',
       page: 'deadline-management'
-    },
-    {
-      icon: '🔗',
-      title: 'Интеграции платформ',
-      description: 'Подключайте Coursera, edX, Stepik и другие',
-      color: '#5f6368',
-      page: 'documentation'
     },
     {
       icon: '⚙️',
