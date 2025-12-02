@@ -175,7 +175,7 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         {isOpen && (
           <Link href="/">
-            <a className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
               <img 
                 src="/myepa-logo-clean.png" 
                 alt="My EPA Logo"
@@ -185,7 +185,7 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
                 <h1 className="font-bold text-gray-800 text-lg">My EPA</h1>
                 <p className="text-xs text-gray-500">Агрегатор курсов</p>
               </div>
-            </a>
+            </div>
           </Link>
         )}
         <button 
@@ -203,14 +203,14 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
           
           return (
             <Link key={item.path} href={item.path}>
-              <a className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+              <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
                 isActive 
                   ? 'bg-purple-50 text-purple-700 font-medium' 
                   : 'text-gray-600 hover:bg-gray-100'
               }`}>
                 <Icon className="w-5 h-5 flex-shrink-0" />
                 {isOpen && <span>{item.label}</span>}
-              </a>
+              </div>
             </Link>
           );
         })}
