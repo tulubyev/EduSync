@@ -332,7 +332,7 @@ function Dashboard({ user }: { user: any }) {
               Мои курсы
             </h2>
             <Link href="/courses">
-              <a className="text-sm text-purple-600 hover:text-purple-700">Все курсы →</a>
+              <div className="text-sm text-purple-600 hover:text-purple-700 cursor-pointer">Все курсы →</div>
             </Link>
           </div>
           
@@ -341,7 +341,7 @@ function Dashboard({ user }: { user: any }) {
               <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
               <p>У вас пока нет курсов</p>
               <Link href="/courses">
-                <a className="inline-block mt-3 text-purple-600 hover:text-purple-700">Добавить первый курс</a>
+                <div className="inline-block mt-3 text-purple-600 hover:text-purple-700 cursor-pointer">Добавить первый курс</div>
               </Link>
             </div>
           ) : (
@@ -360,7 +360,7 @@ function Dashboard({ user }: { user: any }) {
               Ближайшие дедлайны
             </h2>
             <Link href="/deadlines">
-              <a className="text-sm text-purple-600 hover:text-purple-700">Все дедлайны →</a>
+              <div className="text-sm text-purple-600 hover:text-purple-700 cursor-pointer">Все дедлайны →</div>
             </Link>
           </div>
           
@@ -369,7 +369,7 @@ function Dashboard({ user }: { user: any }) {
               <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
               <p>Нет активных дедлайнов</p>
               <Link href="/deadlines">
-                <a className="inline-block mt-3 text-purple-600 hover:text-purple-700">Добавить дедлайн</a>
+                <div className="inline-block mt-3 text-purple-600 hover:text-purple-700 cursor-pointer">Добавить дедлайн</div>
               </Link>
             </div>
           ) : (

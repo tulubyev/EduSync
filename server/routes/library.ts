@@ -11,7 +11,8 @@ interface AuthRequest extends Request {
 
 const noteSchema = z.object({
   title: z.string().optional(),
-  content: z.string().min(1, "Содержание заметки обязательно"),
+  content: z.string().min(1, "Содержание материала обязательно"),
+  platformId: z.string().uuid().optional(),
   courseId: z.string().uuid().optional(),
   lessonNumber: z.number().int().positive().optional(),
   lessonTitle: z.string().optional(),

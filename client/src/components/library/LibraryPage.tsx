@@ -35,6 +35,7 @@ import { ru } from 'date-fns/locale';
 interface Note {
   id: string;
   courseId?: string;
+  platformId?: string;
   title: string;
   content: string;
   tags?: string[];
@@ -44,6 +45,9 @@ interface Note {
   course?: {
     title: string;
   };
+  platform?: {
+    name: string;
+  };
 }
 
 interface Course {
@@ -51,9 +55,15 @@ interface Course {
   title: string;
 }
 
+interface Platform {
+  id: string;
+  name: string;
+}
+
 export function LibraryPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -101,9 +111,38 @@ export function LibraryPage() {
     }
   };
 
+  const fetchPlatforms = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/platforms/by-region', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) throw new Error('Ошибка загрузки платформ');
+      
+      const data = await response.json();
+      const allPlatforms: Platform[] = [];
+      
+      Object.values(data).forEach((regionPlatforms: any) => {
+        if (Array.isArray(regionPlatforms)) {
+          regionPlatforms.forEach((p: any) => {
+            allPlatforms.push({ id: p.id, name: p.name });
+          });
+        }
+      });
+      
+      setPlatforms(allPlatforms);
+    } catch (err) {
+      console.error('Error fetching platforms:', err);
+    }
+  };
+
   useEffect(() => {
     fetchNotes();
     fetchCourses();
+    fetchPlatforms();
   }, []);
 
   const handleAddNote = async (data: any) => {
@@ -117,7 +156,7 @@ export function LibraryPage() {
       body: JSON.stringify(data),
     });
     
-    if (!response.ok) throw new Error('Ошибка создания заметки');
+    if (!response.ok) throw new Error('Ошибка создания материала');
     
     await fetchNotes();
     setIsModalOpen(false);
@@ -136,14 +175,14 @@ export function LibraryPage() {
       body: JSON.stringify(data),
     });
     
-    if (!response.ok) throw new Error('Ошибка обновления заметки');
+    if (!response.ok) throw new Error('Ошибка обновления материала');
     
     setEditingNote(null);
     await fetchNotes();
   };
 
   const handleDeleteNote = async (id: string) => {
-    if (!confirm('Удалить эту материал?')) return;
+    if (!confirm('Удалить этот материал?')) return;
     
     const token = localStorage.getItem('accessToken');
     const response = await fetch(`/api/library/${id}`, {
@@ -265,7 +304,7 @@ export function LibraryPage() {
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium">Нет материалов</h3>
               <p className="text-muted-foreground mb-4">
-                {searchQuery ? 'Ничего не найдено' : 'Создайте первую материал'}
+                {searchQuery ? 'Ничего не найдено' : 'Создайте первый материал'}
               </p>
               <Button onClick={() => setIsModalOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -308,6 +347,12 @@ export function LibraryPage() {
                     <p className="text-sm text-muted-foreground line-clamp-3 mb-2">
                       {truncateContent(note.content)}
                     </p>
+                    
+                    {note.platform && (
+                      <Badge variant="outline" className="mb-2 mr-2">
+                        🔗 {note.platform.name}
+                      </Badge>
+                    )}
                     
                     {note.course && (
                       <Badge variant="outline" className="mb-2">
@@ -376,6 +421,14 @@ export function LibraryPage() {
                   <p className="whitespace-pre-wrap">{selectedNote.content}</p>
                 </div>
                 
+                {selectedNote.platform && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Платформа: {selectedNote.platform.name}
+                    </p>
+                  </div>
+                )}
+                
                 {selectedNote.course && (
                   <div className="mt-4 pt-4 border-t">
                     <p className="text-sm text-muted-foreground">
@@ -415,6 +468,7 @@ export function LibraryPage() {
         onSubmit={editingNote ? handleEditNote : handleAddNote}
         initialData={editingNote || undefined}
         courses={courses}
+        platforms={platforms}
         isEditing={!!editingNote}
       />
     </div>
@@ -427,13 +481,15 @@ interface MaterialModalProps {
   onSubmit: (data: any) => void;
   initialData?: Note;
   courses: Course[];
+  platforms: Platform[];
   isEditing?: boolean;
 }
 
-function MaterialModal({ open, onClose, onSubmit, initialData, courses, isEditing }: MaterialModalProps) {
+function MaterialModal({ open, onClose, onSubmit, initialData, courses, platforms, isEditing }: MaterialModalProps) {
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     content: initialData?.content || '',
+    platformId: initialData?.platformId || '',
     courseId: initialData?.courseId || '',
     tags: initialData?.tags?.join(', ') || '',
     isPinned: initialData?.isPinned || false,
@@ -445,6 +501,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, isEditin
       setFormData({
         title: initialData.title,
         content: initialData.content,
+        platformId: initialData.platformId || '',
         courseId: initialData.courseId || '',
         tags: initialData.tags?.join(', ') || '',
         isPinned: initialData.isPinned,
@@ -459,12 +516,14 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, isEditin
     try {
       await onSubmit({
         ...formData,
+        platformId: formData.platformId || null,
         courseId: formData.courseId || null,
-        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        tags: formData.tags ? formData.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
       });
       setFormData({
         title: '',
         content: '',
+        platformId: '',
         courseId: '',
         tags: '',
         isPinned: false,
@@ -489,7 +548,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, isEditin
             <Input
               value={formData.title}
               onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Название заметки"
+              placeholder="Название материала"
             />
           </div>
 
@@ -498,12 +557,29 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, isEditin
             <Textarea
               value={formData.content}
               onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-              placeholder="Текст заметки..."
+              placeholder="Текст материала..."
               rows={10}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Платформа</Label>
+              <Select 
+                value={formData.platformId} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, platformId: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите платформу" />
+                </SelectTrigger>
+                <SelectContent>
+                  {platforms.map((platform) => (
+                    <SelectItem key={platform.id} value={platform.id}>{platform.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label>Курс</Label>
               <Select 
@@ -514,22 +590,21 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, isEditin
                   <SelectValue placeholder="Выберите курс" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Без курса</SelectItem>
                   {courses.map((course) => (
                     <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label>Теги</Label>
-              <Input
-                value={formData.tags}
-                onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-                placeholder="теги, через, запятую"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label>Теги</Label>
+            <Input
+              value={formData.tags}
+              onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+              placeholder="теги, через, запятую"
+            />
           </div>
         </div>
 
