@@ -568,8 +568,8 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
       await onSubmit({
         ...formData,
         resourceUrl: formData.resourceUrl || null,
-        platformId: formData.platformId || null,
-        courseId: formData.courseId || null,
+        platformId: formData.platformId === 'none' ? null : formData.platformId || null,
+        courseId: formData.courseId === 'none' ? null : formData.courseId || null,
         tags: formData.tags ? formData.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
       });
       setFormData({
@@ -626,7 +626,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
                   <SelectValue placeholder="Выберите платформу" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Не выбрана</SelectItem>
+                  <SelectItem value="none">Не выбрана</SelectItem>
                   {platforms.map((platform) => (
                     <SelectItem key={platform.id} value={platform.id}>{platform.name}</SelectItem>
                   ))}
@@ -644,7 +644,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
                   <SelectValue placeholder="Выберите курс" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Не выбран</SelectItem>
+                  <SelectItem value="none">Не выбран</SelectItem>
                   {courses.map((course) => (
                     <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>
                   ))}
