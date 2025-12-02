@@ -180,8 +180,10 @@ export const notes = pgTable("notes", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id).notNull(),
   courseId: uuid("course_id").references(() => courses.id),
+  platformId: uuid("platform_id").references(() => platforms.id),
   title: varchar("title", { length: 255 }),
   content: text("content").notNull(),
+  resourceUrl: text("resource_url"), // URL to external resource or base64 file data
   lessonNumber: integer("lesson_number"),
   lessonTitle: varchar("lesson_title", { length: 255 }),
   tags: text("tags").array(),
@@ -192,6 +194,7 @@ export const notes = pgTable("notes", {
 }, (table) => ({
   userNoteIdx: index("notes_user_idx").on(table.userId),
   courseNoteIdx: index("notes_course_idx").on(table.courseId),
+  platformNoteIdx: index("notes_platform_idx").on(table.platformId),
 }));
 
 // Study Sessions table - Track study time

@@ -738,6 +738,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
     isPinned: initialData?.isPinned || false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string>('');
 
   useEffect(() => {
     if (initialData) {
@@ -750,8 +751,27 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
         tags: initialData.tags?.join(', ') || '',
         isPinned: initialData.isPinned,
       });
+      setUploadedFileName('');
     }
   }, [initialData]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Файл должен быть не больше 5 МБ');
+      return;
+    }
+
+    setUploadedFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Data = event.target?.result as string;
+      setFormData(prev => ({ ...prev, resourceUrl: base64Data }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async () => {
     if (!formData.title || !formData.content) return;
@@ -856,15 +876,29 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
           </div>
 
           <div className="space-y-2">
-            <Label>Ссылка на ресурс</Label>
-            <Input
-              type="url"
-              value={formData.resourceUrl}
-              onChange={(e) => setFormData(prev => ({ ...prev, resourceUrl: e.target.value }))}
-              placeholder="https://example.com/material или https://youtube.com/watch?v=..."
-            />
+            <Label>Ресурс (URL или файл)</Label>
+            <div className="space-y-2">
+              <Input
+                type="url"
+                value={formData.resourceUrl.startsWith('data:') ? '' : formData.resourceUrl}
+                onChange={(e) => setFormData(prev => ({ ...prev, resourceUrl: e.target.value }))}
+                placeholder="https://example.com/material или https://youtube.com/watch?v=..."
+              />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">ИЛИ загрузи файл:</span>
+              </div>
+              <Input
+                type="file"
+                onChange={handleFileUpload}
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+                className="cursor-pointer"
+              />
+              {uploadedFileName && (
+                <p className="text-xs text-green-600">✅ Загружено: {uploadedFileName}</p>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Поддерживаются: текст, изображения (jpg, png), видео (YouTube, mp4), аудио (mp3, wav)
+              Поддерживаются: изображения, видео, аудио, PDF, документы (макс 5 МБ)
             </p>
           </div>
         </div>

@@ -13,8 +13,8 @@ const noteSchema = z.object({
   title: z.string().optional(),
   content: z.string().min(1, "Содержание материала обязательно"),
   resourceUrl: z.string().refine(
-    (url) => !url || url.startsWith('http://') || url.startsWith('https://'),
-    "URL должен начинаться с http:// или https://"
+    (url) => !url || url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:'),
+    "URL должен начинаться с http://, https:// или быть base64 данными"
   ).optional(),
   platformId: z.string().uuid().nullable().optional(),
   courseId: z.string().uuid().nullable().optional(),

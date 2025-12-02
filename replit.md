@@ -19,6 +19,7 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 - **Platform Integration**: Manages 89+ educational platforms, categorized by region (Global, European, Asian, Russian) and subject (e.g., IT, Art & Design). Platform data includes `code`, `name`, `description`, `websiteUrl`, `category`, `region`, `languages`, `color`, `apiType`, and user `status`.
 - **Library (Materials Management)**: Renamed from "Notes", now supports:
   - Web resource URLs with automatic content type detection (video 🎥, audio 🎵, images 🖼️, text 🔗)
+  - File uploads from local storage (images, videos, audio, PDF, documents) with base64 encoding
   - Platform and course linking with optional dropdown selectors
   - Category tags for materials
   - Material pinning for quick access
@@ -36,9 +37,9 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 
 **System Design Choices:**
 - **Database**: PostgreSQL with Drizzle ORM for schema management.
-- **Data Storage**: Profile images are stored as base64 WebP strings (400x400px) in the database. User credentials for external platforms are AES-256-GCM encrypted. `localStorage` is used only for compact data.
+- **Data Storage**: Profile images are stored as base64 WebP strings (400x400px) in the database. User credentials for external platforms are AES-256-GCM encrypted. Uploaded files are stored as base64 data URLs. `localStorage` is used only for compact data.
 - **React Hooks Compliance**: Adherence to React Hooks rules, ensuring unconditional calls.
-- **Library Component**: Uses hierarchical tree navigation for intuitive material organization with resizable columns.
+- **Library Component**: Uses hierarchical tree navigation for intuitive material organization with resizable columns and file upload support.
 
 # External Dependencies
 - **Shadcn UI**: UI component library.
@@ -65,6 +66,7 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 - ✅ Fixed Radix UI Select validation (using "none" value instead of empty string)
 - ✅ Backend schema updated to handle nullable platformId and courseId
 - ✅ Created modal view for material details (desktop and mobile)
+- ✅ Resource URLs displayed in modals and detail panels with icons and external links
 
 ## Tree Navigation System - COMPLETE
 - ✅ Created `LibraryTreeNav.tsx` component for hierarchical material organization
@@ -84,12 +86,28 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 - ✅ Cursor changes to col-resize on hover
 - ✅ Real-time width adjustment while dragging
 
+## File Upload Support - COMPLETE (NEW)
+- ✅ Added `resourceUrl` field to notes schema in database
+- ✅ Added `platformId` reference to notes for platform linking
+- ✅ Created file upload input in MaterialModal with drag-compatible file picker
+- ✅ Automatic base64 encoding of uploaded files (max 5 MB)
+- ✅ Support for images, videos, audio, PDF, and documents
+- ✅ Backend validation accepts both HTTP/HTTPS URLs and base64 data URLs
+- ✅ File name display after upload (✅ Загружено: filename)
+- ✅ Dual input method: URL OR file upload (not both simultaneously)
+
 # File Structure
 ```
 client/src/components/
 ├── library/
-│   ├── LibraryPage.tsx          # Main library with 3-column resizable layout
+│   ├── LibraryPage.tsx          # Main library with 3-column resizable layout + file upload
 │   ├── LibraryTreeNav.tsx       # Tree navigation component
-│   └── ResizeHandle.tsx         # Draggable column border component (NEW)
+│   └── ResizeHandle.tsx         # Draggable column border component
 └── ...
+
+shared/
+└── schema.ts                    # Drizzle ORM schema with notes table (includes resourceUrl)
+
+server/routes/
+└── library.ts                   # Library API endpoints with file validation
 ```
