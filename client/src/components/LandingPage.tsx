@@ -92,25 +92,16 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         top: 0,
         zIndex: 100
       }}>
-        <div style={{
-          position: 'absolute',
-          left: '40px'
-        }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '18px'
-          }}>
-            E
-          </div>
-        </div>
+        <img 
+          src="/myepa-logo-clean.png" 
+          alt="My EPA Logo" 
+          style={{
+            position: 'absolute',
+            left: '40px',
+            height: '50px',
+            width: 'auto'
+          }}
+        />
         <span style={{
           fontSize: '24px',
           fontWeight: '700',
