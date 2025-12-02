@@ -272,7 +272,7 @@ export function CoursesPage() {
     return (
       <div className="flex flex-col items-center justify-center h-64">
         <p className="text-red-500 mb-4">{error}</p>
-        <Button onClick={fetchCourses}>Попробовать снова</Button>
+        <Button onClick={fetchData}>Попробовать снова</Button>
       </div>
     );
   }
