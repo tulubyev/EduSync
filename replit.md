@@ -62,9 +62,11 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 # Recent Changes (December 2, 2025)
 
 ## Library UI Improvements (NEW)
-- ✅ Changed middle column from grid (3 columns) to list view (1 column)
-- ✅ Materials now display as horizontal rows - more compact and readable
-- ✅ Better information density with title, preview, badges in one line
+- ✅ Added view mode toggle: List (📋) and Grid (🔲)
+- ✅ List mode: horizontal rows - compact and readable (default)
+- ✅ Grid mode: 3-column layout (original card view)
+- ✅ Better information density with title, preview, badges
+- ✅ User can switch between modes with buttons in header
 - ✅ Improved scrolling through large lists
 
 ## Base64 Image Display

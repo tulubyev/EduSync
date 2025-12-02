@@ -34,7 +34,9 @@ import {
   Music,
   Video,
   Image as ImageIcon,
-  ExternalLink
+  ExternalLink,
+  List,
+  Grid3x3
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -84,6 +86,7 @@ export function LibraryPage() {
   const [selectedNodeType, setSelectedNodeType] = useState<string>('');
   const [leftWidth, setLeftWidth] = useState(224); // w-56 = 224px
   const [rightWidth, setRightWidth] = useState(384); // w-96 = 384px
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   const fetchNotes = async () => {
     try {
@@ -331,10 +334,28 @@ export function LibraryPage() {
             {notes.length} материалов
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Новый материал
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant={viewMode === 'list' ? 'default' : 'outline'} 
+            size="icon"
+            onClick={() => setViewMode('list')}
+            title="Список"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant={viewMode === 'grid' ? 'default' : 'outline'} 
+            size="icon"
+            onClick={() => setViewMode('grid')}
+            title="Сетка"
+          >
+            <Grid3x3 className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Новый материал
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -398,7 +419,7 @@ export function LibraryPage() {
                 Новый материал
               </Button>
             </div>
-          ) : (
+          ) : viewMode === 'list' ? (
             <div className="flex flex-col gap-2 overflow-y-auto">
               {filteredNotes.map((note) => (
                 <Card 
@@ -478,6 +499,86 @@ export function LibraryPage() {
                       {format(new Date(note.updatedAt), 'd MMM yyyy', { locale: ru })}
                     </p>
                   </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
+              {filteredNotes.map((note) => (
+                <Card 
+                  key={note.id} 
+                  className={`cursor-pointer hover:shadow-md transition-shadow ${
+                    selectedNote?.id === note.id ? 'ring-2 ring-primary' : ''
+                  } ${note.isPinned ? 'border-yellow-300 bg-yellow-50/50' : ''}`}
+                  onClick={() => {
+                    setSelectedNote(note);
+                    setViewingNote(note);
+                  }}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-base line-clamp-1">
+                        {note.isPinned && '📌 '}{note.title}
+                      </CardTitle>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTogglePin(note);
+                        }}
+                      >
+                        {note.isPinned ? (
+                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                        ) : (
+                          <StarOff className="h-4 w-4 text-gray-400" />
+                        )}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground line-clamp-3 mb-2">
+                      {truncateContent(note.content)}
+                    </p>
+                    
+                    {note.resourceUrl && (
+                      <div className="mb-2 p-2 bg-gray-50 rounded">
+                        {renderResource(note.resourceUrl)}
+                      </div>
+                    )}
+                    
+                    {note.platform && (
+                      <Badge variant="outline" className="mb-2 mr-2">
+                        🔗 {note.platform.name}
+                      </Badge>
+                    )}
+                    
+                    {note.course && (
+                      <Badge variant="outline" className="mb-2">
+                        📚 {note.course.title}
+                      </Badge>
+                    )}
+                    
+                    {note.tags && note.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {note.tags.slice(0, 3).map((tag, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            #{tag}
+                          </Badge>
+                        ))}
+                        {note.tags.length > 3 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{note.tags.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(note.updatedAt), 'd MMM yyyy', { locale: ru })}
+                    </p>
+                  </CardContent>
                 </Card>
               ))}
             </div>
