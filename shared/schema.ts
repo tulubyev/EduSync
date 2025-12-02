@@ -175,8 +175,8 @@ export const deadlines = pgTable("deadlines", {
   statusIdx: index("deadlines_status_idx").on(table.status),
 }));
 
-// Notes table - User notes for courses
-export const notes = pgTable("notes", {
+// Library table - User library materials for courses
+export const library = pgTable("notes", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id).notNull(),
   courseId: uuid("course_id").references(() => courses.id),
@@ -258,7 +258,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   platformConnections: many(platformConnections),
   courses: many(courses),
   deadlines: many(deadlines),
-  notes: many(notes),
+  library: many(library),
   studySessions: many(studySessions),
   settings: one(userSettings),
   adminLogs: many(adminLogs),
@@ -292,7 +292,7 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
   user: one(users, { fields: [courses.userId], references: [users.id] }),
   platform: one(platforms, { fields: [courses.platformId], references: [platforms.id] }),
   deadlines: many(deadlines),
-  notes: many(notes),
+  library: many(library),
   studySessions: many(studySessions),
 }));
 
@@ -301,9 +301,9 @@ export const deadlinesRelations = relations(deadlines, ({ one }) => ({
   course: one(courses, { fields: [deadlines.courseId], references: [courses.id] }),
 }));
 
-export const notesRelations = relations(notes, ({ one }) => ({
-  user: one(users, { fields: [notes.userId], references: [users.id] }),
-  course: one(courses, { fields: [notes.courseId], references: [courses.id] }),
+export const libraryRelations = relations(library, ({ one }) => ({
+  user: one(users, { fields: [library.userId], references: [users.id] }),
+  course: one(courses, { fields: [library.courseId], references: [courses.id] }),
 }));
 
 export const studySessionsRelations = relations(studySessions, ({ one }) => ({
@@ -357,7 +357,7 @@ export const insertDeadlineSchema = createInsertSchema(deadlines).omit({
   updatedAt: true,
 });
 
-export const insertNoteSchema = createInsertSchema(notes).omit({
+export const insertNoteSchema = createInsertSchema(library).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -401,7 +401,7 @@ export type InsertCourse = z.infer<typeof insertCourseSchema>;
 export type Deadline = typeof deadlines.$inferSelect;
 export type InsertDeadline = z.infer<typeof insertDeadlineSchema>;
 
-export type Note = typeof notes.$inferSelect;
+export type Note = typeof library.$inferSelect;
 export type InsertNote = z.infer<typeof insertNoteSchema>;
 
 export type StudySession = typeof studySessions.$inferSelect;
