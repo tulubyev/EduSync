@@ -61,7 +61,15 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 
 # Recent Changes (December 2, 2025)
 
-## Library UI Improvements (NEW)
+## Resource Preview Optimization - COMPLETE
+- ✅ Added `getResourcePreview()` function for compact resource display in middle column
+- ✅ Extracts file type from base64 data URL (e.g., "PNG", "MP4", "WAV")
+- ✅ Shows icon + file type in list view (e.g., 📸 PNG)
+- ✅ Middle column now displays resource type instead of full base64 data
+- ✅ Right panel displays full rendered content using `renderResource()`
+- ✅ Improved information density and scrolling performance
+
+## Library UI Improvements
 - ✅ Added view mode toggle: List (📋) and Grid (🔲)
 - ✅ List mode: horizontal rows - compact and readable (default)
 - ✅ Grid mode: 3-column layout (original card view)

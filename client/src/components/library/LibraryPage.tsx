@@ -294,7 +294,6 @@ export function LibraryPage() {
 
   const renderResource = (url: string) => {
     if (!url) return null;
-    
     if (url.startsWith('data:image/')) {
       return <img src={url} alt="Загруженное изображение" className="max-w-full max-h-96 rounded border" />;
     }
@@ -304,7 +303,6 @@ export function LibraryPage() {
     if (url.startsWith('data:audio/')) {
       return <audio src={url} controls className="w-full" />;
     }
-    
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 break-all">
         {getResourceIcon(url)}
@@ -314,6 +312,22 @@ export function LibraryPage() {
     );
   };
 
+  const getResourcePreview = (url: string) => {
+    if (!url) return null;
+    if (url.startsWith('data:image/')) {
+      const type = url.substring(11, url.indexOf(';')).toUpperCase();
+      return <div className="flex items-center gap-1"><ImageIcon className="h-3 w-3 text-blue-500" /><span className="text-xs truncate">{type}</span></div>;
+    }
+    if (url.startsWith('data:video/')) {
+      const type = url.substring(11, url.indexOf(';')).toUpperCase();
+      return <div className="flex items-center gap-1"><Video className="h-3 w-3 text-red-500" /><span className="text-xs truncate">{type}</span></div>;
+    }
+    if (url.startsWith('data:audio/')) {
+      const type = url.substring(11, url.indexOf(';')).toUpperCase();
+      return <div className="flex items-center gap-1"><Music className="h-3 w-3 text-purple-500" /><span className="text-xs truncate">{type}</span></div>;
+    }
+    return <div className="flex items-center gap-1"><LinkIcon className="h-3 w-3 text-gray-500" /><span className="text-xs truncate">{url.substring(0, 20)}...</span></div>;
+  };
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -462,7 +476,7 @@ export function LibraryPage() {
                     
                     {note.resourceUrl && (
                       <div className="mb-2 text-xs">
-                        {renderResource(note.resourceUrl)}
+                        {getResourcePreview(note.resourceUrl)}
                       </div>
                     )}
                     
