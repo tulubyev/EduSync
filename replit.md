@@ -61,7 +61,13 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 
 # Recent Changes (December 2, 2025)
 
-## Base64 Image Display (NEW)
+## Library UI Improvements (NEW)
+- ✅ Changed middle column from grid (3 columns) to list view (1 column)
+- ✅ Materials now display as horizontal rows - more compact and readable
+- ✅ Better information density with title, preview, badges in one line
+- ✅ Improved scrolling through large lists
+
+## Base64 Image Display
 - ✅ Added `renderResource()` function to display base64 files correctly
 - ✅ Images show as `<img>` instead of broken links
 - ✅ Video files display with controls

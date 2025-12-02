@@ -399,11 +399,11 @@ export function LibraryPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-2 overflow-y-auto">
               {filteredNotes.map((note) => (
                 <Card 
                   key={note.id} 
-                  className={`cursor-pointer hover:shadow-md transition-shadow ${
+                  className={`cursor-pointer hover:shadow-md transition-shadow flex items-center gap-4 p-3 ${
                     selectedNote?.id === note.id ? 'ring-2 ring-primary' : ''
                   } ${note.isPinned ? 'border-yellow-300 bg-yellow-50/50' : ''}`}
                   onClick={() => {
@@ -411,70 +411,73 @@ export function LibraryPage() {
                     setViewingNote(note);
                   }}
                 >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-base line-clamp-1">
-                        {note.isPinned && '📌 '}{note.title}
-                      </CardTitle>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <CardTitle className="text-sm line-clamp-1">
+                          {note.isPinned && '📌 '}{note.title}
+                        </CardTitle>
+                      </div>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6"
+                        className="h-5 w-5 flex-shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleTogglePin(note);
                         }}
                       >
                         {note.isPinned ? (
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                          <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
                         ) : (
-                          <StarOff className="h-4 w-4 text-gray-400" />
+                          <StarOff className="h-3 w-3 text-gray-400" />
                         )}
                       </Button>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground line-clamp-3 mb-2">
-                      {truncateContent(note.content)}
+                    
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                      {truncateContent(note.content, 100)}
                     </p>
                     
                     {note.resourceUrl && (
-                      <div className="mb-2 p-2 bg-gray-50 rounded">
+                      <div className="mb-2 text-xs">
                         {renderResource(note.resourceUrl)}
                       </div>
                     )}
                     
-                    {note.platform && (
-                      <Badge variant="outline" className="mb-2 mr-2">
-                        🔗 {note.platform.name}
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {note.platform && (
+                        <Badge variant="outline" className="text-xs">
+                          🔗 {note.platform.name}
+                        </Badge>
+                      )}
+                      
+                      {note.course && (
+                        <Badge variant="outline" className="text-xs">
+                          📚 {note.course.title}
+                        </Badge>
+                      )}
+                      
+                      {note.tags && note.tags.length > 0 && (
+                        <>
+                          {note.tags.slice(0, 2).map((tag, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              #{tag}
+                            </Badge>
+                          ))}
+                          {note.tags.length > 2 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{note.tags.length - 2}
+                            </Badge>
+                          )}
+                        </>
+                      )}
+                    </div>
                     
-                    {note.course && (
-                      <Badge variant="outline" className="mb-2">
-                        📚 {note.course.title}
-                      </Badge>
-                    )}
-                    
-                    {note.tags && note.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {note.tags.slice(0, 3).map((tag, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            #{tag}
-                          </Badge>
-                        ))}
-                        {note.tags.length > 3 && (
-                          <Badge variant="secondary" className="text-xs">
-                            +{note.tags.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                    
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground mt-1">
                       {format(new Date(note.updatedAt), 'd MMM yyyy', { locale: ru })}
                     </p>
-                  </CardContent>
+                  </div>
                 </Card>
               ))}
             </div>
