@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Book, Globe, Crown } from 'lucide-react';
+import { UserEditModal } from './UserEditModal';
 
 interface UsersSectionProps {
   isVisible: boolean;
@@ -11,7 +12,9 @@ interface UsersSectionProps {
 export function UsersSection({ isVisible, userRole, isLoading, onRefresh }: UsersSectionProps) {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'active' | 'premium'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'premium' | 'unverified'>('all');
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [showModal, setShowModal] = useState(false);
   
   if (!isVisible) return null;
 
@@ -53,8 +56,70 @@ export function UsersSection({ isVisible, userRole, isLoading, onRefresh }: User
   const filteredUsers = users.filter((user: any) => {
     if (filter === 'premium') return user.subscription !== 'free';
     if (filter === 'active') return user.enrolledCourses > 0;
+    if (filter === 'unverified') return !user.isEmailVerified && !user.isPhoneVerified;
     return true;
   });
+
+  const handleEditUser = async (userId: string, data: any) => {
+    try {
+      const response = await fetch(`/api/users/admin/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        throw new Error('Ошибка при сохранении');
+      }
+
+      await fetchUsers();
+      setShowModal(false);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/users/admin/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Ошибка при удалении');
+      }
+
+      await fetchUsers();
+      setShowModal(false);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleViewUser = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/users/admin/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedUser(data);
+        setShowModal(true);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки пользователя:', error);
+    }
+  };
 
   const stats = {
     total: users.length,
@@ -99,8 +164,8 @@ export function UsersSection({ isVisible, userRole, isLoading, onRefresh }: User
       </div>
 
       {/* Filter Buttons */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        {['all', 'active', 'premium'].map((f) => (
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        {['all', 'active', 'premium', 'unverified'].map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f as any)}
@@ -114,7 +179,7 @@ export function UsersSection({ isVisible, userRole, isLoading, onRefresh }: User
               fontSize: '14px'
             }}
           >
-            {f === 'all' ? 'Все' : f === 'active' ? 'Активные' : 'Premium'}
+            {f === 'all' ? 'Все' : f === 'active' ? 'Активные' : f === 'premium' ? 'Premium' : '⚠️ Неподтвержденные'}
           </button>
         ))}
       </div>
@@ -151,6 +216,7 @@ export function UsersSection({ isVisible, userRole, isLoading, onRefresh }: User
                   </span>
                 </th>
                 <th style={{ padding: '12px', textAlign: 'left', color: '#333', fontSize: '14px', fontWeight: '600' }}>Присоединился</th>
+                <th style={{ padding: '12px', textAlign: 'center', color: '#333', fontSize: '14px', fontWeight: '600' }}>Действия</th>
               </tr>
             </thead>
             <tbody>
@@ -186,6 +252,22 @@ export function UsersSection({ isVisible, userRole, isLoading, onRefresh }: User
                     <td style={{ padding: '12px', color: '#666', fontSize: '14px' }}>
                       {user.joinedDate ? new Date(user.joinedDate).toLocaleDateString('ru-RU') : '—'}
                     </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      <button
+                        onClick={() => handleViewUser(user.id)}
+                        style={{
+                          padding: '4px 12px',
+                          backgroundColor: '#007bff',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        👁️ Просмотр
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -193,6 +275,15 @@ export function UsersSection({ isVisible, userRole, isLoading, onRefresh }: User
           </table>
         </div>
       )}
+
+      {/* User Edit Modal */}
+      <UserEditModal
+        user={selectedUser}
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSave={handleEditUser}
+        onDelete={userRole === 'super_admin' ? handleDeleteUser : undefined}
+      />
     </div>
   );
 }

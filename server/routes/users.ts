@@ -213,4 +213,103 @@ router.post(
   }
 );
 
+// Get single user details (Admin only)
+router.get("/admin/:userId", authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const adminId = (req as any).user?.id;
+    const adminRole = (req as any).user?.role;
+    
+    if (adminRole !== 'super_admin' && adminRole !== 'analytics_admin') {
+      return res.status(403).json({ message: "Нет доступа" });
+    }
+
+    const { userId } = req.params;
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+
+    const { passwordHash, profileImage, ...profileData } = user;
+    const responseData = {
+      ...profileData,
+      profileImageUrl: profileImage ? `data:image/webp;base64,${profileImage}` : null,
+    };
+    res.json(responseData);
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    res.status(500).json({ message: "Ошибка получения пользователя" });
+  }
+});
+
+// Update user profile (Admin only)
+router.put("/admin/:userId", authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const adminRole = (req as any).user?.role;
+    if (adminRole !== 'super_admin' && adminRole !== 'analytics_admin') {
+      return res.status(403).json({ message: "Нет доступа" });
+    }
+
+    const { userId } = req.params;
+    const { firstName, lastName, email, phone, isEmailVerified, isPhoneVerified } = req.body;
+
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        email: email || undefined,
+        phone: phone || undefined,
+        isEmailVerified: isEmailVerified !== undefined ? isEmailVerified : undefined,
+        isPhoneVerified: isPhoneVerified !== undefined ? isPhoneVerified : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+
+    console.log("✅ User updated by admin:", { userId, email });
+
+    const { passwordHash, profileImage, ...profileData } = updatedUser;
+    const responseData = {
+      ...profileData,
+      profileImageUrl: profileImage ? `data:image/webp;base64,${profileImage}` : null,
+    };
+    res.json(responseData);
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res.status(500).json({ message: "Ошибка обновления пользователя" });
+  }
+});
+
+// Delete user (Admin only) - only unverified users
+router.delete("/admin/:userId", authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const adminRole = (req as any).user?.role;
+    if (adminRole !== 'super_admin') {
+      return res.status(403).json({ message: "Только super_admin может удалять пользователей" });
+    }
+
+    const { userId } = req.params;
+    
+    // Check if user is unverified
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+
+    if (user.isEmailVerified || user.isPhoneVerified) {
+      return res.status(400).json({ message: "Можно удалять только неподтвержденных пользователей" });
+    }
+
+    // Delete user
+    await db.delete(users).where(eq(users.id, userId));
+    console.log("✅ User deleted by admin:", { userId });
+    
+    res.json({ message: "Пользователь удален" });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({ message: "Ошибка удаления пользователя" });
+  }
+});
+
 export default router;
