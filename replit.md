@@ -30,6 +30,7 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
     - Без категории (Uncategorized)
   - Three-column layout: Navigation tree | Material list | Detail view
   - Modal view for full material details on all screen sizes
+  - **Resizable columns** - drag borders to adjust widths (min 150px, max 600px)
 - **Security**: Implements AES-256-GCM encryption for sensitive data (e.g., user credentials), Scrypt key derivation, rate limiting, and Helmet middleware.
 - **API-first Architecture**: All frontend-backend communication is via REST API, ensuring compatibility across web and mobile.
 
@@ -37,7 +38,7 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 - **Database**: PostgreSQL with Drizzle ORM for schema management.
 - **Data Storage**: Profile images are stored as base64 WebP strings (400x400px) in the database. User credentials for external platforms are AES-256-GCM encrypted. `localStorage` is used only for compact data.
 - **React Hooks Compliance**: Adherence to React Hooks rules, ensuring unconditional calls.
-- **Library Component**: Uses hierarchical tree navigation for intuitive material organization with multi-select capabilities.
+- **Library Component**: Uses hierarchical tree navigation for intuitive material organization with resizable columns.
 
 # External Dependencies
 - **Shadcn UI**: UI component library.
@@ -57,7 +58,7 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 
 # Recent Changes (December 2, 2025)
 
-## Library (Materials) Implementation
+## Library (Materials) Implementation - COMPLETE
 - ✅ Renamed "Notes" section to "Library" across application
 - ✅ Added platform and course linking with optional dropdown selectors
 - ✅ Implemented URL resource attachment with content type detection
@@ -65,7 +66,7 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 - ✅ Backend schema updated to handle nullable platformId and courseId
 - ✅ Created modal view for material details (desktop and mobile)
 
-## Tree Navigation System (NEW)
+## Tree Navigation System - COMPLETE
 - ✅ Created `LibraryTreeNav.tsx` component for hierarchical material organization
 - ✅ Automatic grouping by: Platforms | Courses | Tags | Pinned status
 - ✅ Expandable/collapsible nodes with chevron indicators
@@ -75,11 +76,20 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 - ✅ Material selection from tree displays in detail panel
 - ✅ Responsive design (tree hidden on mobile/tablet, visible on desktop)
 
+## Resizable Columns - COMPLETE
+- ✅ Created `ResizeHandle.tsx` component for draggable column borders
+- ✅ Left tree column: 150px - 400px (default 224px)
+- ✅ Right detail column: 250px - 600px (default 384px)
+- ✅ Smooth drag-and-drop with visual feedback
+- ✅ Cursor changes to col-resize on hover
+- ✅ Real-time width adjustment while dragging
+
 # File Structure
 ```
 client/src/components/
 ├── library/
-│   ├── LibraryPage.tsx          # Main library component with 3-column layout
-│   └── LibraryTreeNav.tsx       # Tree navigation component (NEW)
+│   ├── LibraryPage.tsx          # Main library with 3-column resizable layout
+│   ├── LibraryTreeNav.tsx       # Tree navigation component
+│   └── ResizeHandle.tsx         # Draggable column border component (NEW)
 └── ...
 ```

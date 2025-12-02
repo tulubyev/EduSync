@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { LibraryTreeNav } from './LibraryTreeNav';
+import { ResizeHandle } from './ResizeHandle';
 import {
   Dialog,
   DialogContent,
@@ -81,6 +82,8 @@ export function LibraryPage() {
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNodeType, setSelectedNodeType] = useState<string>('');
+  const [leftWidth, setLeftWidth] = useState(224); // w-56 = 224px
+  const [rightWidth, setRightWidth] = useState(384); // w-96 = 384px
 
   const fetchNotes = async () => {
     try {
@@ -337,8 +340,8 @@ export function LibraryPage() {
         </Select>
       </div>
 
-      <div className="flex gap-4 h-[calc(100vh-200px)]">
-        <div className="w-56 hidden lg:block">
+      <div className="flex h-[calc(100vh-200px)]">
+        <div className="hidden lg:block" style={{ width: leftWidth }}>
           <LibraryTreeNav 
             notes={notes} 
             selectedNodeId={selectedNodeId}
@@ -353,7 +356,14 @@ export function LibraryPage() {
             }}
           />
         </div>
-        <div className="flex-1">
+        
+        <ResizeHandle 
+          onResize={(delta) => {
+            setLeftWidth(prev => Math.max(150, Math.min(400, prev + delta)));
+          }}
+        />
+        
+        <div className="flex-1 overflow-x-hidden">
           {filteredNotes.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
@@ -457,8 +467,14 @@ export function LibraryPage() {
         </div>
 
         {selectedNote && (
-          <div className="w-96 hidden lg:block">
-            <Card className="sticky top-4">
+          <>
+            <ResizeHandle 
+              onResize={(delta) => {
+                setRightWidth(prev => Math.max(250, Math.min(600, prev - delta)));
+              }}
+            />
+            <div className="hidden lg:block" style={{ width: rightWidth }}>
+              <Card className="sticky top-4">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>{selectedNote.title}</CardTitle>
@@ -542,7 +558,8 @@ export function LibraryPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+            </div>
+          </>
         )}
       </div>
 
