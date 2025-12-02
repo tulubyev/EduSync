@@ -13,37 +13,43 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
       icon: '📚',
       title: 'Управление курсами',
       description: 'Объединяйте курсы с разных платформ в одном месте',
-      color: '#4285f4'
+      color: '#4285f4',
+      page: 'course-management'
     },
     {
       icon: '📊',
       title: 'Аналитика обучения',
       description: 'Отслеживайте прогресс и получайте инсайты',
-      color: '#34a853'
+      color: '#34a853',
+      page: 'progress-tracking'
     },
     {
       icon: '📅',
       title: 'Умный календарь',
       description: 'Единое расписание дедлайнов со всех платформ',
-      color: '#ea4335'
+      color: '#ea4335',
+      page: 'schedule-planning'
     },
     {
-      icon: '📝',
-      title: 'Организация заметок',
-      description: 'Централизованные заметки привязанные к курсам',
-      color: '#fbbc04'
+      icon: '⏰',
+      title: 'Управление дедлайнами',
+      description: 'Никогда не пропустите важный срок',
+      color: '#fbbc04',
+      page: 'deadline-management'
     },
     {
       icon: '🔗',
       title: 'Интеграции платформ',
       description: 'Подключайте Coursera, edX, Stepik и другие',
-      color: '#5f6368'
+      color: '#5f6368',
+      page: 'documentation'
     },
     {
       icon: '⚙️',
       title: 'Панель управления',
       description: 'Полный контроль над вашим обучением',
-      color: '#9c27b0'
+      color: '#9c27b0',
+      page: 'documentation'
     }
   ];
 
@@ -199,6 +205,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
           {features.map((feature, index) => (
             <div
               key={index}
+              onClick={() => feature.page && setCurrentPage(feature.page)}
               style={{
                 backgroundColor: 'white',
                 borderRadius: '12px',
