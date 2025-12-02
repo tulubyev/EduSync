@@ -233,31 +233,15 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         }}>
           {/* Brand */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold',
-                fontSize: '14px'
-              }}>
-                E
-              </div>
-              <span style={{ fontSize: '18px', fontWeight: '600' }}>My EPA</span>
-            </div>
-            <p style={{
-              fontSize: '14px',
-              color: '#999',
-              lineHeight: '1.6',
-              margin: 0
-            }}>
-              Ваш персональный агрегатор образовательных программ. Объединяйте и управляйте онлайн-курсами с разных платформ.
-            </p>
+            <img 
+              src="/myepa-logo.png" 
+              alt="My EPA Logo" 
+              style={{
+                maxWidth: '160px',
+                height: 'auto',
+                marginBottom: '16px'
+              }}
+            />
           </div>
 
           {/* Features */}
