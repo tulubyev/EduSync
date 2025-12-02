@@ -5,7 +5,7 @@ import { AuthForm } from './components/AuthForm';
 import { LandingPage } from './components/LandingPage';
 import { CoursesPage } from './components/courses/CoursesPage';
 import { DeadlinesPage } from './components/deadlines/DeadlinesPage';
-import { NotesPage } from './components/notes/NotesPage';
+import { LibraryPage } from './components/library/LibraryPage';
 import { PlatformsPage } from './components/platforms/PlatformsPage';
 import { AnalyticsPage } from './components/analytics/AnalyticsPage';
 import { SettingsPage } from './components/settings/SettingsPage';
@@ -138,7 +138,7 @@ function App() {
           <Route path="/home" component={() => <Dashboard user={currentUser} />} />
           <Route path="/courses" component={CoursesPage} />
           <Route path="/deadlines" component={DeadlinesPage} />
-          <Route path="/notes" component={NotesPage} />
+          <Route path="/library" component={LibraryPage} />
           <Route path="/platforms" component={PlatformsPage} />
           <Route path="/analytics" component={AnalyticsPage} />
           <Route path="/settings" component={SettingsPage} />
@@ -164,7 +164,7 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
     { path: '/home', icon: Home, label: 'Главная' },
     { path: '/courses', icon: BookOpen, label: 'Курсы' },
     { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
-    { path: '/notes', icon: FileText, label: 'Заметки' },
+    { path: '/library', icon: FileText, label: 'Библиотека' },
     { path: '/platforms', icon: Globe, label: 'Платформы' },
     { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
     { path: '/settings', icon: Settings, label: 'Настройки' },
@@ -383,7 +383,7 @@ function Dashboard({ user }: { user: any }) {
       </div>
 
       <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-        <QuickAction href="/notes" icon="📝" title="Заметки" />
+        <QuickAction href="/library" icon="📚" title="Библиотека" />
         <QuickAction href="/platforms" icon="🔗" title="Платформы" />
         <QuickAction href="/analytics" icon="📊" title="Аналитика" />
         <QuickAction href="/settings" icon="⚙️" title="Настройки" />

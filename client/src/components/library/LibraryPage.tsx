@@ -51,7 +51,7 @@ interface Course {
   title: string;
 }
 
-export function NotesPage() {
+export function LibraryPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,13 +66,13 @@ export function NotesPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/notes', {
+      const response = await fetch('/api/library', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
       
-      if (!response.ok) throw new Error('Ошибка загрузки заметок');
+      if (!response.ok) throw new Error('Ошибка загрузки материалов');
       
       const data = await response.json();
       setNotes(data);
@@ -108,7 +108,7 @@ export function NotesPage() {
 
   const handleAddNote = async (data: any) => {
     const token = localStorage.getItem('accessToken');
-    const response = await fetch('/api/notes', {
+    const response = await fetch('/api/library', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -127,7 +127,7 @@ export function NotesPage() {
     if (!editingNote) return;
     
     const token = localStorage.getItem('accessToken');
-    const response = await fetch(`/api/notes/${editingNote.id}`, {
+    const response = await fetch(`/api/library/${editingNote.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -143,10 +143,10 @@ export function NotesPage() {
   };
 
   const handleDeleteNote = async (id: string) => {
-    if (!confirm('Удалить эту заметку?')) return;
+    if (!confirm('Удалить эту материал?')) return;
     
     const token = localStorage.getItem('accessToken');
-    const response = await fetch(`/api/notes/${id}`, {
+    const response = await fetch(`/api/library/${id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -161,7 +161,7 @@ export function NotesPage() {
 
   const handleTogglePin = async (note: Note) => {
     const token = localStorage.getItem('accessToken');
-    const response = await fetch(`/api/notes/${note.id}`, {
+    const response = await fetch(`/api/library/${note.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -221,15 +221,15 @@ export function NotesPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <FileText className="h-6 w-6" />
-            Заметки
+            Библиотека
           </h1>
           <p className="text-muted-foreground mt-1">
-            {notes.length} заметок
+            {notes.length} материалов
           </p>
         </div>
         <Button onClick={() => setIsModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Новая заметка
+          Новый материал
         </Button>
       </div>
 
@@ -237,7 +237,7 @@ export function NotesPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Поиск заметок..."
+            placeholder="Поиск материалов..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -263,13 +263,13 @@ export function NotesPage() {
           {filteredNotes.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium">Нет заметок</h3>
+              <h3 className="text-lg font-medium">Нет материалов</h3>
               <p className="text-muted-foreground mb-4">
-                {searchQuery ? 'Ничего не найдено' : 'Создайте первую заметку'}
+                {searchQuery ? 'Ничего не найдено' : 'Создайте первую материал'}
               </p>
               <Button onClick={() => setIsModalOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Новая заметка
+                Новый материал
               </Button>
             </div>
           ) : (
@@ -406,7 +406,7 @@ export function NotesPage() {
         )}
       </div>
 
-      <NoteModal
+      <MaterialModal
         open={isModalOpen || !!editingNote}
         onClose={() => {
           setIsModalOpen(false);
@@ -421,7 +421,7 @@ export function NotesPage() {
   );
 }
 
-interface NoteModalProps {
+interface MaterialModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
@@ -430,7 +430,7 @@ interface NoteModalProps {
   isEditing?: boolean;
 }
 
-function NoteModal({ open, onClose, onSubmit, initialData, courses, isEditing }: NoteModalProps) {
+function MaterialModal({ open, onClose, onSubmit, initialData, courses, isEditing }: MaterialModalProps) {
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     content: initialData?.content || '',
@@ -479,7 +479,7 @@ function NoteModal({ open, onClose, onSubmit, initialData, courses, isEditing }:
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Редактировать заметку' : 'Новая заметка'}
+            {isEditing ? 'Редактировать материал' : 'Новый материал'}
           </DialogTitle>
         </DialogHeader>
         

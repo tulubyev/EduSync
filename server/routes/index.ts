@@ -6,7 +6,7 @@ import profileRouter from "./profile.js";
 import configRouter from "./config.js";
 import coursesRouter from "./courses.js";
 import deadlinesRouter from "./deadlines.js";
-import notesRouter from "./notes.js";
+import libraryRouter from "./library.js";
 import platformsRouter from "./platforms.js";
 import usersRouter from "./users.js";
 import adminRouter from "./admin.js";
@@ -25,7 +25,7 @@ mainRouter.use('/users', rateLimiters.general, usersRouter);
 
 mainRouter.use('/courses', rateLimiters.general, coursesRouter);
 mainRouter.use('/deadlines', rateLimiters.general, deadlinesRouter);
-mainRouter.use('/notes', rateLimiters.general, notesRouter);
+mainRouter.use('/library', rateLimiters.general, libraryRouter);
 mainRouter.use('/platforms', rateLimiters.general, platformsRouter);
 
 mainRouter.use('/admin', rateLimiters.general, adminRouter);
