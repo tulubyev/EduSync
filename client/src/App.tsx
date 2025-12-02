@@ -174,15 +174,19 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
     <div className={`fixed left-0 top-0 h-full bg-white border-r border-gray-200 transition-all duration-300 z-40 ${isOpen ? 'w-64' : 'w-16'}`}>
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         {isOpen && (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white font-bold text-lg">
-              E
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-800 text-lg">My EPA</h1>
-              <p className="text-xs text-gray-500">Агрегатор курсов</p>
-            </div>
-          </div>
+          <Link href="/">
+            <a className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <img 
+                src="/myepa-logo-clean.png" 
+                alt="My EPA Logo"
+                className="w-10 h-10 object-contain"
+              />
+              <div>
+                <h1 className="font-bold text-gray-800 text-lg">My EPA</h1>
+                <p className="text-xs text-gray-500">Агрегатор курсов</p>
+              </div>
+            </a>
+          </Link>
         )}
         <button 
           onClick={onToggle}
@@ -234,6 +238,7 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
         <div className={`flex items-center gap-3 px-3 py-3 bg-gray-50 rounded-lg transition-all ${isOpen ? '' : 'justify-center'}`}>
           {user.profileImageAvatar ? (
             <img
+              key={user.profileImageAvatar}
               src={user.profileImageAvatar}
               alt="Avatar"
               className="w-8 h-8 rounded-full object-cover flex-shrink-0"
