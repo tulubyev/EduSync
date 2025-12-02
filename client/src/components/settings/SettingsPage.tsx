@@ -148,12 +148,15 @@ export function SettingsPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save profile');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save profile');
       }
 
       let updatedProfileData = await response.json();
+      console.log('✅ Profile saved:', updatedProfileData);
 
       if (selectedFile) {
+        console.log('📸 Uploading photo:', selectedFile.name, selectedFile.size);
         const formDataWithPhoto = new FormData();
         formDataWithPhoto.append('photo', selectedFile);
 
@@ -164,10 +167,13 @@ export function SettingsPage() {
         });
 
         if (!photoResponse.ok) {
-          throw new Error('Failed to upload photo');
+          const errorData = await photoResponse.json();
+          console.error('❌ Photo upload failed:', errorData);
+          throw new Error(errorData.message || 'Failed to upload photo');
         }
 
         updatedProfileData = await photoResponse.json();
+        console.log('✅ Photo uploaded successfully:', updatedProfileData);
       }
 
       setSuccessMessage('Профиль успешно сохранен');
@@ -189,11 +195,17 @@ export function SettingsPage() {
         detail: updatedProfileData 
       }));
       
-      setTimeout(() => setSuccessMessage(''), 3000);
+      // Re-fetch profile to ensure we have the latest data from database
+      setTimeout(() => {
+        fetchProfile();
+        setSuccessMessage('');
+      }, 500);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка при сохранении профиля';
+      console.error('❌ Save profile error:', errorMessage);
       setErrors(prev => ({
         ...prev,
-        submit: error instanceof Error ? error.message : 'Ошибка при сохранении профиля',
+        submit: errorMessage,
       }));
     } finally {
       setSaving(false);
