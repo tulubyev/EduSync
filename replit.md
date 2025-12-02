@@ -61,7 +61,16 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 
 # Recent Changes (December 2, 2025)
 
-## File Upload Optimization (NEW)
+## Base64 Image Display (NEW)
+- ✅ Added `renderResource()` function to display base64 files correctly
+- ✅ Images show as `<img>` instead of broken links
+- ✅ Video files display with controls
+- ✅ Audio files show player
+- ✅ External URLs still work as links
+- ✅ Updated icon detection for base64 types (`data:image/`, `data:video/`, `data:audio/`)
+- ✅ Works in both card view and detail panel
+
+## File Upload Optimization
 - ✅ Fixed slow file saving by implementing image compression
 - ✅ Added `isConverting` state with loading indicator ("⏳ Обработка файла...")
 - ✅ Images automatically compressed to max 1200px before base64 conversion (60-80% size reduction)

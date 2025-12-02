@@ -277,16 +277,38 @@ export function LibraryPage() {
 
   const getResourceIcon = (url: string) => {
     if (!url) return null;
-    if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('.mp4') || url.includes('.webm')) {
+    if (url.startsWith('data:image/') || url.includes('youtube.com') || url.includes('youtu.be') || url.includes('.mp4') || url.includes('.webm')) {
       return <Video className="h-4 w-4 text-red-500" />;
     }
-    if (url.includes('.mp3') || url.includes('.wav') || url.includes('.ogg')) {
+    if (url.includes('.mp3') || url.includes('.wav') || url.includes('.ogg') || url.startsWith('data:audio/')) {
       return <Music className="h-4 w-4 text-purple-500" />;
     }
-    if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp')) {
+    if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp') || url.startsWith('data:image/')) {
       return <ImageIcon className="h-4 w-4 text-blue-500" />;
     }
     return <LinkIcon className="h-4 w-4 text-gray-500" />;
+  };
+
+  const renderResource = (url: string) => {
+    if (!url) return null;
+    
+    if (url.startsWith('data:image/')) {
+      return <img src={url} alt="Загруженное изображение" className="max-w-full max-h-96 rounded border" />;
+    }
+    if (url.startsWith('data:video/')) {
+      return <video src={url} controls className="max-w-full max-h-96 rounded border" />;
+    }
+    if (url.startsWith('data:audio/')) {
+      return <audio src={url} controls className="w-full" />;
+    }
+    
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 break-all">
+        {getResourceIcon(url)}
+        <span className="underline">{url.substring(0, 50)}...</span>
+        <ExternalLink className="h-4 w-4 flex-shrink-0" />
+      </a>
+    );
   };
 
   if (loading) {
@@ -417,16 +439,9 @@ export function LibraryPage() {
                     </p>
                     
                     {note.resourceUrl && (
-                      <a 
-                        href={note.resourceUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mb-2"
-                      >
-                        {getResourceIcon(note.resourceUrl)}
-                        <span className="truncate">Ресурс</span>
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
+                      <div className="mb-2 p-2 bg-gray-50 rounded">
+                        {renderResource(note.resourceUrl)}
+                      </div>
                     )}
                     
                     {note.platform && (
@@ -511,16 +526,9 @@ export function LibraryPage() {
                 {selectedNote.resourceUrl && (
                   <div className="mt-4 pt-4 border-t">
                     <p className="text-sm text-muted-foreground mb-2">Ресурс:</p>
-                    <a 
-                      href={selectedNote.resourceUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-blue-600 hover:text-blue-700 break-all"
-                    >
-                      {getResourceIcon(selectedNote.resourceUrl)}
-                      <span className="underline">{selectedNote.resourceUrl}</span>
-                      <ExternalLink className="h-4 w-4 flex-shrink-0" />
-                    </a>
+                    <div className="p-2 bg-gray-50 rounded">
+                      {renderResource(selectedNote.resourceUrl)}
+                    </div>
                   </div>
                 )}
                 
@@ -618,16 +626,38 @@ function ViewNoteModal({ open, note, onClose, onEdit, onDelete, onCopy }: ViewNo
 
   const getResourceIcon = (url: string) => {
     if (!url) return null;
-    if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('.mp4') || url.includes('.webm')) {
+    if (url.startsWith('data:image/') || url.includes('youtube.com') || url.includes('youtu.be') || url.includes('.mp4') || url.includes('.webm')) {
       return <Video className="h-4 w-4 text-red-500" />;
     }
-    if (url.includes('.mp3') || url.includes('.wav') || url.includes('.ogg')) {
+    if (url.includes('.mp3') || url.includes('.wav') || url.includes('.ogg') || url.startsWith('data:audio/')) {
       return <Music className="h-4 w-4 text-purple-500" />;
     }
-    if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp')) {
+    if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp') || url.startsWith('data:image/')) {
       return <ImageIcon className="h-4 w-4 text-blue-500" />;
     }
     return <LinkIcon className="h-4 w-4 text-gray-500" />;
+  };
+
+  const renderResource = (url: string) => {
+    if (!url) return null;
+    
+    if (url.startsWith('data:image/')) {
+      return <img src={url} alt="Загруженное изображение" className="max-w-full max-h-96 rounded border" />;
+    }
+    if (url.startsWith('data:video/')) {
+      return <video src={url} controls className="max-w-full max-h-96 rounded border" />;
+    }
+    if (url.startsWith('data:audio/')) {
+      return <audio src={url} controls className="w-full" />;
+    }
+    
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 break-all">
+        {getResourceIcon(url)}
+        <span className="underline">{url.substring(0, 50)}...</span>
+        <ExternalLink className="h-4 w-4 flex-shrink-0" />
+      </a>
+    );
   };
 
   return (
