@@ -462,23 +462,14 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
         top: 0,
         zIndex: 100
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '18px'
-          }}>
-            E
-          </div>
-          <span style={{ fontSize: '22px', fontWeight: '600', color: '#333' }}>My EPA</span>
-        </div>
+        <img 
+          src="/myepa-logo-clean.png" 
+          alt="My EPA Logo" 
+          style={{
+            height: '50px',
+            width: 'auto'
+          }}
+        />
         <button
           onClick={onBack}
           style={{
