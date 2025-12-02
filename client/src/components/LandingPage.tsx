@@ -233,6 +233,13 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
                 marginBottom: '16px'
               }}
             />
+            <p style={{
+              fontSize: '12px',
+              color: '#666',
+              margin: 0
+            }}>
+              © 2025 My EPA. Все права защищены.
+            </p>
           </div>
 
           {/* Features */}
@@ -317,18 +324,6 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
           </div>
         </div>
 
-        {/* Copyright */}
-        <div style={{
-          maxWidth: '1200px',
-          margin: '40px auto 0',
-          paddingTop: '24px',
-          borderTop: '1px solid #333',
-          textAlign: 'center'
-        }}>
-          <p style={{ fontSize: '13px', color: '#666', margin: 0 }}>
-            © 2025 My EPA. Все права защищены.
-          </p>
-        </div>
       </footer>
     </div>
   );
