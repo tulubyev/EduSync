@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { LibraryTreeNav } from './LibraryTreeNav';
 import {
   Dialog,
   DialogContent,
@@ -78,6 +79,8 @@ export function LibraryPage() {
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedNodeType, setSelectedNodeType] = useState<string>('');
 
   const fetchNotes = async () => {
     try {
@@ -227,6 +230,22 @@ export function LibraryPage() {
 
   const filteredNotes = notes
     .filter(note => {
+      // Фильтр по выбранному узлу дерева
+      if (selectedNodeId) {
+        if (selectedNodeId === 'pinned') return note.isPinned;
+        if (selectedNodeId.startsWith('material-')) return note.id === selectedNodeId.replace('material-', '');
+        if (selectedNodeId.startsWith('platform-')) return note.platformId === selectedNodeId.replace('platform-', '');
+        if (selectedNodeId.startsWith('course-')) return note.courseId === selectedNodeId.replace('course-', '');
+        if (selectedNodeId.startsWith('tag-')) {
+          const tag = selectedNodeId.replace('tag-', '');
+          return note.tags?.includes(tag);
+        }
+        if (selectedNodeId === 'uncategorized') return !note.platformId && !note.courseId && (!note.tags || note.tags.length === 0);
+        if (selectedNodeId === 'platforms' || selectedNodeId === 'courses' || selectedNodeId === 'tags') return true;
+      }
+      return true;
+    })
+    .filter(note => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
@@ -318,7 +337,17 @@ export function LibraryPage() {
         </Select>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex gap-4 h-[calc(100vh-200px)]">
+        <div className="w-56 hidden lg:block">
+          <LibraryTreeNav 
+            notes={notes} 
+            selectedNodeId={selectedNodeId}
+            onSelectNode={(nodeId, type) => {
+              setSelectedNodeId(nodeId);
+              setSelectedNodeType(type);
+            }}
+          />
+        </div>
         <div className="flex-1">
           {filteredNotes.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
