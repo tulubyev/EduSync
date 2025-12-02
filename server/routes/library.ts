@@ -16,8 +16,8 @@ const noteSchema = z.object({
     (url) => !url || url.startsWith('http://') || url.startsWith('https://'),
     "URL должен начинаться с http:// или https://"
   ).optional(),
-  platformId: z.string().uuid().optional(),
-  courseId: z.string().uuid().optional(),
+  platformId: z.string().uuid().nullable().optional(),
+  courseId: z.string().uuid().nullable().optional(),
   lessonNumber: z.number().int().positive().optional(),
   lessonTitle: z.string().optional(),
   tags: z.array(z.string()).optional(),
@@ -107,8 +107,10 @@ router.get('/:id', authenticateToken as any, async (req: AuthRequest, res: Respo
 
 router.post('/', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
+    console.log('📝 Creating library material:', JSON.stringify(req.body, null, 2));
     const validation = noteSchema.safeParse(req.body);
     if (!validation.success) {
+      console.error('❌ Validation failed:', JSON.stringify(validation.error.errors, null, 2));
       return res.status(400).json({ 
         message: 'Ошибка валидации',
         errors: validation.error.errors 
