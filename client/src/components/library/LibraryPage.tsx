@@ -739,6 +739,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
+  const [isConverting, setIsConverting] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -755,7 +756,38 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
     }
   }, [initialData]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = async (file: File): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxSize = 1200;
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height && width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', 0.8);
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -764,13 +796,28 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
       return;
     }
 
+    setIsConverting(true);
     setUploadedFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64Data = event.target?.result as string;
-      setFormData(prev => ({ ...prev, resourceUrl: base64Data }));
-    };
-    reader.readAsDataURL(file);
+    
+    try {
+      let processedFile = file;
+      if (file.type.startsWith('image/')) {
+        const compressed = await compressImage(file);
+        processedFile = new File([compressed], file.name, { type: 'image/jpeg' });
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Data = event.target?.result as string;
+        setFormData(prev => ({ ...prev, resourceUrl: base64Data }));
+        setIsConverting(false);
+      };
+      reader.readAsDataURL(processedFile);
+    } catch (error) {
+      console.error('Ошибка при обработке файла:', error);
+      setIsConverting(false);
+      setUploadedFileName('');
+    }
   };
 
   const handleSubmit = async () => {
@@ -892,8 +939,12 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
                 onChange={handleFileUpload}
                 accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
                 className="cursor-pointer"
+                disabled={isConverting}
               />
-              {uploadedFileName && (
+              {isConverting && (
+                <p className="text-xs text-blue-600">⏳ Обработка файла...</p>
+              )}
+              {uploadedFileName && !isConverting && (
                 <p className="text-xs text-green-600">✅ Загружено: {uploadedFileName}</p>
               )}
             </div>
