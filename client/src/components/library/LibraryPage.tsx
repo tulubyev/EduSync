@@ -77,6 +77,7 @@ export function LibraryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [viewingNote, setViewingNote] = useState<Note | null>(null);
 
   const fetchNotes = async () => {
     try {
@@ -339,7 +340,10 @@ export function LibraryPage() {
                   className={`cursor-pointer hover:shadow-md transition-shadow ${
                     selectedNote?.id === note.id ? 'ring-2 ring-primary' : ''
                   } ${note.isPinned ? 'border-yellow-300 bg-yellow-50/50' : ''}`}
-                  onClick={() => setSelectedNote(note)}
+                  onClick={() => {
+                    setSelectedNote(note);
+                    setViewingNote(note);
+                  }}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
@@ -520,6 +524,21 @@ export function LibraryPage() {
         platforms={platforms}
         isEditing={!!editingNote}
       />
+
+      <ViewNoteModal
+        open={!!viewingNote}
+        note={viewingNote}
+        onClose={() => setViewingNote(null)}
+        onEdit={(note) => {
+          setEditingNote(note);
+          setViewingNote(null);
+        }}
+        onDelete={(id) => {
+          handleDeleteNote(id);
+          setViewingNote(null);
+        }}
+        onCopy={handleCopyContent}
+      />
     </div>
   );
 }
@@ -532,6 +551,129 @@ interface MaterialModalProps {
   courses: Course[];
   platforms: Platform[];
   isEditing?: boolean;
+}
+
+interface ViewNoteModalProps {
+  open: boolean;
+  note: Note | null;
+  onClose: () => void;
+  onEdit: (note: Note) => void;
+  onDelete: (id: string) => void;
+  onCopy: (content: string) => void;
+}
+
+function ViewNoteModal({ open, note, onClose, onEdit, onDelete, onCopy }: ViewNoteModalProps) {
+  if (!note) return null;
+
+  const getResourceIcon = (url: string) => {
+    if (!url) return null;
+    if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('.mp4') || url.includes('.webm')) {
+      return <Video className="h-4 w-4 text-red-500" />;
+    }
+    if (url.includes('.mp3') || url.includes('.wav') || url.includes('.ogg')) {
+      return <Music className="h-4 w-4 text-purple-500" />;
+    }
+    if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp')) {
+      return <ImageIcon className="h-4 w-4 text-blue-500" />;
+    }
+    return <LinkIcon className="h-4 w-4 text-gray-500" />;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center justify-between w-full">
+            <DialogTitle className="flex-1">
+              {note.isPinned && '📌 '}{note.title}
+            </DialogTitle>
+            <div className="flex gap-1 ml-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onCopy(note.content)}
+                title="Копировать содержимое"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onEdit(note)}
+                title="Редактировать"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onDelete(note.id)}
+                title="Удалить"
+              >
+                <Trash2 className="h-4 w-4 text-red-500" />
+              </Button>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="prose prose-sm max-w-none">
+            <p className="whitespace-pre-wrap">{note.content}</p>
+          </div>
+
+          {note.resourceUrl && (
+            <div className="pt-4 border-t">
+              <p className="text-sm text-muted-foreground mb-2">Ресурс:</p>
+              <a 
+                href={note.resourceUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 break-all"
+              >
+                {getResourceIcon(note.resourceUrl)}
+                <span className="underline">{note.resourceUrl}</span>
+                <ExternalLink className="h-4 w-4 flex-shrink-0" />
+              </a>
+            </div>
+          )}
+
+          {note.platform && (
+            <div className="pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                Платформа: <Badge variant="outline">{note.platform.name}</Badge>
+              </p>
+            </div>
+          )}
+
+          {note.course && (
+            <div className="pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                Курс: <Badge variant="outline">{note.course.title}</Badge>
+              </p>
+            </div>
+          )}
+
+          {note.tags && note.tags.length > 0 && (
+            <div className="pt-4 border-t">
+              <p className="text-sm text-muted-foreground mb-2">Теги:</p>
+              <div className="flex flex-wrap gap-2">
+                {note.tags.map((tag, index) => (
+                  <Badge key={index} variant="secondary">
+                    #{tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="pt-4 border-t text-xs text-muted-foreground space-y-1">
+            <p>Создано: {format(new Date(note.createdAt), 'd MMMM yyyy, HH:mm', { locale: ru })}</p>
+            <p>Обновлено: {format(new Date(note.updatedAt), 'd MMMM yyyy, HH:mm', { locale: ru })}</p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function MaterialModal({ open, onClose, onSubmit, initialData, courses, platforms, isEditing }: MaterialModalProps) {
