@@ -12,7 +12,10 @@ interface AuthRequest extends Request {
 const noteSchema = z.object({
   title: z.string().optional(),
   content: z.string().min(1, "Содержание материала обязательно"),
-  resourceUrl: z.string().url().optional(),
+  resourceUrl: z.string().refine(
+    (url) => !url || url.startsWith('http://') || url.startsWith('https://'),
+    "URL должен начинаться с http:// или https://"
+  ).optional(),
   platformId: z.string().uuid().optional(),
   courseId: z.string().uuid().optional(),
   lessonNumber: z.number().int().positive().optional(),
