@@ -589,32 +589,6 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
         `}</style>
         {renderContent()}
       </main>
-
-      {/* Footer */}
-      <footer style={{
-        backgroundColor: '#1a1a1a',
-        color: '#fff',
-        padding: '40px 40px',
-        marginTop: '60px',
-        textAlign: 'center'
-      }}>
-        <img 
-          src="/myepa-logo.png" 
-          alt="My EPA Logo" 
-          style={{
-            maxWidth: '160px',
-            height: 'auto',
-            marginBottom: '16px'
-          }}
-        />
-        <p style={{
-          fontSize: '12px',
-          color: '#666',
-          margin: 0
-        }}>
-          © 2025 My EPA. Все права защищены.
-        </p>
-      </footer>
     </div>
   );
 }
