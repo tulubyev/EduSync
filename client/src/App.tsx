@@ -238,7 +238,6 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
         <div className={`flex items-center gap-3 px-3 py-3 bg-gray-50 rounded-lg transition-all ${isOpen ? '' : 'justify-center'}`}>
           {user.profileImageAvatar ? (
             <img
-              key={user.profileImageAvatar}
               src={user.profileImageAvatar}
               alt="Avatar"
               className="w-8 h-8 rounded-full object-cover flex-shrink-0"
