@@ -27,7 +27,12 @@ import {
   Edit,
   Star,
   StarOff,
-  Copy
+  Copy,
+  Link as LinkIcon,
+  Music,
+  Video,
+  Image as ImageIcon,
+  ExternalLink
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -38,6 +43,7 @@ interface Note {
   platformId?: string;
   title: string;
   content: string;
+  resourceUrl?: string;
   tags?: string[];
   isPinned: boolean;
   createdAt: string;
@@ -246,6 +252,20 @@ export function LibraryPage() {
     return content.substring(0, maxLength) + '...';
   };
 
+  const getResourceIcon = (url: string) => {
+    if (!url) return null;
+    if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('.mp4') || url.includes('.webm')) {
+      return <Video className="h-4 w-4 text-red-500" />;
+    }
+    if (url.includes('.mp3') || url.includes('.wav') || url.includes('.ogg')) {
+      return <Music className="h-4 w-4 text-purple-500" />;
+    }
+    if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp')) {
+      return <ImageIcon className="h-4 w-4 text-blue-500" />;
+    }
+    return <LinkIcon className="h-4 w-4 text-gray-500" />;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -348,6 +368,19 @@ export function LibraryPage() {
                       {truncateContent(note.content)}
                     </p>
                     
+                    {note.resourceUrl && (
+                      <a 
+                        href={note.resourceUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mb-2"
+                      >
+                        {getResourceIcon(note.resourceUrl)}
+                        <span className="truncate">Ресурс</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                    
                     {note.platform && (
                       <Badge variant="outline" className="mb-2 mr-2">
                         🔗 {note.platform.name}
@@ -421,6 +454,22 @@ export function LibraryPage() {
                   <p className="whitespace-pre-wrap">{selectedNote.content}</p>
                 </div>
                 
+                {selectedNote.resourceUrl && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm text-muted-foreground mb-2">Ресурс:</p>
+                    <a 
+                      href={selectedNote.resourceUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-blue-600 hover:text-blue-700 break-all"
+                    >
+                      {getResourceIcon(selectedNote.resourceUrl)}
+                      <span className="underline">{selectedNote.resourceUrl}</span>
+                      <ExternalLink className="h-4 w-4 flex-shrink-0" />
+                    </a>
+                  </div>
+                )}
+                
                 {selectedNote.platform && (
                   <div className="mt-4 pt-4 border-t">
                     <p className="text-sm text-muted-foreground">
@@ -489,6 +538,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     content: initialData?.content || '',
+    resourceUrl: initialData?.resourceUrl || '',
     platformId: initialData?.platformId || '',
     courseId: initialData?.courseId || '',
     tags: initialData?.tags?.join(', ') || '',
@@ -501,6 +551,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
       setFormData({
         title: initialData.title,
         content: initialData.content,
+        resourceUrl: initialData.resourceUrl || '',
         platformId: initialData.platformId || '',
         courseId: initialData.courseId || '',
         tags: initialData.tags?.join(', ') || '',
@@ -516,6 +567,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
     try {
       await onSubmit({
         ...formData,
+        resourceUrl: formData.resourceUrl || null,
         platformId: formData.platformId || null,
         courseId: formData.courseId || null,
         tags: formData.tags ? formData.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
@@ -523,6 +575,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
       setFormData({
         title: '',
         content: '',
+        resourceUrl: '',
         platformId: '',
         courseId: '',
         tags: '',
@@ -605,6 +658,19 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
               onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
               placeholder="теги, через, запятую"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Ссылка на ресурс</Label>
+            <Input
+              type="url"
+              value={formData.resourceUrl}
+              onChange={(e) => setFormData(prev => ({ ...prev, resourceUrl: e.target.value }))}
+              placeholder="https://example.com/material или https://youtube.com/watch?v=..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Поддерживаются: текст, изображения (jpg, png), видео (YouTube, mp4), аудио (mp3, wav)
+            </p>
           </div>
         </div>
 
