@@ -142,53 +142,19 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
       {/* Hero Section */}
       <section style={{
         textAlign: 'center',
-        padding: '80px 40px 60px',
+        padding: '40px 40px 20px',
         backgroundColor: 'white'
       }}>
-        <h1 style={{
-          fontSize: '42px',
-          fontWeight: '700',
-          color: '#1a1a1a',
-          margin: '0 0 16px 0',
-          letterSpacing: '-0.5px'
-        }}>
-          My EPA — Агрегатор Онлайн Обучения
-        </h1>
         <p style={{
           fontSize: '18px',
           color: '#666',
-          margin: '0 0 40px 0',
+          margin: '0 0 20px 0',
           maxWidth: '600px',
           marginLeft: 'auto',
           marginRight: 'auto'
         }}>
           Объединяйте и управляйте онлайн-курсами с разных платформ в одном удобном месте
         </p>
-        <button
-          onClick={onLoginClick}
-          style={{
-            padding: '14px 32px',
-            background: '#5a6a7a',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'background 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#4a5a6a';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#5a6a7a';
-          }}
-        >
-          ← Начать работу
-        </button>
       </section>
 
       {/* Features Grid */}
