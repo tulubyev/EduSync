@@ -617,7 +617,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Платформа</Label>
+              <Label>Платформа (опционально)</Label>
               <Select 
                 value={formData.platformId} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, platformId: value }))}
@@ -626,6 +626,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
                   <SelectValue placeholder="Выберите платформу" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">Не выбрана</SelectItem>
                   {platforms.map((platform) => (
                     <SelectItem key={platform.id} value={platform.id}>{platform.name}</SelectItem>
                   ))}
@@ -634,7 +635,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
             </div>
 
             <div className="space-y-2">
-              <Label>Курс</Label>
+              <Label>Курс (опционально)</Label>
               <Select 
                 value={formData.courseId} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, courseId: value }))}
@@ -643,6 +644,7 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
                   <SelectValue placeholder="Выберите курс" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">Не выбран</SelectItem>
                   {courses.map((course) => (
                     <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>
                   ))}
