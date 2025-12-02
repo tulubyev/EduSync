@@ -7,7 +7,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, Settings, LogOut } from "lucide-react";
 import BankConnectionModal from "../modals/BankConnectionModal";
 
@@ -85,6 +85,12 @@ export default function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center space-x-2" data-testid="button-user-menu">
                     <Avatar className="w-8 h-8">
+                      {(user?.profileImage || user?.profileImageUrl) && (
+                        <AvatarImage 
+                          src={user.profileImage || user.profileImageUrl} 
+                          alt={`${user.firstName} ${user.lastName}`}
+                        />
+                      )}
                       <AvatarFallback className="bg-secondary text-secondary-foreground">
                         {getUserInitials()}
                       </AvatarFallback>

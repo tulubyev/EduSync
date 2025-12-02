@@ -12,7 +12,7 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 
 **Technical Implementations & Features:**
 - **User Profile Management**: Display and edit personal information, including first name, last name, email, and phone number.
-- **Profile Picture Management**: Supports upload, preview, and update of profile images with drag-and-drop, client-side validation (size, type), and storage as base64 WebP in the database.
+- **Profile Picture Management**: Supports upload, preview, and update of profile images with drag-and-drop, client-side validation (size, type), and storage as base64 WebP in the database. Profile image persists after page reload.
 - **Subscription Status**: Displays user plan types (Free, Premium, Pro) with visual badges.
 - **Form Validation**: Client-side validation for all input fields.
 - **Admin Panel**: Features user management (view, edit, delete unverified users), course management, platform management (with dynamic regional and category filters), and analytics. Access is role-based (Super Admin, Analytics Admin).
@@ -59,6 +59,13 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 
 # Recent Changes (December 2, 2025)
 
+## Profile Image Fix (NEW)
+- ✅ Fixed profile image disappearing on page reload
+- ✅ Added AvatarImage component to Header with profileImage/profileImageUrl fallback
+- ✅ Profile image now loads from server on `/api/auth/verify` and persists in localStorage
+- ✅ Displays base64 image or URL image based on what's available
+- ✅ Falls back to user initials if image unavailable
+
 ## Library (Materials) Implementation - COMPLETE
 - ✅ Renamed "Notes" section to "Library" across application
 - ✅ Added platform and course linking with optional dropdown selectors
@@ -86,7 +93,7 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 - ✅ Cursor changes to col-resize on hover
 - ✅ Real-time width adjustment while dragging
 
-## File Upload Support - COMPLETE (NEW)
+## File Upload Support - COMPLETE
 - ✅ Added `resourceUrl` field to notes schema in database
 - ✅ Added `platformId` reference to notes for platform linking
 - ✅ Created file upload input in MaterialModal with drag-compatible file picker
@@ -99,15 +106,17 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 # File Structure
 ```
 client/src/components/
+├── layout/
+│   └── Header.tsx                 # Header with profile avatar (FIXED - persists on reload)
 ├── library/
-│   ├── LibraryPage.tsx          # Main library with 3-column resizable layout + file upload
-│   ├── LibraryTreeNav.tsx       # Tree navigation component
-│   └── ResizeHandle.tsx         # Draggable column border component
+│   ├── LibraryPage.tsx            # Main library with 3-column resizable layout + file upload
+│   ├── LibraryTreeNav.tsx         # Tree navigation component
+│   └── ResizeHandle.tsx           # Draggable column border component
 └── ...
 
 shared/
-└── schema.ts                    # Drizzle ORM schema with notes table (includes resourceUrl)
+└── schema.ts                      # Drizzle ORM schema with notes table (includes resourceUrl)
 
 server/routes/
-└── library.ts                   # Library API endpoints with file validation
+└── library.ts                     # Library API endpoints with file validation
 ```
