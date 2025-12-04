@@ -8,7 +8,7 @@ packages = ["jq", "zip", "unzip"]
 
 [deployment]
 deploymentTarget = "autoscale"
-build = ["npm", "run", "build"]
+build = ["sh", "-c", "npm install && npm run build"]
 run = ["npm", "run", "start"]
 
 [env]
@@ -50,10 +50,3 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
-JWT_SECRET = "fintrack_dev_jwt_secret_key_2025_v1"
-ENCRYPTION_KEY = "fintrack_dev_encryption_key_32chars"
-SMS_RU_API_KEY = "fintrack_dev_sms_ru_key"
-BEGET_SMTP_HOST = "smtp.mailtrap.io"
-BEGET_SMTP_PORT = "587"
-BEGET_SMTP_USER = "dev@fintrack.local"
-BEGET_SMTP_PASSWORD = "dev_password"
