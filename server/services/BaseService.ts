@@ -47,7 +47,19 @@ export abstract class BaseService {
   }
 
   /**
-   * Логирование операций (упрощенная версия)
+   * Контекст запроса для аудита (IP, User-Agent)
+   */
+  protected requestContext: { ipAddress?: string; userAgent?: string } = {};
+
+  /**
+   * Установка контекста запроса для аудита
+   */
+  public setRequestContext(ipAddress?: string, userAgent?: string): void {
+    this.requestContext = { ipAddress, userAgent };
+  }
+
+  /**
+   * Логирование операций с IP и User-Agent
    */
   protected async auditLog(
     action: string, 
@@ -57,19 +69,17 @@ export abstract class BaseService {
     try {
       console.log(`[${new Date().toISOString()}] ${action} - User: ${userId}`, metadata);
       
-      // В будущем здесь будет запись в БД через AdminLog
       if (this.storage.createAdminLog) {
         await this.storage.createAdminLog({
           adminUserId: userId,
           action,
           details: metadata ? JSON.stringify(metadata) : null,
-          ipAddress: null, // TODO: получать из контекста запроса
-          userAgent: null, // TODO: получать из контекста запроса
+          ipAddress: this.requestContext.ipAddress || null,
+          userAgent: this.requestContext.userAgent || null,
         });
       }
     } catch (error) {
       console.error('Audit log error:', error);
-      // Не прерываем основную операцию из-за ошибки логирования
     }
   }
 

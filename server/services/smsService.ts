@@ -84,6 +84,60 @@ export class SMSService {
   }
 
   /**
+   * Отправка произвольного SMS сообщения
+   */
+  async sendSMS(phone: string, message: string): Promise<SMSResult> {
+    try {
+      const formattedPhone = phone.replace(/[\s\-\+]/g, '');
+
+      if (!this.SMS_RU_API_KEY) {
+        console.log(`📱 [TEST MODE] SMS to ${formattedPhone}: ${message}`);
+        return {
+          success: true,
+          message: 'SMS отправлен (тестовый режим)',
+          messageId: 'test_' + Date.now()
+        };
+      }
+
+      const response = await fetch(this.SMS_RU_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          api_id: this.SMS_RU_API_KEY,
+          to: formattedPhone,
+          msg: message,
+          json: '1'
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'OK') {
+        return {
+          success: true,
+          message: 'SMS успешно отправлен',
+          messageId: result.sms?.[formattedPhone]?.sms_id
+        };
+      } else {
+        console.error('SMS.RU error:', result);
+        return {
+          success: false,
+          message: result.status_text || 'Ошибка отправки SMS'
+        };
+      }
+
+    } catch (error) {
+      console.error('SMS Service Error:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Ошибка сервиса SMS'
+      };
+    }
+  }
+
+  /**
    * Проверка баланса SMS.RU
    */
   async checkBalance(): Promise<SMSBalance> {

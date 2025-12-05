@@ -10,6 +10,23 @@ import type {
 import type { User, InsertUser } from "@shared/schema";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { EmailService } from "./emailService";
+import { SMSService } from "./smsService";
+
+let emailService: EmailService | null = null;
+let smsService: SMSService | null = null;
+
+try {
+  emailService = new EmailService();
+} catch (error) {
+  console.warn('⚠️ EmailService not initialized:', (error as Error).message);
+}
+
+try {
+  smsService = new SMSService();
+} catch (error) {
+  console.warn('⚠️ SMSService not initialized:', (error as Error).message);
+}
 
 /**
  * UserService - сервис для управления пользователями
@@ -339,7 +356,7 @@ export class UserService extends BaseService implements IUserService {
   }
 
   /**
-   * Генерация JWT токена
+   * Генерация JWT access токена
    */
   private generateJWT(user: User): string {
     const payload = {
@@ -356,8 +373,65 @@ export class UserService extends BaseService implements IUserService {
 
     return jwt.sign(payload, secret, { 
       expiresIn: '24h',
-      issuer: 'fintrack-api'
+      issuer: 'myepa-api'
     });
+  }
+
+  /**
+   * Генерация Refresh токена (долгоживущий)
+   */
+  generateRefreshToken(user: User): string {
+    const payload = {
+      userId: user.id,
+      type: 'refresh',
+      version: 1
+    };
+
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT_SECRET не настроен');
+    }
+
+    return jwt.sign(payload, secret, { 
+      expiresIn: '30d',
+      issuer: 'myepa-api'
+    });
+  }
+
+  /**
+   * Проверка и обновление токенов через refresh token
+   */
+  async refreshTokens(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+    try {
+      const secret = process.env.JWT_SECRET;
+      if (!secret) {
+        throw new Error('JWT_SECRET не настроен');
+      }
+
+      const decoded = jwt.verify(refreshToken, secret) as { userId: string; type: string };
+      
+      if (decoded.type !== 'refresh') {
+        throw new BusinessError('Неверный тип токена');
+      }
+
+      const user = await this.storage.getUser(decoded.userId);
+      if (!user) {
+        throw new NotFoundError('Пользователь', decoded.userId);
+      }
+
+      return {
+        accessToken: this.generateJWT(user),
+        refreshToken: this.generateRefreshToken(user)
+      };
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        throw new BusinessError('Refresh токен истёк, необходима повторная авторизация');
+      }
+      if (error instanceof jwt.JsonWebTokenError) {
+        throw new BusinessError('Неверный refresh токен');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -378,19 +452,83 @@ export class UserService extends BaseService implements IUserService {
   }
 
   /**
-   * Обработка смены email
+   * Обработка смены email - отправка уведомлений
    */
   private async handleEmailChange(userId: string, newEmail: string, oldEmail?: string | null): Promise<void> {
-    // TODO: Отправка уведомлений на старый и новый email
     console.log(`Email changed for user ${userId}: ${oldEmail} -> ${newEmail}`);
+    
+    if (!emailService) {
+      console.warn('⚠️ EmailService not available, skipping email notifications');
+      return;
+    }
+
+    try {
+      if (oldEmail) {
+        await emailService.sendEmail({
+          to: oldEmail,
+          subject: 'Уведомление о смене email - My EPA',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>🔔 Изменение email адреса</h2>
+              <p>Ваш email адрес в аккаунте My EPA был изменён.</p>
+              <p><strong>Старый email:</strong> ${oldEmail}</p>
+              <p><strong>Новый email:</strong> ${newEmail}</p>
+              <p>Если вы не совершали это действие, пожалуйста, свяжитесь с поддержкой немедленно.</p>
+              <hr/>
+              <p style="color: #666; font-size: 12px;">© My EPA - Агрегатор онлайн обучения</p>
+            </div>
+          `
+        });
+      }
+
+      await emailService.sendEmail({
+        to: newEmail,
+        subject: 'Email подтверждён - My EPA',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>✅ Email успешно привязан</h2>
+            <p>Этот email адрес теперь привязан к вашему аккаунту My EPA.</p>
+            <p>Теперь вы будете получать уведомления о курсах, дедлайнах и новостях на этот адрес.</p>
+            <hr/>
+            <p style="color: #666; font-size: 12px;">© My EPA - Агрегатор онлайн обучения</p>
+          </div>
+        `
+      });
+
+      console.log(`✅ Email notifications sent for user ${userId}`);
+    } catch (error) {
+      console.error('Failed to send email notifications:', error);
+    }
   }
 
   /**
-   * Обработка смены телефона
+   * Обработка смены телефона - отправка SMS уведомлений
    */
   private async handlePhoneChange(userId: string, newPhone: string, oldPhone?: string | null): Promise<void> {
-    // TODO: Отправка SMS уведомлений
     console.log(`Phone changed for user ${userId}: ${oldPhone} -> ${newPhone}`);
+    
+    if (!smsService) {
+      console.warn('⚠️ SMSService not available, skipping SMS notifications');
+      return;
+    }
+
+    try {
+      if (oldPhone) {
+        await smsService.sendSMS(
+          oldPhone,
+          'My EPA: Ваш номер телефона был изменён. Если это не вы, свяжитесь с поддержкой.'
+        );
+      }
+
+      await smsService.sendSMS(
+        newPhone,
+        'My EPA: Этот номер успешно привязан к вашему аккаунту.'
+      );
+
+      console.log(`✅ SMS notifications sent for user ${userId}`);
+    } catch (error) {
+      console.error('Failed to send SMS notifications:', error);
+    }
   }
 }
 

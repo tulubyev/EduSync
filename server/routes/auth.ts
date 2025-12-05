@@ -108,12 +108,12 @@ authRouter.post('/login', authLimiter, async (req, res) => {
     // Первый этап - проверяем логин и пароль через UserService
     const authResult = await userService.verifyUserCredentials(loginIdentifier, password);
     
-    // Формируем ответ в формате как раньше
+    // Формируем ответ с реальными токенами
     const loginResult = {
       user: authResult.user,
       tokens: {
         accessToken: authResult.token,
-        refreshToken: 'mock_refresh_token' // TODO: добавить refresh token в UserService
+        refreshToken: userService.generateRefreshToken(authResult.user)
       }
     };
     

@@ -14,31 +14,47 @@ export interface EmailResponse {
 }
 
 export class EmailService {
-  private transporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter | null = null;
+  private isConfigured: boolean = false;
 
   constructor() {
-    if (!process.env.BEGET_SMTP_HOST || !process.env.BEGET_SMTP_USER || !process.env.BEGET_SMTP_PASSWORD) {
-      throw new Error('Beget SMTP environment variables are required');
+    const host = process.env.BEGET_SMTP_HOST;
+    const user = process.env.BEGET_SMTP_USER;
+    const password = process.env.BEGET_SMTP_PASSWORD;
+
+    if (!host || !user || !password) {
+      console.warn('⚠️ EmailService: SMTP not configured. Email sending will be in test mode.');
+      this.isConfigured = false;
+      return;
     }
 
+    this.isConfigured = true;
     this.transporter = nodemailer.createTransport({
-      host: process.env.BEGET_SMTP_HOST,
+      host: host,
       port: parseInt(process.env.BEGET_SMTP_PORT || '587'),
-      secure: process.env.BEGET_SMTP_PORT === '465', // true for 465, false for other ports
+      secure: process.env.BEGET_SMTP_PORT === '465',
       auth: {
-        user: process.env.BEGET_SMTP_USER,
-        pass: process.env.BEGET_SMTP_PASSWORD,
+        user: user,
+        pass: password,
       },
       tls: {
-        rejectUnauthorized: false // для некоторых SMTP серверов
+        rejectUnauthorized: false
       }
     });
   }
 
   async sendEmail(options: EmailOptions): Promise<EmailResponse> {
+    if (!this.isConfigured || !this.transporter) {
+      console.log(`📧 [TEST MODE] Email to ${options.to}: ${options.subject}`);
+      return {
+        success: true,
+        messageId: 'test_' + Date.now()
+      };
+    }
+
     try {
       const mailOptions = {
-        from: `"FinTrack" <${process.env.BEGET_SMTP_USER}>`,
+        from: `"My EPA" <${process.env.BEGET_SMTP_USER}>`,
         to: options.to,
         subject: options.subject,
         text: options.text,
