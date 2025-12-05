@@ -9,6 +9,7 @@ import { LibraryPage } from './components/library/LibraryPage';
 import { PlatformsPage } from './components/platforms/PlatformsPage';
 import { AnalyticsPage } from './components/analytics/AnalyticsPage';
 import { SettingsPage } from './components/settings/SettingsPage';
+import { SubscriptionPage } from './components/settings/SubscriptionPage';
 import { 
   BookOpen, 
   Calendar, 
@@ -19,7 +20,9 @@ import {
   LogOut,
   Home,
   Menu,
-  X
+  X,
+  CreditCard,
+  CheckCircle
 } from 'lucide-react';
 
 function App() {
@@ -142,6 +145,8 @@ function App() {
           <Route path="/platforms" component={PlatformsPage} />
           <Route path="/analytics" component={AnalyticsPage} />
           <Route path="/settings" component={SettingsPage} />
+          <Route path="/subscription" component={SubscriptionPage} />
+          <Route path="/subscription/success" component={SubscriptionSuccessPage} />
           <Route component={() => <Dashboard user={currentUser} />} />
         </Switch>
       </main>
@@ -167,6 +172,7 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
     { path: '/library', icon: FileText, label: 'Библиотека' },
     { path: '/platforms', icon: Globe, label: 'Платформы' },
     { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
+    { path: '/subscription', icon: CreditCard, label: 'Подписка' },
     { path: '/settings', icon: Settings, label: 'Настройки' },
   ];
 
@@ -483,6 +489,34 @@ function QuickAction({ href, icon, title }: { href: string; icon: string; title:
         <h4 className="font-medium text-gray-800">{title}</h4>
       </div>
     </Link>
+  );
+}
+
+function SubscriptionSuccessPage() {
+  return (
+    <div className="p-8 max-w-2xl mx-auto">
+      <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <CheckCircle className="w-8 h-8 text-green-600" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Оплата успешна!</h1>
+        <p className="text-gray-600 mb-6">
+          Ваша подписка активирована. Теперь вам доступны все преимущества выбранного тарифа.
+        </p>
+        <div className="flex gap-4 justify-center">
+          <Link href="/subscription">
+            <div className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer">
+              Моя подписка
+            </div>
+          </Link>
+          <Link href="/home">
+            <div className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer">
+              На главную
+            </div>
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 
