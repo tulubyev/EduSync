@@ -25,6 +25,30 @@ import {
   CheckCircle
 } from 'lucide-react';
 
+function SubscriptionSuccessPage() {
+  return (
+    <div className="p-8 max-w-2xl mx-auto">
+      <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <CheckCircle className="w-8 h-8 text-green-600" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Оплата успешна!</h1>
+        <p className="text-gray-600 mb-6">
+          Ваша подписка активирована. Теперь вам доступны все преимущества выбранного тарифа.
+        </p>
+        <div className="flex gap-4 justify-center">
+          <a href="/subscription" className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+            Моя подписка
+          </a>
+          <a href="/home" className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+            На главную
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -489,34 +513,6 @@ function QuickAction({ href, icon, title }: { href: string; icon: string; title:
         <h4 className="font-medium text-gray-800">{title}</h4>
       </div>
     </Link>
-  );
-}
-
-function SubscriptionSuccessPage() {
-  return (
-    <div className="p-8 max-w-2xl mx-auto">
-      <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle className="w-8 h-8 text-green-600" />
-        </div>
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Оплата успешна!</h1>
-        <p className="text-gray-600 mb-6">
-          Ваша подписка активирована. Теперь вам доступны все преимущества выбранного тарифа.
-        </p>
-        <div className="flex gap-4 justify-center">
-          <Link href="/subscription">
-            <div className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer">
-              Моя подписка
-            </div>
-          </Link>
-          <Link href="/home">
-            <div className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer">
-              На главную
-            </div>
-          </Link>
-        </div>
-      </div>
-    </div>
   );
 }
 
