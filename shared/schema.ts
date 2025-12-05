@@ -232,6 +232,75 @@ export const userSettings = pgTable("user_settings", {
   userSettingsIdx: index("user_settings_user_idx").on(table.userId),
 }));
 
+// Subscription Plans table - Available subscription plans
+export const subscriptionPlans = pgTable("subscription_plans", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code", { length: 50 }).notNull().unique(), // free, premium, pro
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  priceMonthly: decimal("price_monthly", { precision: 10, scale: 2 }).notNull(), // in RUB
+  priceYearly: decimal("price_yearly", { precision: 10, scale: 2 }), // discounted yearly price
+  features: jsonb("features"), // { maxCourses: 10, analytics: true, etc. }
+  maxCourses: integer("max_courses"), // null = unlimited
+  maxPlatforms: integer("max_platforms"), // null = unlimited
+  hasAnalytics: boolean("has_analytics").default(false),
+  hasAdvancedReminders: boolean("has_advanced_reminders").default(false),
+  hasPrioritySupport: boolean("has_priority_support").default(false),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  codeIdx: index("subscription_plans_code_idx").on(table.code),
+  sortIdx: index("subscription_plans_sort_idx").on(table.sortOrder),
+}));
+
+// Subscriptions table - User subscriptions
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  planId: uuid("plan_id").references(() => subscriptionPlans.id).notNull(),
+  status: varchar("status", { length: 20 }).default("active"), // active, cancelled, expired, past_due
+  billingPeriod: varchar("billing_period", { length: 20 }).default("monthly"), // monthly, yearly
+  currentPeriodStart: timestamp("current_period_start").notNull(),
+  currentPeriodEnd: timestamp("current_period_end").notNull(),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
+  cancelledAt: timestamp("cancelled_at"),
+  yoomoneyPaymentMethodId: varchar("yoomoney_payment_method_id", { length: 255 }), // saved payment method
+  lastPaymentAt: timestamp("last_payment_at"),
+  nextPaymentAt: timestamp("next_payment_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userSubIdx: index("subscriptions_user_idx").on(table.userId),
+  planSubIdx: index("subscriptions_plan_idx").on(table.planId),
+  statusIdx: index("subscriptions_status_idx").on(table.status),
+}));
+
+// Payments table - Payment history
+export const payments = pgTable("payments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  subscriptionId: uuid("subscription_id").references(() => subscriptions.id),
+  yoomoneyOperationId: varchar("yoomoney_operation_id", { length: 255 }), // Yoomoney operation ID
+  yoomoneyLabel: varchar("yoomoney_label", { length: 255 }), // unique payment label
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("RUB"),
+  status: varchar("status", { length: 20 }).default("pending"), // pending, completed, failed, refunded
+  paymentType: varchar("payment_type", { length: 20 }), // AC=card, PC=wallet, SB=SberPay
+  description: text("description"),
+  failureReason: text("failure_reason"),
+  metadata: jsonb("metadata"), // additional payment data
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userPaymentIdx: index("payments_user_idx").on(table.userId),
+  subscriptionPaymentIdx: index("payments_subscription_idx").on(table.subscriptionId),
+  yoomoneyOpIdx: index("payments_yoomoney_op_idx").on(table.yoomoneyOperationId),
+  labelIdx: index("payments_label_idx").on(table.yoomoneyLabel),
+  statusIdx: index("payments_status_idx").on(table.status),
+}));
+
 // Admin Logs table - Admin activity tracking
 export const adminLogs = pgTable("admin_logs", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -262,6 +331,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   studySessions: many(studySessions),
   settings: one(userSettings),
   adminLogs: many(adminLogs),
+  subscriptions: many(subscriptions),
+  payments: many(payments),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -317,6 +388,21 @@ export const userSettingsRelations = relations(userSettings, ({ one }) => ({
 
 export const adminLogsRelations = relations(adminLogs, ({ one }) => ({
   admin: one(users, { fields: [adminLogs.adminUserId], references: [users.id] }),
+}));
+
+export const subscriptionPlansRelations = relations(subscriptionPlans, ({ many }) => ({
+  subscriptions: many(subscriptions),
+}));
+
+export const subscriptionsRelations = relations(subscriptions, ({ one, many }) => ({
+  user: one(users, { fields: [subscriptions.userId], references: [users.id] }),
+  plan: one(subscriptionPlans, { fields: [subscriptions.planId], references: [subscriptionPlans.id] }),
+  payments: many(payments),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  user: one(users, { fields: [payments.userId], references: [users.id] }),
+  subscription: one(subscriptions, { fields: [payments.subscriptionId], references: [subscriptions.id] }),
 }));
 
 // ===========================================
@@ -379,6 +465,23 @@ export const insertAdminLogSchema = createInsertSchema(adminLogs).omit({
   createdAt: true,
 });
 
+export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+});
+
 // ===========================================
 // TYPE EXPORTS
 // ===========================================
@@ -412,3 +515,12 @@ export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 
 export type AdminLog = typeof adminLogs.$inferSelect;
 export type InsertAdminLog = z.infer<typeof insertAdminLogSchema>;
+
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
+
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
