@@ -478,10 +478,10 @@ function DashboardDeadlineCard({ deadline }: { deadline: any }) {
 function QuickAction({ href, icon, title }: { href: string; icon: string; title: string }) {
   return (
     <Link href={href}>
-      <a className="p-5 bg-white border border-gray-200 rounded-xl cursor-pointer text-center hover:shadow-md hover:border-purple-200 transition-all group">
+      <div className="p-5 bg-white border border-gray-200 rounded-xl cursor-pointer text-center hover:shadow-md hover:border-purple-200 transition-all group">
         <span className="text-2xl block mb-2 group-hover:scale-110 transition-transform">{icon}</span>
         <h4 className="font-medium text-gray-800">{title}</h4>
-      </a>
+      </div>
     </Link>
   );
 }
