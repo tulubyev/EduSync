@@ -1,7 +1,6 @@
 import type { IPaymentGateway, PaymentProvider } from './paymentGateway';
 import { yookassaService } from '../yookassaService';
-
-let alfabankServiceInstance: IPaymentGateway | null = null;
+import { alfabankService } from './alfabankService';
 
 export class PaymentFactory {
   private static gateways: Map<PaymentProvider, IPaymentGateway> = new Map();
@@ -16,11 +15,7 @@ export class PaymentFactory {
     }
 
     if (provider === 'alfabank') {
-      if (!alfabankServiceInstance) {
-        const { alfabankService } = require('./alfabankService');
-        alfabankServiceInstance = alfabankService;
-      }
-      return alfabankServiceInstance!;
+      return alfabankService;
     }
 
     const gateway = this.gateways.get(provider);
@@ -36,20 +31,7 @@ export class PaymentFactory {
   }
 
   static getAllGateways(): IPaymentGateway[] {
-    const gateways: IPaymentGateway[] = [yookassaService];
-    
-    try {
-      if (!alfabankServiceInstance) {
-        const { alfabankService } = require('./alfabankService');
-        alfabankServiceInstance = alfabankService;
-      }
-      if (alfabankServiceInstance) {
-        gateways.push(alfabankServiceInstance);
-      }
-    } catch (e) {
-    }
-    
-    return gateways;
+    return [yookassaService, alfabankService];
   }
 
   static getReadyGateways(): IPaymentGateway[] {
