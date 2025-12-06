@@ -81,7 +81,6 @@ export function LibraryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-  const [viewingNote, setViewingNote] = useState<Note | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNodeType, setSelectedNodeType] = useState<string>('');
   const [leftWidth, setLeftWidth] = useState(224); // w-56 = 224px
@@ -328,6 +327,17 @@ export function LibraryPage() {
     }
     return <div className="flex items-center gap-1"><LinkIcon className="h-3 w-3 text-gray-500" /><span className="text-xs truncate">{url.substring(0, 20)}...</span></div>;
   };
+
+  const isImageUrl = (url: string) => {
+    if (!url) return false;
+    return url.startsWith('data:image/') || 
+           url.includes('.jpg') || 
+           url.includes('.jpeg') || 
+           url.includes('.png') || 
+           url.includes('.gif') || 
+           url.includes('.webp');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -434,166 +444,112 @@ export function LibraryPage() {
               </Button>
             </div>
           ) : viewMode === 'list' ? (
-            <div className="flex flex-col gap-2 overflow-y-auto">
+            <div className="flex flex-col gap-1 overflow-y-auto">
               {filteredNotes.map((note) => (
-                <Card 
+                <div 
                   key={note.id} 
-                  className={`cursor-pointer hover:shadow-md transition-shadow flex items-center gap-4 p-3 ${
-                    selectedNote?.id === note.id ? 'ring-2 ring-primary' : ''
-                  } ${note.isPinned ? 'border-yellow-300 bg-yellow-50/50' : ''}`}
-                  onClick={() => {
-                    setSelectedNote(note);
-                    setViewingNote(note);
-                  }}
+                  className={`cursor-pointer hover:bg-accent/50 transition-colors flex items-center gap-2 px-2 py-1.5 rounded border ${
+                    selectedNote?.id === note.id ? 'bg-accent ring-1 ring-primary' : 'bg-background'
+                  } ${note.isPinned ? 'border-yellow-300 bg-yellow-50/30' : 'border-transparent'}`}
+                  onClick={() => setSelectedNote(note)}
                 >
+                  {note.resourceUrl && isImageUrl(note.resourceUrl) && (
+                    <img 
+                      src={note.resourceUrl} 
+                      alt="" 
+                      className="w-8 h-8 object-cover rounded flex-shrink-0"
+                    />
+                  )}
+                  {note.resourceUrl && !isImageUrl(note.resourceUrl) && (
+                    <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded flex-shrink-0">
+                      {getResourceIcon(note.resourceUrl)}
+                    </div>
+                  )}
+                  {!note.resourceUrl && (
+                    <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded flex-shrink-0">
+                      <FileText className="h-4 w-4 text-gray-400" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <CardTitle className="text-sm line-clamp-1">
-                          {note.isPinned && '📌 '}{note.title}
-                        </CardTitle>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 flex-shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTogglePin(note);
-                        }}
-                      >
-                        {note.isPinned ? (
-                          <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                        ) : (
-                          <StarOff className="h-3 w-3 text-gray-400" />
-                        )}
-                      </Button>
+                    <div className="flex items-center gap-1">
+                      {note.isPinned && <span className="text-xs">📌</span>}
+                      <span className="text-sm font-medium truncate">{note.title}</span>
                     </div>
-                    
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                      {truncateContent(note.content, 100)}
-                    </p>
-                    
-                    {note.resourceUrl && (
-                      <div className="mb-2 text-xs">
-                        {getResourcePreview(note.resourceUrl)}
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {note.platform && (
-                        <Badge variant="outline" className="text-xs">
-                          🔗 {note.platform.name}
-                        </Badge>
-                      )}
-                      
-                      {note.course && (
-                        <Badge variant="outline" className="text-xs">
-                          📚 {note.course.title}
-                        </Badge>
-                      )}
-                      
-                      {note.tags && note.tags.length > 0 && (
-                        <>
-                          {note.tags.slice(0, 2).map((tag, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              #{tag}
-                            </Badge>
-                          ))}
-                          {note.tags.length > 2 && (
-                            <Badge variant="secondary" className="text-xs">
-                              +{note.tags.length - 2}
-                            </Badge>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {format(new Date(note.updatedAt), 'd MMM yyyy', { locale: ru })}
+                    <p className="text-xs text-muted-foreground truncate">
+                      {truncateContent(note.content, 60)}
                     </p>
                   </div>
-                </Card>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(note.updatedAt), 'd.MM', { locale: ru })}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTogglePin(note);
+                      }}
+                    >
+                      {note.isPinned ? (
+                        <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                      ) : (
+                        <StarOff className="h-3 w-3 text-gray-400" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 overflow-y-auto">
               {filteredNotes.map((note) => (
-                <Card 
+                <div 
                   key={note.id} 
-                  className={`cursor-pointer hover:shadow-md transition-shadow ${
-                    selectedNote?.id === note.id ? 'ring-2 ring-primary' : ''
-                  } ${note.isPinned ? 'border-yellow-300 bg-yellow-50/50' : ''}`}
-                  onClick={() => {
-                    setSelectedNote(note);
-                    setViewingNote(note);
-                  }}
+                  className={`cursor-pointer hover:shadow-md transition-all rounded-lg border p-2 ${
+                    selectedNote?.id === note.id ? 'ring-2 ring-primary bg-accent' : 'bg-background'
+                  } ${note.isPinned ? 'border-yellow-300 bg-yellow-50/30' : ''}`}
+                  onClick={() => setSelectedNote(note)}
                 >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-base line-clamp-1">
-                        {note.isPinned && '📌 '}{note.title}
-                      </CardTitle>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTogglePin(note);
-                        }}
-                      >
-                        {note.isPinned ? (
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                        ) : (
-                          <StarOff className="h-4 w-4 text-gray-400" />
-                        )}
-                      </Button>
+                  {note.resourceUrl && isImageUrl(note.resourceUrl) && (
+                    <img 
+                      src={note.resourceUrl} 
+                      alt="" 
+                      className="w-full h-20 object-cover rounded mb-1"
+                    />
+                  )}
+                  {note.resourceUrl && !isImageUrl(note.resourceUrl) && (
+                    <div className="w-full h-20 flex items-center justify-center bg-gray-100 rounded mb-1">
+                      {getResourceIcon(note.resourceUrl)}
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground line-clamp-3 mb-2">
-                      {truncateContent(note.content)}
-                    </p>
-                    
-                    {note.resourceUrl && (
-                      <div className="mb-2 p-2 bg-gray-50 rounded">
-                        {renderResource(note.resourceUrl)}
-                      </div>
-                    )}
-                    
-                    {note.platform && (
-                      <Badge variant="outline" className="mb-2 mr-2">
-                        🔗 {note.platform.name}
-                      </Badge>
-                    )}
-                    
-                    {note.course && (
-                      <Badge variant="outline" className="mb-2">
-                        📚 {note.course.title}
-                      </Badge>
-                    )}
-                    
-                    {note.tags && note.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {note.tags.slice(0, 3).map((tag, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            #{tag}
-                          </Badge>
-                        ))}
-                        {note.tags.length > 3 && (
-                          <Badge variant="secondary" className="text-xs">
-                            +{note.tags.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                    
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(note.updatedAt), 'd MMM yyyy', { locale: ru })}
-                    </p>
-                  </CardContent>
-                </Card>
+                  )}
+                  <div className="flex items-start justify-between gap-1">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium line-clamp-1">
+                        {note.isPinned && '📌 '}{note.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        {truncateContent(note.content, 40)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 flex-shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTogglePin(note);
+                      }}
+                    >
+                      {note.isPinned ? (
+                        <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                      ) : (
+                        <StarOff className="h-3 w-3 text-gray-400" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -702,20 +658,6 @@ export function LibraryPage() {
         isEditing={!!editingNote}
       />
 
-      <ViewNoteModal
-        open={!!viewingNote}
-        note={viewingNote}
-        onClose={() => setViewingNote(null)}
-        onEdit={(note) => {
-          setEditingNote(note);
-          setViewingNote(null);
-        }}
-        onDelete={(id) => {
-          handleDeleteNote(id);
-          setViewingNote(null);
-        }}
-        onCopy={handleCopyContent}
-      />
     </div>
   );
 }
@@ -728,151 +670,6 @@ interface MaterialModalProps {
   courses: Course[];
   platforms: Platform[];
   isEditing?: boolean;
-}
-
-interface ViewNoteModalProps {
-  open: boolean;
-  note: Note | null;
-  onClose: () => void;
-  onEdit: (note: Note) => void;
-  onDelete: (id: string) => void;
-  onCopy: (content: string) => void;
-}
-
-function ViewNoteModal({ open, note, onClose, onEdit, onDelete, onCopy }: ViewNoteModalProps) {
-  if (!note) return null;
-
-  const getResourceIcon = (url: string) => {
-    if (!url) return null;
-    if (url.startsWith('data:image/') || url.includes('youtube.com') || url.includes('youtu.be') || url.includes('.mp4') || url.includes('.webm')) {
-      return <Video className="h-4 w-4 text-red-500" />;
-    }
-    if (url.includes('.mp3') || url.includes('.wav') || url.includes('.ogg') || url.startsWith('data:audio/')) {
-      return <Music className="h-4 w-4 text-purple-500" />;
-    }
-    if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp') || url.startsWith('data:image/')) {
-      return <ImageIcon className="h-4 w-4 text-blue-500" />;
-    }
-    return <LinkIcon className="h-4 w-4 text-gray-500" />;
-  };
-
-  const renderResource = (url: string) => {
-    if (!url) return null;
-    
-    if (url.startsWith('data:image/')) {
-      return <img src={url} alt="Загруженное изображение" className="max-w-full max-h-96 rounded border" />;
-    }
-    if (url.startsWith('data:video/')) {
-      return <video src={url} controls className="max-w-full max-h-96 rounded border" />;
-    }
-    if (url.startsWith('data:audio/')) {
-      return <audio src={url} controls className="w-full" />;
-    }
-    
-    return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 break-all">
-        {getResourceIcon(url)}
-        <span className="underline">{url.substring(0, 50)}...</span>
-        <ExternalLink className="h-4 w-4 flex-shrink-0" />
-      </a>
-    );
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between w-full">
-            <DialogTitle className="flex-1">
-              {note.isPinned && '📌 '}{note.title}
-            </DialogTitle>
-            <div className="flex gap-1 ml-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onCopy(note.content)}
-                title="Копировать содержимое"
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onEdit(note)}
-                title="Редактировать"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDelete(note.id)}
-                title="Удалить"
-              >
-                <Trash2 className="h-4 w-4 text-red-500" />
-              </Button>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="prose prose-sm max-w-none">
-            <p className="whitespace-pre-wrap">{note.content}</p>
-          </div>
-
-          {note.resourceUrl && (
-            <div className="pt-4 border-t">
-              <p className="text-sm text-muted-foreground mb-2">Ресурс:</p>
-              <a 
-                href={note.resourceUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 break-all"
-              >
-                {getResourceIcon(note.resourceUrl)}
-                <span className="underline">{note.resourceUrl}</span>
-                <ExternalLink className="h-4 w-4 flex-shrink-0" />
-              </a>
-            </div>
-          )}
-
-          {note.platform && (
-            <div className="pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
-                Платформа: <Badge variant="outline">{note.platform.name}</Badge>
-              </p>
-            </div>
-          )}
-
-          {note.course && (
-            <div className="pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
-                Курс: <Badge variant="outline">{note.course.title}</Badge>
-              </p>
-            </div>
-          )}
-
-          {note.tags && note.tags.length > 0 && (
-            <div className="pt-4 border-t">
-              <p className="text-sm text-muted-foreground mb-2">Теги:</p>
-              <div className="flex flex-wrap gap-2">
-                {note.tags.map((tag, index) => (
-                  <Badge key={index} variant="secondary">
-                    #{tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="pt-4 border-t text-xs text-muted-foreground space-y-1">
-            <p>Создано: {format(new Date(note.createdAt), 'd MMMM yyyy, HH:mm', { locale: ru })}</p>
-            <p>Обновлено: {format(new Date(note.updatedAt), 'd MMMM yyyy, HH:mm', { locale: ru })}</p>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 function MaterialModal({ open, onClose, onSubmit, initialData, courses, platforms, isEditing }: MaterialModalProps) {
