@@ -88,6 +88,37 @@ export function AddCourseModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPlatformSelector, setShowPlatformSelector] = useState(false);
   const [connectedPlatforms, setConnectedPlatforms] = useState<Set<string>>(new Set());
+  const [allPlatforms, setAllPlatforms] = useState<any[]>([]);
+
+  const fetchConnectedPlatforms = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/platforms/connected', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setConnectedPlatforms(new Set(data.map((p: any) => p.platformId)));
+      }
+    } catch (err) {
+      console.error('Error fetching connected platforms:', err);
+    }
+  };
+
+  const fetchAllPlatforms = async () => {
+    try {
+      const response = await fetch('/api/platforms');
+      if (response.ok) {
+        const data = await response.json();
+        setAllPlatforms(data);
+      }
+    } catch (err) {
+      console.error('Error fetching platforms:', err);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -122,26 +153,9 @@ export function AddCourseModal({
       }
       setErrors({});
       fetchConnectedPlatforms();
+      fetchAllPlatforms();
     }
   }, [open, initialData]);
-
-  const fetchConnectedPlatforms = async () => {
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/platforms/connected', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setConnectedPlatforms(new Set(data.map((p: any) => p.platformId)));
-      }
-    } catch (err) {
-      console.error('Error fetching connected platforms:', err);
-    }
-  };
 
   const handleChange = (field: keyof CourseFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -248,8 +262,8 @@ export function AddCourseModal({
                   onClick={() => setShowPlatformSelector(true)}
                   className="flex-1 justify-start text-left truncate"
                 >
-                  {formData.platformId && platforms.find(p => p.id === formData.platformId)
-                    ? platforms.find(p => p.id === formData.platformId)?.name
+                  {formData.platformId && (allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))
+                    ? (allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))?.displayName || (allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))?.name
                     : 'Выбрать платформу'}
                 </Button>
                 {formData.platformId && (
@@ -265,7 +279,7 @@ export function AddCourseModal({
               </div>
               {formData.platformId && (
                 <p className="text-xs text-green-600">
-                  ✓ Платформа выбрана: {platforms.find(p => p.id === formData.platformId)?.name}
+                  ✓ Платформа выбрана: {(allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))?.displayName || (allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))?.name}
                 </p>
               )}
               {!formData.platformId && (
@@ -437,14 +451,7 @@ export function AddCourseModal({
         onClose={() => setShowPlatformSelector(false)}
         onSelect={(platformId) => handleChange('platformId', platformId)}
         connectedPlatforms={connectedPlatforms}
-        platforms={platforms.map(p => ({
-          id: p.id,
-          name: p.name,
-          displayName: p.name,
-          websiteUrl: '',
-          authType: 'oauth',
-          category: 'Образование',
-        }))}
+        platforms={allPlatforms.length > 0 ? allPlatforms : undefined}
       />
     </Dialog>
   );

@@ -24,19 +24,19 @@ interface Platform {
 }
 
 const globalPlatforms: Platform[] = [
-  { id: 'coursera', displayName: 'Coursera', name: 'coursera', description: 'Курсы от лучших университетов мира', category: 'Университеты', websiteUrl: 'https://www.coursera.org', authType: 'oauth' },
-  { id: 'udemy', displayName: 'Udemy', name: 'udemy', description: 'Крупнейшая платформа онлайн-курсов', category: 'Маркетплейс', websiteUrl: 'https://www.udemy.com', authType: 'api_key' },
-  { id: 'edx', displayName: 'edX', name: 'edx', description: 'Курсы от MIT, Harvard, Berkeley', category: 'Университеты', websiteUrl: 'https://www.edx.org', authType: 'oauth' },
-  { id: 'stepik', displayName: 'Stepik', name: 'stepik', description: 'Российская платформа с курсами', category: 'Университеты', websiteUrl: 'https://stepik.org', authType: 'oauth' },
-  { id: 'skillbox', displayName: 'SkillBox', name: 'skillbox', description: 'Профессиональные курсы в России', category: 'Профессиональные', websiteUrl: 'https://skillbox.ru', authType: 'oauth' },
-  { id: 'khan-academy', displayName: 'Khan Academy', name: 'khan-academy', description: 'Бесплатное образование мирового класса', category: 'Бесплатные', websiteUrl: 'https://www.khanacademy.org', authType: 'oauth' },
-  { id: 'linkedin-learning', displayName: 'LinkedIn Learning', name: 'linkedin-learning', description: 'Профессиональные курсы', category: 'Профессиональные', websiteUrl: 'https://www.linkedin.com/learning', authType: 'oauth' },
-  { id: 'pluralsight', displayName: 'Pluralsight', name: 'pluralsight', description: 'Технические навыки для IT', category: 'Технические', websiteUrl: 'https://www.pluralsight.com', authType: 'api_key' },
-  { id: 'codecademy', displayName: 'Codecademy', name: 'codecademy', description: 'Интерактивное обучение программированию', category: 'Программирование', websiteUrl: 'https://www.codecademy.com', authType: 'oauth' },
-  { id: 'skillshare', displayName: 'Skillshare', name: 'skillshare', description: 'Творческие курсы', category: 'Творческие', websiteUrl: 'https://www.skillshare.com', authType: 'api_key' },
-  { id: 'udacity', displayName: 'Udacity', name: 'udacity', description: 'Нанодипломы в AI, Data Science', category: 'Технические', websiteUrl: 'https://www.udacity.com', authType: 'oauth' },
-  { id: 'datacamp', displayName: 'DataCamp', name: 'datacamp', description: 'Data Science, Machine Learning', category: 'Data Science', websiteUrl: 'https://www.datacamp.com', authType: 'api_key' },
-  { id: 'duolingo', displayName: 'Duolingo', name: 'duolingo', description: 'Изучение языков в игровой форме', category: 'Языки', websiteUrl: 'https://www.duolingo.com', authType: 'oauth' },
+  { id: 'coursera', displayName: 'Coursera', name: 'coursera', description: 'Курсы от лучших университетов мира', category: 'IT - General', websiteUrl: 'https://www.coursera.org', authType: 'oauth' },
+  { id: 'udemy', displayName: 'Udemy', name: 'udemy', description: 'Крупнейшая платформа с курсами', category: 'Professional', websiteUrl: 'https://www.udemy.com', authType: 'api_key' },
+  { id: 'edx', displayName: 'edX', name: 'edx', description: 'Курсы от MIT, Harvard, Berkeley', category: 'IT - General', websiteUrl: 'https://www.edx.org', authType: 'oauth' },
+  { id: 'stepik', displayName: 'Stepik', name: 'stepik', description: 'Российская платформа с курсами', category: 'IT - Programming', websiteUrl: 'https://stepik.org', authType: 'oauth' },
+  { id: 'skillbox', displayName: 'SkillBox', name: 'skillbox', description: 'Профессиональные курсы', category: 'Professional', websiteUrl: 'https://skillbox.ru', authType: 'oauth' },
+  { id: 'khan-academy', displayName: 'Khan Academy', name: 'khan-academy', description: 'Бесплатные курсы мирового класса', category: 'IT - General', websiteUrl: 'https://www.khanacademy.org', authType: 'oauth' },
+  { id: 'linkedin-learning', displayName: 'LinkedIn Learning', name: 'linkedin-learning', description: 'Профессиональное развитие', category: 'Professional', websiteUrl: 'https://www.linkedin.com/learning', authType: 'oauth' },
+  { id: 'pluralsight', displayName: 'Pluralsight', name: 'pluralsight', description: 'Технические навыки для IT', category: 'IT - Programming', websiteUrl: 'https://www.pluralsight.com', authType: 'api_key' },
+  { id: 'codecademy', displayName: 'Codecademy', name: 'codecademy', description: 'Интерактивное программирование', category: 'IT - Programming', websiteUrl: 'https://www.codecademy.com', authType: 'oauth' },
+  { id: 'skillshare', displayName: 'Skillshare', name: 'skillshare', description: 'Творческие курсы', category: 'Art & Design', websiteUrl: 'https://www.skillshare.com', authType: 'api_key' },
+  { id: 'udacity', displayName: 'Udacity', name: 'udacity', description: 'Нанодипломы в AI, Data Science', category: 'IT - Data Science', websiteUrl: 'https://www.udacity.com', authType: 'oauth' },
+  { id: 'datacamp', displayName: 'DataCamp', name: 'datacamp', description: 'Data Science и Machine Learning', category: 'IT - Data Science', websiteUrl: 'https://www.datacamp.com', authType: 'api_key' },
+  { id: 'duolingo', displayName: 'Duolingo', name: 'duolingo', description: 'Изучение языков в игровой форме', category: 'Language Learning', websiteUrl: 'https://www.duolingo.com', authType: 'oauth' },
 ];
 
 interface PlatformSelectorProps {
