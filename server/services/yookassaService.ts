@@ -37,6 +37,7 @@ interface YookassaPayment {
 }
 
 class YookassaService {
+  readonly providerName: string = 'yookassa';
   private shopId: string;
   private secretKey: string;
   private isConfigured: boolean = false;

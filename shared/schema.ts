@@ -323,7 +323,9 @@ export const subscriptions = pgTable("subscriptions", {
   currentPeriodEnd: timestamp("current_period_end").notNull(),
   cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
   cancelledAt: timestamp("cancelled_at"),
-  yoomoneyPaymentMethodId: varchar("yoomoney_payment_method_id", { length: 255 }), // saved payment method
+  yoomoneyPaymentMethodId: varchar("yoomoney_payment_method_id", { length: 255 }), // saved payment method (YooKassa)
+  alfabankPaymentMethodId: varchar("alfabank_payment_method_id", { length: 255 }), // saved payment method (Альфа-Банк)
+  paymentProvider: varchar("payment_provider", { length: 50 }).default("yookassa"), // yookassa, alfabank
   autoRenewalEnabled: boolean("auto_renewal_enabled").default(false), // enable automatic recurring payments
   lastPaymentAt: timestamp("last_payment_at"),
   nextPaymentAt: timestamp("next_payment_at"),
@@ -335,6 +337,7 @@ export const subscriptions = pgTable("subscriptions", {
   planSubIdx: index("subscriptions_plan_idx").on(table.planId),
   statusIdx: index("subscriptions_status_idx").on(table.status),
   autoRenewalIdx: index("subscriptions_auto_renewal_idx").on(table.autoRenewalEnabled),
+  providerIdx: index("subscriptions_provider_idx").on(table.paymentProvider),
 }));
 
 // Payments table - Payment history
@@ -342,7 +345,9 @@ export const payments = pgTable("payments", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id).notNull(),
   subscriptionId: uuid("subscription_id").references(() => subscriptions.id),
-  yoomoneyOperationId: varchar("yoomoney_operation_id", { length: 255 }), // Yoomoney operation ID
+  yoomoneyOperationId: varchar("yoomoney_operation_id", { length: 255 }), // Yoomoney/YooKassa operation ID
+  alfabankOrderId: varchar("alfabank_order_id", { length: 255 }), // Альфа-Банк order ID
+  paymentProvider: varchar("payment_provider", { length: 50 }).default("yookassa"), // yookassa, alfabank
   yoomoneyLabel: varchar("yoomoney_label", { length: 255 }), // unique payment label
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 3 }).default("RUB"),
