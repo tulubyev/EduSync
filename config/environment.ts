@@ -329,14 +329,6 @@ export const config: AppConfig = {
     queryTimeout: getEnvNumber('DATABASE_QUERY_TIMEOUT', 60000) // 60 секунд
   },
 
-  // Cache Configuration (FIX FOR 0% HIT RATE)
-  cache: {
-    dashboardTTL: getEnvNumber('CACHE_DASHBOARD_TTL', 5 * 60), // 5 минут
-    configTTL: getEnvNumber('CACHE_CONFIG_TTL', 30 * 60), // 30 минут
-    banksTTL: getEnvNumber('CACHE_BANKS_TTL', 60), // 1 минута
-    accountsTTL: getEnvNumber('CACHE_ACCOUNTS_TTL', 2 * 60), // 2 минуты
-  },
-  
   // External Services Configuration
   services: {
     openrouter: {
@@ -366,7 +358,10 @@ export const config: AppConfig = {
   // Cache Configuration
   cache: {
     defaultTTL: getEnvNumber('CACHE_DEFAULT_TTL', 300000), // 5 минут
-    dashboardTTL: getEnvNumber('CACHE_DASHBOARD_TTL', 300000) // 5 минут
+    dashboardTTL: getEnvNumber('CACHE_DASHBOARD_TTL', 5 * 60), // 5 минут
+    configTTL: getEnvNumber('CACHE_CONFIG_TTL', 30 * 60), // 30 минут
+    banksTTL: getEnvNumber('CACHE_BANKS_TTL', 60), // 1 минута
+    accountsTTL: getEnvNumber('CACHE_ACCOUNTS_TTL', 2 * 60), // 2 минуты
   },
   
   // Session Configuration
