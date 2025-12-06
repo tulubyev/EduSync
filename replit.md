@@ -158,13 +158,16 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
   - DELETE `/admin/plans/:id` - Delete plan (admin)
 - ✅ Created `SubscriptionPage.tsx` with:
   - Plan comparison cards (Free, Standard, Premium)
-  - Monthly/yearly billing toggle with 17% discount
+  - Monthly/yearly billing toggle with 20% discount (inline badge)
   - Current subscription status display
   - Payment history section
-  - YooKassa payment redirect flow
+  - YooKassa payment opens in new tab
+  - Auto-refresh when user returns from payment (visibility API)
+  - Auto-refresh every 30 seconds to sync webhook updates
 - ✅ Created `SubscriptionPlansManagement.tsx` for admin panel with CRUD operations
 - ✅ Added subscription link in sidebar navigation
 - ✅ Success page for completed payments
+- ✅ Subscription limits: Free (5 courses), Standard (15 courses), Premium (unlimited)
 
 **Required Environment Variables:**
 - `YOOKASSA_SHOP_ID` - YooKassa Shop ID

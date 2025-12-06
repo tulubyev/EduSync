@@ -64,6 +64,23 @@ export function SubscriptionPage() {
 
   useEffect(() => {
     fetchData();
+    
+    // Refetch data when page becomes visible (user returns from payment)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    };
+    
+    // Auto-refresh every 30 seconds to catch webhook updates
+    const refreshInterval = setInterval(fetchData, 30000);
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   const fetchData = async () => {
@@ -260,30 +277,30 @@ export function SubscriptionPage() {
         </Card>
       )}
 
-      <div className="flex flex-col items-center justify-center gap-2 mb-8">
-        <div className="flex items-center gap-4">
-          <span className={`text-sm font-medium transition-colors min-w-fit ${billingPeriod === 'monthly' ? 'text-gray-900' : 'text-gray-500'}`}>
-            Ежемесячно
-          </span>
-          <button
-            onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'yearly' : 'monthly')}
-            className={`relative w-16 h-8 rounded-full transition-all flex-shrink-0 ${
-              billingPeriod === 'yearly' ? 'bg-purple-600' : 'bg-gray-300'
+      <div className="flex items-center justify-center gap-4 mb-8">
+        <span className={`text-sm font-medium transition-colors min-w-fit ${billingPeriod === 'monthly' ? 'text-gray-900' : 'text-gray-500'}`}>
+          Ежемесячно
+        </span>
+        <button
+          onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'yearly' : 'monthly')}
+          className={`relative w-16 h-8 rounded-full transition-all flex-shrink-0 ${
+            billingPeriod === 'yearly' ? 'bg-purple-600' : 'bg-gray-300'
+          }`}
+        >
+          <span
+            className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform shadow-sm ${
+              billingPeriod === 'yearly' ? 'translate-x-8' : 'translate-x-0'
             }`}
-          >
-            <span
-              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform shadow-sm ${
-                billingPeriod === 'yearly' ? 'translate-x-8' : 'translate-x-0'
-              }`}
-            />
-          </button>
-          <span className={`text-sm font-medium transition-colors min-w-fit ${billingPeriod === 'yearly' ? 'text-gray-900' : 'text-gray-500'}`}>
+          />
+        </button>
+        <div className="flex items-center gap-2 min-w-fit">
+          <span className={`text-sm font-medium transition-colors ${billingPeriod === 'yearly' ? 'text-gray-900' : 'text-gray-500'}`}>
             Ежегодно
           </span>
+          {billingPeriod === 'yearly' && (
+            <Badge className="bg-green-100 text-green-700">-20%</Badge>
+          )}
         </div>
-        {billingPeriod === 'yearly' && (
-          <Badge className="bg-green-100 text-green-700">-20%</Badge>
-        )}
       </div>
 
       {!yoomoneyConfigured && (
