@@ -138,6 +138,34 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 - ✅ File name display after upload (✅ Загружено: filename)
 - ✅ Dual input method: URL OR file upload (not both simultaneously)
 
+# Recent Changes (December 6, 2025)
+
+## YooKassa Payment Integration - COMPLETE
+- ✅ Implemented YooKassa payment system for subscription payments
+- ✅ Created `yookassaService.ts` with direct HTTP API calls (Basic Auth)
+- ✅ Added subscription plans table with Free, Premium, Pro tiers
+- ✅ Created subscriptions and payments tables in database
+- ✅ Subscription routes: `/api/subscriptions/*`
+  - GET `/plans` - Get available subscription plans
+  - GET `/current` - Get current user subscription
+  - POST `/create-payment` - Create payment link for subscription
+  - POST `/webhook` - YooKassa payment notification webhook
+  - POST `/cancel` - Cancel subscription
+  - GET `/history` - Get payment history
+  - GET `/status` - Check YooKassa configuration status
+- ✅ Created `SubscriptionPage.tsx` with:
+  - Plan comparison cards (Free, Premium, Pro)
+  - Monthly/yearly billing toggle with 17% discount
+  - Current subscription status display
+  - Payment history section
+  - YooKassa payment redirect flow
+- ✅ Added subscription link in sidebar navigation
+- ✅ Success page for completed payments
+
+**Required Environment Variables:**
+- `YOOKASSA_SHOP_ID` - YooKassa Shop ID
+- `YOOKASSA_SECRET_KEY` - YooKassa Secret Key
+
 # File Structure
 ```
 client/src/components/
@@ -147,11 +175,19 @@ client/src/components/
 │   ├── LibraryPage.tsx            # Main library with 3-column resizable layout + file upload
 │   ├── LibraryTreeNav.tsx         # Tree navigation component
 │   └── ResizeHandle.tsx           # Draggable column border component
+├── settings/
+│   ├── SettingsPage.tsx           # User settings page
+│   └── SubscriptionPage.tsx       # Subscription management with YooKassa payments
 └── ...
 
 shared/
-└── schema.ts                      # Drizzle ORM schema with notes table (includes resourceUrl)
+└── schema.ts                      # Drizzle ORM schema (includes subscriptionPlans, subscriptions, payments)
 
-server/routes/
-└── library.ts                     # Library API endpoints with file validation
+server/
+├── services/
+│   └── yookassaService.ts         # YooKassa API integration (HTTP/Basic Auth)
+├── routes/
+│   ├── subscriptions.ts           # Subscription and payment endpoints
+│   └── library.ts                 # Library API endpoints with file validation
+└── ...
 ```
