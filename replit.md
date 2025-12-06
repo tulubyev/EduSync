@@ -142,8 +142,8 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 
 ## YooKassa Payment Integration - COMPLETE
 - ✅ Implemented YooKassa payment system for subscription payments
-- ✅ Created `yookassaService.ts` with direct HTTP API calls (Basic Auth)
-- ✅ Added subscription plans table with Free, Premium, Pro tiers
+- ✅ Created `yookassaService.ts` with direct HTTP API calls (Basic Auth, idempotence keys)
+- ✅ Added subscription plans table with Free, Стандарт (Standard), Премиум (Premium) tiers
 - ✅ Created subscriptions and payments tables in database
 - ✅ Subscription routes: `/api/subscriptions/*`
   - GET `/plans` - Get available subscription plans
@@ -153,12 +153,16 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
   - POST `/cancel` - Cancel subscription
   - GET `/history` - Get payment history
   - GET `/status` - Check YooKassa configuration status
+  - POST `/admin/plans` - Create new plan (admin)
+  - PUT `/admin/plans/:id` - Update plan (admin)
+  - DELETE `/admin/plans/:id` - Delete plan (admin)
 - ✅ Created `SubscriptionPage.tsx` with:
-  - Plan comparison cards (Free, Premium, Pro)
+  - Plan comparison cards (Free, Standard, Premium)
   - Monthly/yearly billing toggle with 17% discount
   - Current subscription status display
   - Payment history section
   - YooKassa payment redirect flow
+- ✅ Created `SubscriptionPlansManagement.tsx` for admin panel with CRUD operations
 - ✅ Added subscription link in sidebar navigation
 - ✅ Success page for completed payments
 
@@ -190,4 +194,7 @@ server/
 │   ├── subscriptions.ts           # Subscription and payment endpoints
 │   └── library.ts                 # Library API endpoints with file validation
 └── ...
+
+client/src/components/admin/
+└── SubscriptionPlansManagement.tsx # Admin panel for managing subscription plans (CRUD)
 ```
