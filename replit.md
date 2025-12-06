@@ -173,6 +173,22 @@ The design follows a clean, modern aesthetic using Shadcn UI components like `Ca
 - `YOOKASSA_SHOP_ID` - YooKassa Shop ID
 - `YOOKASSA_SECRET_KEY` - YooKassa Secret Key
 
+## Platform Integration Documentation - COMPLETE
+- ✅ Created `docs/integrations.md` with comprehensive integration strategy
+- ✅ Documented OAuth 2.0 flow with Authorization Code and Refresh Token flows
+- ✅ Detailed Stepik API endpoints (authorization, user data, courses, progress)
+- ✅ Defined data structures: StepikCourse, StepikProgress, StepikEnrollment
+- ✅ Created EPACourse, EPADeadline mapping interfaces
+- ✅ Designed PlatformAdapter interface for multi-platform support
+- ✅ Database schema: platform_connections, external_courses, course_deadlines
+- ✅ Sync algorithm with token refresh error handling
+- ✅ API endpoints design for /api/platforms/* and /api/courses/external
+
+**Required Environment Variables (for Stepik integration):**
+- `STEPIK_CLIENT_ID` - Stepik OAuth Client ID
+- `STEPIK_CLIENT_SECRET` - Stepik OAuth Client Secret
+- `PLATFORM_TOKENS_ENCRYPTION_KEY` - Key for encrypting platform tokens
+
 # File Structure
 ```
 client/src/components/
