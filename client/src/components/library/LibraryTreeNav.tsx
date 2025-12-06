@@ -279,8 +279,18 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMa
               className="h-6 text-xs px-2"
               onClick={() => {
                 setActiveSort(btn.id);
-                if (btn.id !== 'all') {
-                  setExpandedNodes(new Set([btn.id]));
+                if (btn.id === 'type') {
+                  setExpandedNodes(new Set(['type-image', 'type-video', 'type-audio', 'type-link', 'type-text']));
+                } else if (btn.id === 'name') {
+                  const letters = [...new Set(notes.map(n => n.title.charAt(0).toUpperCase() || '#'))];
+                  setExpandedNodes(new Set(letters.map(l => `name-${l}`)));
+                } else if (btn.id === 'date') {
+                  setExpandedNodes(new Set(['date-Сегодня', 'date-Вчера', 'date-Эта неделя', 'date-Этот месяц', 'date-Ранее']));
+                } else if (btn.id === 'tags') {
+                  const tags = [...new Set(notes.flatMap(n => n.tags || []))];
+                  setExpandedNodes(new Set([...tags.map(t => `tag-${t}`), 'tag-Без тегов']));
+                } else {
+                  setExpandedNodes(new Set(['all']));
                 }
               }}
             >
