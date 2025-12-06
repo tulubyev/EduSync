@@ -80,13 +80,27 @@ app.use((req, res, next) => {
     log(`serving on port ${config.port}`);
   });
 
-  // Start auto payment processing - runs every hour
-  setInterval(() => {
-    logger.info('Running auto payment processor...');
-    yookassaService.processAutoPayments().catch(err => {
-      logger.error('Error in auto payment processor:', err);
-    });
-  }, 3600000); // 1 hour
-
-  logger.info('Auto payment processor scheduled to run every hour');
+  // Start auto payment processing - runs once per day at 00:00 (midnight)
+  const scheduleAutoPaymentProcessor = () => {
+    const now = new Date();
+    const nextRun = new Date(now);
+    nextRun.setDate(nextRun.getDate() + 1);
+    nextRun.setHours(0, 0, 0, 0);
+    
+    const timeUntilNextRun = nextRun.getTime() - now.getTime();
+    
+    const runProcessor = () => {
+      logger.info('Running daily auto payment processor...');
+      yookassaService.processAutoPayments().catch(err => {
+        logger.error('Error in auto payment processor:', err);
+      });
+      // Schedule next run for tomorrow at midnight
+      setTimeout(runProcessor, 24 * 60 * 60 * 1000);
+    };
+    
+    setTimeout(runProcessor, timeUntilNextRun);
+    logger.info(`Auto payment processor scheduled to run daily at 00:00 (next run in ${Math.round(timeUntilNextRun / 1000 / 60)} minutes)`);
+  };
+  
+  scheduleAutoPaymentProcessor();
 })();

@@ -526,9 +526,9 @@ class YookassaService {
 
     try {
       const now = new Date();
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      now.setHours(0, 0, 0, 0); // Start of today
 
+      // Get subscriptions with nextPaymentAt <= today
       const dueSubs = await db
         .select()
         .from(subscriptions)
@@ -537,16 +537,20 @@ class YookassaService {
             eq(subscriptions.status, 'active'),
             eq(subscriptions.autoRenewalEnabled, true),
             eq(subscriptions.cancelAtPeriodEnd, false),
-            // Get subs where currentPeriodEnd is between now and tomorrow
           )
         );
 
+      let processedCount = 0;
       for (const sub of dueSubs) {
-        if (sub.currentPeriodEnd <= tomorrow && sub.currentPeriodEnd > now) {
-          console.log(`YookassaService: Processing auto payment for subscription ${sub.id}`);
+        // Check if nextPaymentAt is set and due today or earlier
+        if (sub.nextPaymentAt && new Date(sub.nextPaymentAt) <= now) {
+          console.log(`YookassaService: Processing auto payment for subscription ${sub.id} (nextPaymentAt: ${sub.nextPaymentAt})`);
           await this.createAutoPayment(sub.id);
+          processedCount++;
         }
       }
+      
+      console.log(`YookassaService: Daily auto payment processor completed. Processed ${processedCount} subscriptions.`);
     } catch (error) {
       console.error('YookassaService: Error processing auto payments:', error);
     }

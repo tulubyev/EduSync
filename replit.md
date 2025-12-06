@@ -193,7 +193,19 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
    - Auto-payment should trigger immediately
 
 ### Scheduled Tasks:
-- Auto-renewal processor runs every **3,600,000ms (1 hour)**
-- Can be adjusted in server/index.ts line 92
+- Auto-renewal processor runs **once per day at 00:00 (midnight)**
+- Checks `nextPaymentAt` field in subscriptions table instead of current date ± 24 hours
+- Optimized: Instead of running hourly (3,600 checks/day), now runs 1 check/day
+- Can be adjusted in server/index.ts `scheduleAutoPaymentProcessor()` function
+
+### How nextPaymentAt Works:
+1. When subscription is activated (line 386, 409 in yookassaService.ts):
+   - `nextPaymentAt` is set to `currentPeriodEnd` (payment date)
+2. When auto-payment is processed successfully:
+   - Subscription period extends by 1 month/year
+   - `nextPaymentAt` automatically updates to new `currentPeriodEnd`
+3. Daily processor at midnight:
+   - Queries only subscriptions where `nextPaymentAt <= today`
+   - Much more efficient than hourly checks
 
 ---
