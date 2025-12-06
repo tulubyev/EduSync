@@ -1,21 +1,9 @@
-import crypto from 'crypto';
-import { PaymentFormBuilder, QuickPayForm, PaymentType, NotificationChecker } from 'yoomoney-sdk';
 import { db } from '../db';
 import { subscriptionPlans, subscriptions, payments, users } from '../../shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 
-interface PaymentNotification {
-  notification_type: string;
-  operation_id: string;
-  amount: string;
-  currency: string;
-  datetime: string;
-  sender: string;
-  label: string;
-  sha1_hash: string;
-  codepro?: string;
-  withdraw_amount?: string;
-}
+const YOOKASSA_API_URL = 'https://api.yookassa.ru/v3';
 
 interface CreatePaymentOptions {
   userId: string;
@@ -27,25 +15,77 @@ interface CreatePaymentOptions {
 interface PaymentResult {
   success: boolean;
   paymentUrl?: string;
-  paymentLabel?: string;
+  paymentId?: string;
   error?: string;
 }
 
-class YoomoneyService {
-  private isConfigured: boolean;
-  private walletNumber: string;
-  private notificationSecret: string;
+interface YookassaPayment {
+  id: string;
+  status: 'pending' | 'waiting_for_capture' | 'succeeded' | 'canceled';
+  amount: {
+    value: string;
+    currency: string;
+  };
+  confirmation?: {
+    type: string;
+    confirmation_url?: string;
+  };
+  description?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+  paid: boolean;
+}
+
+class YookassaService {
+  private shopId: string;
+  private secretKey: string;
+  private isConfigured: boolean = false;
 
   constructor() {
-    this.walletNumber = process.env.YOOMONEY_WALLET_NUMBER || '';
-    this.notificationSecret = process.env.YOOMONEY_NOTIFICATION_SECRET || '';
-    this.isConfigured = !!(this.walletNumber && this.notificationSecret);
+    this.shopId = process.env.YOOKASSA_SHOP_ID || '';
+    this.secretKey = process.env.YOOKASSA_SECRET_KEY || '';
+    this.isConfigured = !!(this.shopId && this.secretKey);
 
     if (!this.isConfigured) {
-      console.warn('⚠️ YoomoneyService: Not configured. Set YOOMONEY_WALLET_NUMBER and YOOMONEY_NOTIFICATION_SECRET');
+      console.warn('⚠️ YookassaService: Not configured. Set YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY');
     } else {
-      console.log('✅ YoomoneyService: Configured and ready');
+      console.log('✅ YookassaService: Configured and ready');
     }
+  }
+
+  private getAuthHeader(): string {
+    const credentials = Buffer.from(`${this.shopId}:${this.secretKey}`).toString('base64');
+    return `Basic ${credentials}`;
+  }
+
+  private async apiRequest<T>(
+    method: 'GET' | 'POST',
+    endpoint: string,
+    body?: object,
+    idempotenceKey?: string
+  ): Promise<T> {
+    const headers: Record<string, string> = {
+      'Authorization': this.getAuthHeader(),
+      'Content-Type': 'application/json',
+    };
+
+    if (idempotenceKey) {
+      headers['Idempotence-Key'] = idempotenceKey;
+    }
+
+    const response = await fetch(`${YOOKASSA_API_URL}${endpoint}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('YookassaService API error:', errorData);
+      throw new Error(errorData.description || `API Error: ${response.status}`);
+    }
+
+    return response.json();
   }
 
   isReady(): boolean {
@@ -61,7 +101,7 @@ class YoomoneyService {
         .orderBy(subscriptionPlans.sortOrder);
       return plans;
     } catch (error) {
-      console.error('YoomoneyService: Error fetching subscription plans:', error);
+      console.error('YookassaService: Error fetching subscription plans:', error);
       throw error;
     }
   }
@@ -85,16 +125,16 @@ class YoomoneyService {
 
       return result[0] || null;
     } catch (error) {
-      console.error('YoomoneyService: Error fetching user subscription:', error);
+      console.error('YookassaService: Error fetching user subscription:', error);
       throw error;
     }
   }
 
-  async createPaymentLink(options: CreatePaymentOptions): Promise<PaymentResult> {
-    if (!this.isConfigured) {
+  async createPayment(options: CreatePaymentOptions): Promise<PaymentResult> {
+    if (!this.isReady()) {
       return {
         success: false,
-        error: 'Yoomoney не настроен. Обратитесь к администратору.',
+        error: 'YooKassa не настроена. Обратитесь к администратору.',
       };
     }
 
@@ -114,128 +154,187 @@ class YoomoneyService {
         ? parseFloat(selectedPlan.priceYearly || selectedPlan.priceMonthly)
         : parseFloat(selectedPlan.priceMonthly);
 
-      const paymentLabel = `sub_${options.userId}_${options.planId}_${Date.now()}`;
-      
-      const payment = new PaymentFormBuilder({
-        receiver: this.walletNumber,
-        quickPayForm: QuickPayForm.Button,
-        sum: price,
-        targets: `Подписка ${selectedPlan.name} (${options.billingPeriod === 'yearly' ? 'Годовая' : 'Месячная'})`,
-        paymentType: PaymentType.FromCard,
-        label: paymentLabel,
-        successURL: options.returnUrl,
-      });
+      if (price === 0) {
+        return { success: false, error: 'Бесплатный план не требует оплаты' };
+      }
 
-      await db.insert(payments).values({
-        userId: options.userId,
-        yoomoneyLabel: paymentLabel,
-        amount: price.toString(),
-        currency: 'RUB',
-        status: 'pending',
-        description: `Подписка ${selectedPlan.name} - ${options.billingPeriod === 'yearly' ? 'Годовая' : 'Месячная'}`,
+      const idempotenceKey = uuidv4();
+      const description = `Подписка ${selectedPlan.name} - ${options.billingPeriod === 'yearly' ? 'Годовая' : 'Месячная'}`;
+
+      const paymentData = {
+        amount: {
+          value: price.toFixed(2),
+          currency: 'RUB',
+        },
+        confirmation: {
+          type: 'redirect',
+          return_url: options.returnUrl,
+        },
+        capture: true,
+        description,
         metadata: {
+          userId: options.userId,
           planId: options.planId,
           billingPeriod: options.billingPeriod,
           planName: selectedPlan.name,
         },
+      };
+
+      const payment = await this.apiRequest<YookassaPayment>(
+        'POST',
+        '/payments',
+        paymentData,
+        idempotenceKey
+      );
+
+      await db.insert(payments).values({
+        userId: options.userId,
+        yoomoneyOperationId: payment.id,
+        amount: price.toString(),
+        currency: 'RUB',
+        status: 'pending',
+        description,
+        metadata: {
+          planId: options.planId,
+          billingPeriod: options.billingPeriod,
+          planName: selectedPlan.name,
+          yookassaPaymentId: payment.id,
+        },
       });
+
+      const confirmationUrl = payment.confirmation?.confirmation_url;
+
+      if (!confirmationUrl) {
+        return {
+          success: false,
+          error: 'Не удалось получить ссылку на оплату',
+        };
+      }
 
       return {
         success: true,
-        paymentUrl: payment.url,
-        paymentLabel,
+        paymentUrl: confirmationUrl,
+        paymentId: payment.id,
       };
-    } catch (error) {
-      console.error('YoomoneyService: Error creating payment link:', error);
+    } catch (error: any) {
+      console.error('YookassaService: Error creating payment:', error);
       return {
         success: false,
-        error: 'Ошибка создания платежа. Попробуйте позже.',
+        error: error.message || 'Ошибка создания платежа. Попробуйте позже.',
       };
     }
   }
 
-  verifyNotification(notification: PaymentNotification): boolean {
-    if (!this.isConfigured) {
-      console.warn('YoomoneyService: Cannot verify - not configured');
+  async getPayment(paymentId: string): Promise<YookassaPayment | null> {
+    if (!this.isReady()) {
+      return null;
+    }
+
+    try {
+      return await this.apiRequest<YookassaPayment>('GET', `/payments/${paymentId}`);
+    } catch (error) {
+      console.error('YookassaService: Error getting payment:', error);
+      return null;
+    }
+  }
+
+  async cancelPayment(paymentId: string): Promise<boolean> {
+    if (!this.isReady()) {
       return false;
     }
 
-    const {
-      notification_type,
-      operation_id,
-      amount,
-      currency,
-      datetime,
-      sender,
-      codepro,
-      label,
-      sha1_hash,
-    } = notification;
-
-    const hashString = `${notification_type}&${operation_id}&${amount}&${currency}&${datetime}&${sender}&${codepro || 'false'}&${this.notificationSecret}&${label}`;
-    
-    const calculatedHash = crypto
-      .createHash('sha1')
-      .update(hashString)
-      .digest('hex');
-
-    return calculatedHash === sha1_hash;
+    try {
+      const idempotenceKey = uuidv4();
+      await this.apiRequest<YookassaPayment>(
+        'POST',
+        `/payments/${paymentId}/cancel`,
+        {},
+        idempotenceKey
+      );
+      return true;
+    } catch (error) {
+      console.error('YookassaService: Error canceling payment:', error);
+      return false;
+    }
   }
 
-  async processPaymentNotification(notification: PaymentNotification): Promise<boolean> {
+  async processWebhook(notification: any): Promise<boolean> {
     try {
-      if (!this.verifyNotification(notification)) {
-        console.warn('YoomoneyService: Invalid notification signature');
-        return false;
+      const { event, object } = notification;
+
+      console.log('YookassaService: Processing webhook event:', event);
+
+      if (!['payment.succeeded', 'payment.waiting_for_capture', 'payment.canceled'].includes(event)) {
+        console.log('YookassaService: Ignoring event:', event);
+        return true;
       }
+
+      const paymentId = object.id;
+      const status = object.status;
 
       const existingPayment = await db
         .select()
         .from(payments)
-        .where(eq(payments.yoomoneyLabel, notification.label))
+        .where(eq(payments.yoomoneyOperationId, paymentId))
         .limit(1);
 
       if (!existingPayment[0]) {
-        console.warn('YoomoneyService: Payment not found for label:', notification.label);
+        console.warn('YookassaService: Payment not found for id:', paymentId);
         return false;
       }
 
       const paymentRecord = existingPayment[0];
 
       if (paymentRecord.status === 'completed') {
-        console.log('YoomoneyService: Payment already processed:', notification.label);
+        console.log('YookassaService: Payment already processed:', paymentId);
         return true;
       }
 
-      await db
-        .update(payments)
-        .set({
-          status: 'completed',
-          yoomoneyOperationId: notification.operation_id,
-          processedAt: new Date(),
-          metadata: {
-            ...(paymentRecord.metadata as object || {}),
-            notificationType: notification.notification_type,
-            sender: notification.sender,
-            datetime: notification.datetime,
-          },
-        })
-        .where(eq(payments.id, paymentRecord.id));
+      if (event === 'payment.succeeded' && status === 'succeeded') {
+        await db
+          .update(payments)
+          .set({
+            status: 'completed',
+            processedAt: new Date(),
+            metadata: {
+              ...(paymentRecord.metadata as object || {}),
+              yookassaStatus: status,
+              processedEvent: event,
+            },
+          })
+          .where(eq(payments.id, paymentRecord.id));
 
-      const metadata = paymentRecord.metadata as { planId: string; billingPeriod: string } | null;
-      if (metadata?.planId) {
-        await this.activateSubscription(
-          paymentRecord.userId,
-          metadata.planId,
-          (metadata.billingPeriod as 'monthly' | 'yearly') || 'monthly',
-          paymentRecord.id
-        );
+        const metadata = paymentRecord.metadata as { planId: string; billingPeriod: string } | null;
+        if (metadata?.planId) {
+          await this.activateSubscription(
+            paymentRecord.userId,
+            metadata.planId,
+            (metadata.billingPeriod as 'monthly' | 'yearly') || 'monthly',
+            paymentRecord.id
+          );
+        }
+
+        console.log('YookassaService: Payment processed successfully:', paymentId);
+      } else if (event === 'payment.canceled') {
+        await db
+          .update(payments)
+          .set({
+            status: 'cancelled',
+            metadata: {
+              ...(paymentRecord.metadata as object || {}),
+              yookassaStatus: status,
+              processedEvent: event,
+              canceledAt: new Date().toISOString(),
+            },
+          })
+          .where(eq(payments.id, paymentRecord.id));
+
+        console.log('YookassaService: Payment canceled:', paymentId);
       }
 
-      console.log('YoomoneyService: Payment processed successfully:', notification.label);
       return true;
     } catch (error) {
-      console.error('YoomoneyService: Error processing notification:', error);
+      console.error('YookassaService: Error processing webhook:', error);
       return false;
     }
   }
@@ -320,7 +419,7 @@ class YoomoneyService {
         .where(eq(users.id, userId));
     }
 
-    console.log(`YoomoneyService: Subscription activated for user ${userId}, plan ${planId}`);
+    console.log(`YookassaService: Subscription activated for user ${userId}, plan ${planId}`);
   }
 
   async cancelSubscription(userId: string): Promise<{ success: boolean; error?: string }> {
@@ -342,7 +441,7 @@ class YoomoneyService {
 
       return { success: true };
     } catch (error) {
-      console.error('YoomoneyService: Error cancelling subscription:', error);
+      console.error('YookassaService: Error cancelling subscription:', error);
       return { success: false, error: 'Ошибка отмены подписки' };
     }
   }
@@ -358,7 +457,7 @@ class YoomoneyService {
       
       return paymentHistory;
     } catch (error) {
-      console.error('YoomoneyService: Error fetching payment history:', error);
+      console.error('YookassaService: Error fetching payment history:', error);
       throw error;
     }
   }
@@ -368,7 +467,7 @@ class YoomoneyService {
       const existingPlans = await db.select().from(subscriptionPlans);
       
       if (existingPlans.length > 0) {
-        console.log('YoomoneyService: Subscription plans already exist');
+        console.log('YookassaService: Subscription plans already exist');
         return;
       }
 
@@ -438,11 +537,11 @@ class YoomoneyService {
       ];
 
       await db.insert(subscriptionPlans).values(defaultPlans);
-      console.log('YoomoneyService: Default subscription plans created');
+      console.log('YookassaService: Default subscription plans created');
     } catch (error) {
-      console.error('YoomoneyService: Error initializing default plans:', error);
+      console.error('YookassaService: Error initializing default plans:', error);
     }
   }
 }
 
-export const yoomoneyService = new YoomoneyService();
+export const yookassaService = new YookassaService();

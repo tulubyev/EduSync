@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { logger } from "../services/logger";
 import { authenticateToken } from '../middleware/auth';
-import { yoomoneyService } from '../services/yoomoneyService';
+import { yookassaService } from '../services/yookassaService';
 
 const router = Router();
 
@@ -11,13 +11,13 @@ interface AuthRequest extends Request {
 
 /**
  * SUBSCRIPTION ROUTES MODULE
- * Handles subscription plans, payments and Yoomoney integration
+ * Handles subscription plans, payments and YooKassa integration
  * 
  * Routes:
  * - GET /plans - Get available subscription plans
  * - GET /current - Get current user subscription
  * - POST /create-payment - Create payment link for subscription
- * - POST /webhook - Yoomoney payment notification webhook
+ * - POST /webhook - YooKassa payment notification webhook
  * - POST /cancel - Cancel subscription
  * - GET /history - Get payment history
  * - POST /initialize-plans - Initialize default plans (admin only)
@@ -25,7 +25,7 @@ interface AuthRequest extends Request {
 
 router.get('/plans', async (req: Request, res: Response) => {
   try {
-    const plans = await yoomoneyService.getSubscriptionPlans();
+    const plans = await yookassaService.getSubscriptionPlans();
     res.json(plans);
   } catch (error) {
     logger.error('Error fetching subscription plans:', error);
@@ -36,7 +36,7 @@ router.get('/plans', async (req: Request, res: Response) => {
 router.get('/current', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const subscription = await yoomoneyService.getUserSubscription(userId);
+    const subscription = await yookassaService.getUserSubscription(userId);
     res.json(subscription);
   } catch (error) {
     logger.error('Error fetching user subscription:', error);
@@ -63,7 +63,7 @@ router.post('/create-payment', authenticateToken as any, async (req: AuthRequest
     const baseUrl = `${protocol}://${host}`;
     const returnUrl = `${baseUrl}/subscription/success`;
 
-    const result = await yoomoneyService.createPaymentLink({
+    const result = await yookassaService.createPayment({
       userId,
       planId,
       billingPeriod,
@@ -76,7 +76,7 @@ router.post('/create-payment', authenticateToken as any, async (req: AuthRequest
 
     res.json({
       paymentUrl: result.paymentUrl,
-      paymentLabel: result.paymentLabel,
+      paymentId: result.paymentId,
     });
   } catch (error) {
     logger.error('Error creating payment:', error);
@@ -88,23 +88,23 @@ router.post('/webhook', async (req: Request, res: Response) => {
   try {
     const notification = req.body;
     
-    logger.info('Yoomoney webhook received:', {
-      notification_type: notification.notification_type,
-      label: notification.label,
-      amount: notification.amount,
+    logger.info('YooKassa webhook received:', {
+      event: notification.event,
+      type: notification.type,
+      paymentId: notification.object?.id,
     });
 
-    const success = await yoomoneyService.processPaymentNotification(notification);
+    const success = await yookassaService.processWebhook(notification);
 
     if (!success) {
-      logger.warn('Yoomoney webhook processing failed:', notification.label);
+      logger.warn('YooKassa webhook processing failed:', notification.object?.id);
       return res.status(400).send('Invalid notification');
     }
 
-    logger.info('Yoomoney webhook processed successfully:', notification.label);
+    logger.info('YooKassa webhook processed successfully:', notification.object?.id);
     res.status(200).send('OK');
   } catch (error) {
-    logger.error('Yoomoney webhook error:', error);
+    logger.error('YooKassa webhook error:', error);
     res.status(500).send('Internal Server Error');
   }
 });
@@ -112,7 +112,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
 router.post('/cancel', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const result = await yoomoneyService.cancelSubscription(userId);
+    const result = await yookassaService.cancelSubscription(userId);
 
     if (!result.success) {
       return res.status(400).json({ message: result.error });
@@ -133,7 +133,7 @@ router.get('/history', authenticateToken as any, async (req: AuthRequest, res: R
     const userId = req.user!.id;
     const limit = parseInt(req.query.limit as string) || 10;
     
-    const payments = await yoomoneyService.getPaymentHistory(userId, limit);
+    const payments = await yookassaService.getPaymentHistory(userId, limit);
     res.json(payments);
   } catch (error) {
     logger.error('Error fetching payment history:', error);
@@ -147,7 +147,7 @@ router.post('/initialize-plans', authenticateToken as any, async (req: AuthReque
       return res.status(403).json({ message: 'Доступ запрещен' });
     }
 
-    await yoomoneyService.initializeDefaultPlans();
+    await yookassaService.initializeDefaultPlans();
     res.json({ message: 'Тарифные планы инициализированы' });
   } catch (error) {
     logger.error('Error initializing plans:', error);
@@ -157,10 +157,10 @@ router.post('/initialize-plans', authenticateToken as any, async (req: AuthReque
 
 router.get('/status', (req: Request, res: Response) => {
   res.json({
-    yoomoneyConfigured: yoomoneyService.isReady(),
-    message: yoomoneyService.isReady() 
-      ? 'Платежная система настроена' 
-      : 'Платежная система не настроена',
+    yoomoneyConfigured: yookassaService.isReady(),
+    message: yookassaService.isReady() 
+      ? 'Платежная система YooKassa настроена' 
+      : 'Платежная система YooKassa не настроена',
   });
 });
 
