@@ -11,6 +11,7 @@ import platformsRouter from "./platforms.js";
 import usersRouter from "./users.js";
 import adminRouter from "./admin.js";
 import subscriptionsRouter from "./subscriptions.js";
+import stepikRouter from "./stepik.js";
 
 const mainRouter = Router();
 
@@ -31,5 +32,6 @@ mainRouter.use('/platforms', rateLimiters.general, platformsRouter);
 
 mainRouter.use('/admin', rateLimiters.general, adminRouter);
 mainRouter.use('/subscriptions', rateLimiters.general, subscriptionsRouter);
+mainRouter.use('/stepik', rateLimiters.general, stepikRouter);
 
 export default mainRouter;
