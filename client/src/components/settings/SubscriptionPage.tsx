@@ -233,31 +233,38 @@ export function SubscriptionPage() {
       </div>
 
       {currentSubscription && currentSubscription.plan.code !== 'free' && (
-        <Card className="mb-8 border-purple-200 bg-gradient-to-r from-purple-50 to-white">
+        <Card className="mb-8 border-green-200 bg-gradient-to-r from-green-50 to-white">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {getPlanIcon(currentSubscription.plan.code)}
                 <div>
-                  <CardTitle className="text-xl">Ваш текущий план: {currentSubscription.plan.name}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl">Ваш текущий план: {currentSubscription.plan.name}</CardTitle>
+                    <Badge className="bg-green-500">✓ АКТИВНА</Badge>
+                  </div>
                   <CardDescription>
                     {currentSubscription.subscription.billingPeriod === 'yearly' ? 'Годовая подписка' : 'Месячная подписка'}
                   </CardDescription>
                 </div>
               </div>
-              <Badge 
-                variant={currentSubscription.subscription.status === 'active' ? 'default' : 'secondary'}
-                className={currentSubscription.subscription.cancelAtPeriodEnd ? 'bg-orange-500' : ''}
-              >
-                {currentSubscription.subscription.cancelAtPeriodEnd ? 'Отменяется' : 'Активна'}
-              </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-6 text-sm text-gray-600">
+            <div className="grid grid-cols-2 gap-6 text-sm text-gray-600">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                <span>Активна до: {formatDate(currentSubscription.subscription.currentPeriodEnd)}</span>
+                <div>
+                  <p className="text-xs text-gray-500">Активна до</p>
+                  <p className="font-medium text-gray-800">{formatDate(currentSubscription.subscription.currentPeriodEnd)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4" />
+                <div>
+                  <p className="text-xs text-gray-500">Следующий платеж</p>
+                  <p className="font-medium text-gray-800">{formatDate(currentSubscription.subscription.currentPeriodEnd)}</p>
+                </div>
               </div>
             </div>
             {currentSubscription.subscription.cancelAtPeriodEnd && (
@@ -429,6 +436,9 @@ export function SubscriptionPage() {
             <CardTitle className="flex items-center gap-2">
               <History className="w-5 h-5" />
               История платежей
+              {payments.length > 0 && (
+                <Badge variant="outline">{payments.length}</Badge>
+              )}
             </CardTitle>
             <Button variant="ghost" size="sm" onClick={() => setShowHistory(!showHistory)}>
               {showHistory ? 'Скрыть' : 'Показать'}
@@ -442,10 +452,60 @@ export function SubscriptionPage() {
               <p className="text-gray-500 text-center py-4">Нет платежей</p>
             ) : (
               <div className="space-y-3">
-                {payments.map((payment) => (
+                {/* Сначала показываем оплаченные платежи */}
+                {payments
+                  .filter(p => p.status === 'completed')
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((payment) => (
                   <div 
                     key={payment.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-800">{payment.description}</p>
+                      <p className="text-sm text-gray-500">
+                        {formatDate(payment.createdAt)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-green-700">{formatPrice(payment.amount)}</p>
+                      <Badge className="bg-green-500">
+                        ✓ Оплачено
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Затем показываем ожидающие платежи */}
+                {payments
+                  .filter(p => p.status === 'pending')
+                  .map((payment) => (
+                  <div 
+                    key={payment.id}
+                    className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-100"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-800">{payment.description}</p>
+                      <p className="text-sm text-gray-500">
+                        {formatDate(payment.createdAt)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-yellow-700">{formatPrice(payment.amount)}</p>
+                      <Badge variant="secondary" className="bg-yellow-200 text-yellow-800">
+                        ⏳ Ожидание платежа
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* И остальные статусы в конце */}
+                {payments
+                  .filter(p => p.status !== 'completed' && p.status !== 'pending')
+                  .map((payment) => (
+                  <div 
+                    key={payment.id}
+                    className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100"
                   >
                     <div>
                       <p className="font-medium text-gray-800">{payment.description}</p>
@@ -455,12 +515,8 @@ export function SubscriptionPage() {
                     </div>
                     <div className="text-right">
                       <p className="font-medium">{formatPrice(payment.amount)}</p>
-                      <Badge 
-                        variant={payment.status === 'completed' ? 'default' : 'secondary'}
-                        className={payment.status === 'completed' ? 'bg-green-500' : ''}
-                      >
-                        {payment.status === 'completed' ? 'Оплачено' : 
-                         payment.status === 'pending' ? 'Ожидание' : payment.status}
+                      <Badge variant="secondary" className="bg-red-200 text-red-800">
+                        {payment.status}
                       </Badge>
                     </div>
                   </div>
