@@ -200,9 +200,9 @@ router.get('/by-region/:regionId', async (req, res: Response) => {
   }
 });
 
-router.get('/connected', async (req, res: Response) => {
+router.get('/connected', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ message: 'Не авторизован' });
     }
@@ -211,6 +211,49 @@ router.get('/connected', async (req, res: Response) => {
   } catch (error) {
     console.error('Error fetching connected platforms:', error);
     res.status(500).json({ message: 'Ошибка получения подключённых платформ' });
+  }
+});
+
+router.post('/connect', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Не авторизован' });
+    }
+
+    const { platformId } = req.body;
+    if (!platformId) {
+      return res.status(400).json({ message: 'platformId обязателен' });
+    }
+
+    const platform = await storage.getPlatform(platformId);
+    if (!platform) {
+      return res.status(404).json({ message: 'Платформа не найдена' });
+    }
+
+    if (platform.apiType === 'oauth' && platform.code === 'stepik') {
+      const stepikClientId = process.env.STEPIK_CLIENT_ID;
+      if (stepikClientId) {
+        const redirectUri = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/auth/stepik/callback`;
+        const authUrl = `https://stepik.org/oauth2/authorize/?client_id=${stepikClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
+        return res.json({ 
+          success: true, 
+          authUrl,
+          message: 'Перенаправление на авторизацию Stepik' 
+        });
+      }
+    }
+
+    await storage.connectPlatform(userId, platformId);
+
+    res.json({ 
+      success: true, 
+      message: 'Платформа успешно подключена',
+      platformId,
+    });
+  } catch (error) {
+    console.error('Error connecting platform:', error);
+    res.status(500).json({ message: 'Ошибка подключения платформы' });
   }
 });
 

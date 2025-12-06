@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { platforms, platformRegions, type Platform, type InsertPlatform } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import type { IPlatformStorage } from "./types";
 
 export class PlatformStorage implements IPlatformStorage {
@@ -37,7 +37,51 @@ export class PlatformStorage implements IPlatformStorage {
   }
 
   async getConnectedPlatforms(userId: string): Promise<any[]> {
-    return [];
+    try {
+      const { platformConnections } = await import('../../shared/schema');
+      const connections = await db
+        .select()
+        .from(platformConnections)
+        .where(eq(platformConnections.userId, userId));
+      return connections;
+    } catch (error) {
+      console.error('Error fetching connected platforms:', error);
+      return [];
+    }
+  }
+
+  async connectPlatform(userId: string, platformId: string): Promise<any> {
+    try {
+      const { platformConnections } = await import('../../shared/schema');
+      
+      const existing = await db
+        .select()
+        .from(platformConnections)
+        .where(
+          and(
+            eq(platformConnections.userId, userId),
+            eq(platformConnections.platformId, platformId)
+          )
+        );
+      
+      if (existing.length > 0) {
+        return existing[0];
+      }
+      
+      const [connection] = await db
+        .insert(platformConnections)
+        .values({
+          userId,
+          platformId,
+          status: 'active',
+        })
+        .returning();
+      
+      return connection;
+    } catch (error) {
+      console.error('Error connecting platform:', error);
+      throw error;
+    }
   }
 
   async createPlatform(platform: InsertPlatform): Promise<Platform> {
