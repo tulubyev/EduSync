@@ -23,12 +23,12 @@ class AlfabankService implements IPaymentGateway {
   private isConfigured: boolean = false;
 
   constructor() {
-    this.merchantLogin = process.env.ALFABANK_MERCHANT_LOGIN || '';
-    this.merchantPassword = process.env.ALFABANK_MERCHANT_PASSWORD || '';
+    this.merchantLogin = process.env.ALFABANK_USERNAME || '';
+    this.merchantPassword = process.env.ALFABANK_PASSWORD || '';
     this.isConfigured = !!(this.merchantLogin && this.merchantPassword);
 
     if (!this.isConfigured) {
-      console.warn('⚠️ AlfabankService: Not configured. Set ALFABANK_MERCHANT_LOGIN and ALFABANK_MERCHANT_PASSWORD');
+      console.warn('⚠️ AlfabankService: Not configured. Set ALFABANK_USERNAME and ALFABANK_PASSWORD');
     } else {
       console.log('✅ AlfabankService: Configured and ready');
     }
