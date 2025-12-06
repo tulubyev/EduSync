@@ -2,6 +2,9 @@ import { Router, Request, Response } from 'express';
 import { logger } from "../services/logger";
 import { authenticateToken } from '../middleware/auth';
 import { yookassaService } from '../services/yookassaService';
+import { db } from '../db';
+import { subscriptionPlans } from '../../shared/schema';
+import { eq } from 'drizzle-orm';
 
 const router = Router();
 
@@ -162,6 +165,215 @@ router.get('/status', (req: Request, res: Response) => {
       ? 'Платежная система YooKassa настроена' 
       : 'Платежная система YooKassa не настроена',
   });
+});
+
+router.get('/admin/plans', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.adminRole) {
+      return res.status(403).json({ message: 'Доступ запрещен' });
+    }
+
+    const plans = await db
+      .select()
+      .from(subscriptionPlans)
+      .orderBy(subscriptionPlans.sortOrder);
+    
+    res.json(plans);
+  } catch (error) {
+    logger.error('Error fetching all plans:', error);
+    res.status(500).json({ message: 'Ошибка получения планов' });
+  }
+});
+
+router.get('/admin/plans/:id', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.adminRole) {
+      return res.status(403).json({ message: 'Доступ запрещен' });
+    }
+
+    const plan = await db
+      .select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, req.params.id))
+      .limit(1);
+
+    if (!plan[0]) {
+      return res.status(404).json({ message: 'План не найден' });
+    }
+
+    res.json(plan[0]);
+  } catch (error) {
+    logger.error('Error fetching plan:', error);
+    res.status(500).json({ message: 'Ошибка получения плана' });
+  }
+});
+
+router.post('/admin/plans', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.adminRole) {
+      return res.status(403).json({ message: 'Доступ запрещен' });
+    }
+
+    const {
+      code,
+      name,
+      description,
+      priceMonthly,
+      priceYearly,
+      maxCourses,
+      maxPlatforms,
+      hasAnalytics,
+      hasAdvancedReminders,
+      hasPrioritySupport,
+      sortOrder,
+      features,
+      isActive,
+    } = req.body;
+
+    if (!code || !name) {
+      return res.status(400).json({ message: 'Код и название обязательны' });
+    }
+
+    const existingPlan = await db
+      .select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.code, code))
+      .limit(1);
+
+    if (existingPlan[0]) {
+      return res.status(400).json({ message: 'План с таким кодом уже существует' });
+    }
+
+    const [newPlan] = await db
+      .insert(subscriptionPlans)
+      .values({
+        code,
+        name,
+        description: description || '',
+        priceMonthly: priceMonthly || '0',
+        priceYearly: priceYearly || '0',
+        maxCourses: maxCourses ?? null,
+        maxPlatforms: maxPlatforms ?? null,
+        hasAnalytics: hasAnalytics ?? false,
+        hasAdvancedReminders: hasAdvancedReminders ?? false,
+        hasPrioritySupport: hasPrioritySupport ?? false,
+        sortOrder: sortOrder ?? 0,
+        features: features || {},
+        isActive: isActive ?? true,
+      })
+      .returning();
+
+    logger.info('Created subscription plan:', { planId: newPlan.id, code });
+    res.status(201).json(newPlan);
+  } catch (error) {
+    logger.error('Error creating plan:', error);
+    res.status(500).json({ message: 'Ошибка создания плана' });
+  }
+});
+
+router.put('/admin/plans/:id', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.adminRole) {
+      return res.status(403).json({ message: 'Доступ запрещен' });
+    }
+
+    const {
+      code,
+      name,
+      description,
+      priceMonthly,
+      priceYearly,
+      maxCourses,
+      maxPlatforms,
+      hasAnalytics,
+      hasAdvancedReminders,
+      hasPrioritySupport,
+      sortOrder,
+      features,
+      isActive,
+    } = req.body;
+
+    const existingPlan = await db
+      .select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, req.params.id))
+      .limit(1);
+
+    if (!existingPlan[0]) {
+      return res.status(404).json({ message: 'План не найден' });
+    }
+
+    if (code && code !== existingPlan[0].code) {
+      const duplicatePlan = await db
+        .select()
+        .from(subscriptionPlans)
+        .where(eq(subscriptionPlans.code, code))
+        .limit(1);
+
+      if (duplicatePlan[0]) {
+        return res.status(400).json({ message: 'План с таким кодом уже существует' });
+      }
+    }
+
+    const [updatedPlan] = await db
+      .update(subscriptionPlans)
+      .set({
+        code: code ?? existingPlan[0].code,
+        name: name ?? existingPlan[0].name,
+        description: description ?? existingPlan[0].description,
+        priceMonthly: priceMonthly ?? existingPlan[0].priceMonthly,
+        priceYearly: priceYearly ?? existingPlan[0].priceYearly,
+        maxCourses: maxCourses !== undefined ? maxCourses : existingPlan[0].maxCourses,
+        maxPlatforms: maxPlatforms !== undefined ? maxPlatforms : existingPlan[0].maxPlatforms,
+        hasAnalytics: hasAnalytics ?? existingPlan[0].hasAnalytics,
+        hasAdvancedReminders: hasAdvancedReminders ?? existingPlan[0].hasAdvancedReminders,
+        hasPrioritySupport: hasPrioritySupport ?? existingPlan[0].hasPrioritySupport,
+        sortOrder: sortOrder ?? existingPlan[0].sortOrder,
+        features: features ?? existingPlan[0].features,
+        isActive: isActive ?? existingPlan[0].isActive,
+        updatedAt: new Date(),
+      })
+      .where(eq(subscriptionPlans.id, req.params.id))
+      .returning();
+
+    logger.info('Updated subscription plan:', { planId: req.params.id });
+    res.json(updatedPlan);
+  } catch (error) {
+    logger.error('Error updating plan:', error);
+    res.status(500).json({ message: 'Ошибка обновления плана' });
+  }
+});
+
+router.delete('/admin/plans/:id', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.adminRole) {
+      return res.status(403).json({ message: 'Доступ запрещен' });
+    }
+
+    const existingPlan = await db
+      .select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, req.params.id))
+      .limit(1);
+
+    if (!existingPlan[0]) {
+      return res.status(404).json({ message: 'План не найден' });
+    }
+
+    if (existingPlan[0].code === 'free') {
+      return res.status(400).json({ message: 'Нельзя удалить бесплатный план' });
+    }
+
+    await db
+      .delete(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, req.params.id));
+
+    logger.info('Deleted subscription plan:', { planId: req.params.id });
+    res.json({ message: 'План удален', success: true });
+  } catch (error) {
+    logger.error('Error deleting plan:', error);
+    res.status(500).json({ message: 'Ошибка удаления плана' });
+  }
 });
 
 export default router;

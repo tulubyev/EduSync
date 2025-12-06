@@ -175,10 +175,10 @@ export function SubscriptionPage() {
 
   const getPlanIcon = (code: string) => {
     switch (code) {
-      case 'pro':
-        return <Crown className="w-6 h-6 text-yellow-500" />;
       case 'premium':
-        return <Zap className="w-6 h-6 text-purple-500" />;
+        return <Crown className="w-6 h-6 text-yellow-500" />;
+      case 'standard':
+        return <Zap className="w-6 h-6 text-blue-500" />;
       default:
         return <Star className="w-6 h-6 text-gray-400" />;
     }
@@ -299,12 +299,18 @@ export function SubscriptionPage() {
             <Card 
               key={plan.id} 
               className={`relative overflow-hidden transition-shadow hover:shadow-lg ${
-                plan.code === 'premium' ? 'border-purple-300 shadow-purple-100' : ''
+                plan.code === 'standard' ? 'border-blue-300 shadow-blue-100' : ''
+              } ${plan.code === 'premium' ? 'border-yellow-300 shadow-yellow-100' : ''
               } ${isCurrentPlan ? 'ring-2 ring-purple-500' : ''}`}
             >
-              {plan.code === 'premium' && (
-                <div className="absolute top-0 right-0 bg-purple-600 text-white text-xs px-3 py-1 rounded-bl-lg">
+              {plan.code === 'standard' && (
+                <div className="absolute top-0 right-0 bg-blue-600 text-white text-xs px-3 py-1 rounded-bl-lg">
                   Популярный
+                </div>
+              )}
+              {plan.code === 'premium' && (
+                <div className="absolute top-0 right-0 bg-yellow-600 text-white text-xs px-3 py-1 rounded-bl-lg">
+                  Лучший
                 </div>
               )}
               
@@ -373,7 +379,7 @@ export function SubscriptionPage() {
                   </Button>
                 ) : (
                   <Button
-                    className={`w-full ${plan.code === 'premium' ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+                    className={`w-full ${plan.code === 'standard' ? 'bg-blue-600 hover:bg-blue-700' : ''} ${plan.code === 'premium' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}`}
                     onClick={() => handleSubscribe(plan.id)}
                     disabled={processingPlan === plan.id || !yoomoneyConfigured}
                   >

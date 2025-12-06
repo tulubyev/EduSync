@@ -8,6 +8,7 @@ import { UsersSection } from './admin/UsersSection';
 import { CoursesManagement } from './admin/CoursesManagement';
 import { PlatformsManagement } from './admin/PlatformsManagement';
 import { AnalyticsSection } from './admin/AnalyticsSection';
+import { SubscriptionPlansManagement } from './admin/SubscriptionPlansManagement';
 
 // AdminPanel component for administrators
 function AdminPanel({ user, onBack }: any) {
@@ -16,6 +17,7 @@ function AdminPanel({ user, onBack }: any) {
   const [showPlatformsManagement, setShowPlatformsManagement] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showApiManagement, setShowApiManagement] = useState(false);
+  const [showSubscriptionPlans, setShowSubscriptionPlans] = useState(false);
   const [showApiKeysModal, setShowApiKeysModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [showWebhooksModal, setShowWebhooksModal] = useState(false);
@@ -31,10 +33,10 @@ function AdminPanel({ user, onBack }: any) {
   };
 
   const adminPermissions = {
-    super_admin: ['Все разделы', 'Управление курсами', 'Управление платформами', 'Пользователи'],
+    super_admin: ['Все разделы', 'Управление курсами', 'Управление платформами', 'Пользователи', 'Подписки'],
     devops_admin: ['Мониторинг системы', 'Производительность', 'Логи системы'],
     analytics_admin: ['Просмотр пользователей', 'Просмотр курсов', 'Просмотр платформ', 'Аналитика'],
-    finance_admin: ['Просмотр подписок', 'Финансовые отчеты'],
+    finance_admin: ['Просмотр подписок', 'Финансовые отчеты', 'Управление подписками'],
     api_admin: ['Мониторинг API', 'Управление интеграциями'],
     security_admin: ['Мониторинг безопасности', 'Логи', 'Анализ']
   };
@@ -186,6 +188,29 @@ function AdminPanel({ user, onBack }: any) {
               <span style={{ fontSize: '11px', opacity: 0.8 }}>4</span>
             </button>
           )}
+
+          {(userRole === 'super_admin' || userRole === 'finance_admin') && (
+            <button 
+              onClick={() => setShowSubscriptionPlans(!showSubscriptionPlans)}
+              style={{ 
+                padding: '15px 20px', 
+                backgroundColor: showSubscriptionPlans ? '#667eea' : '#9b59b6', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <span>💳 {showSubscriptionPlans ? 'Скрыть подписки' : 'Подписки'}</span>
+              <span style={{ fontSize: '11px', opacity: 0.8 }}>3</span>
+            </button>
+          )}
           
         </div>
       </div>
@@ -210,6 +235,10 @@ function AdminPanel({ user, onBack }: any) {
       <AnalyticsSection 
         isVisible={showAnalytics}
         userRole={userRole}
+      />
+
+      <SubscriptionPlansManagement 
+        isVisible={showSubscriptionPlans}
       />
 
       {/* Управление API */}
