@@ -1226,27 +1226,34 @@ export function PlatformsPage() {
       return;
     }
     
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/platforms/connect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ platformId: platform.id }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.authUrl) {
-          window.open(data.authUrl, '_blank');
+    // Для OAuth платформ проверяем, есть ли специальный OAuth endpoint (например Stepik)
+    if (platform.authType === 'oauth' && platform.name?.toLowerCase() === 'stepik') {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const response = await fetch('/api/platforms/connect', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ platformId: platform.id }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.authUrl) {
+            window.open(data.authUrl, '_blank');
+            return;
+          }
         }
-        setConnectedPlatforms(prev => new Set(Array.from(prev).concat(platform.id)));
+      } catch (err) {
+        console.error('Error getting OAuth URL:', err);
       }
-    } catch (err) {
-      console.error('Error connecting platform:', err);
     }
+    
+    // Для всех остальных платформ открываем модальное окно для ввода учётных данных
+    setAuthPlatform(platform);
+    setAuthModalOpen(true);
   };
 
   // Use dbPlatforms if available, otherwise fallback to globalPlatforms
