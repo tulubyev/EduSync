@@ -419,7 +419,6 @@ export function LibraryPage() {
             }}
             onSelectMaterial={(note) => {
               setSelectedNote(note);
-              setViewingNote(note);
             }}
           />
         </div>
