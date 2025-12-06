@@ -94,3 +94,34 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 6. View synced courses and manage connection (sync/disconnect)
 
 ---
+
+## Documentation Update - Phase 4: Technical Documentation (Dec 6, 2025)
+
+### docs/integrations.md - Enhanced Sections:
+
+**Part 6: Authentication Data Storage Architecture**
+- platform_connections table schema with all fields
+- AES-256-GCM encryption process with JSON storage format (encrypted/iv/authTag)
+- Scrypt key derivation with fixed 'salt'
+- Token lifecycle diagrams (creation → usage → refresh → revocation)
+- Connection status matrix (active, expired, reauth_required, revoked)
+
+**Part 7: Synced Data Storage**
+- ERD diagram showing users → platform_connections → external_courses → course_deadlines relationships
+- external_courses table schema (progress, isCompleted, metadata, etc.)
+- course_deadlines table schema (deadlineType, dueDate, metadata)
+- Index definitions for optimal query performance
+- API Endpoints section with correct /api/stepik/* paths
+
+**Part 8: Subscription & Platform Integration (Planned)**
+- Tier limitations table (Free/Standard/Premium)
+- Planned subscription guard pseudocode (not yet implemented)
+- Access control matrix
+
+**Part 9: Data Flows & Synchronization**
+- Complete sync flow diagram
+- Sync triggers (OAuth callback, dashboard open, cron, manual)
+- Error handling strategy with retry/reauth/skip/fail paths
+- Query optimization techniques (batching, parallel requests)
+
+---

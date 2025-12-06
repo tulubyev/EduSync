@@ -85,7 +85,7 @@ Stepik предоставляет открытый REST API с полной до
    - **Name**: EPA Educational Aggregator
    - **Client type**: Confidential
    - **Authorization grant type**: Authorization code
-   - **Redirect URI**: `https://{domain}/api/platforms/stepik/callback`
+   - **Redirect URI**: `https://{domain}/api/stepik/callback`
 
 3. Сохранить:
    - `STEPIK_CLIENT_ID`
@@ -569,7 +569,7 @@ export function getAdapter(platformId: string): PlatformAdapter {
         adapters.set(platformId, new StepikAdapter(
           process.env.STEPIK_CLIENT_ID!,
           process.env.STEPIK_CLIENT_SECRET!,
-          `${process.env.APP_URL}/api/platforms/stepik/callback`
+          `${process.env.APP_URL}/api/stepik/callback`
         ));
         break;
       case 'coursera':
@@ -727,15 +727,15 @@ GET /api/analytics/progress
 
 ### Этап 2: OAuth интеграция
 4. [ ] Реализовать StepikAdapter.getAuthorizationUrl()
-5. [ ] Создать endpoint GET /api/platforms/stepik/connect
-6. [ ] Создать endpoint GET /api/platforms/stepik/callback
+5. [x] Создать endpoint GET /api/stepik/auth-url (возвращает OAuth URL)
+6. [x] Создать endpoint GET /api/stepik/callback (OAuth callback)
 7. [ ] Реализовать StepikAdapter.exchangeCodeForTokens()
 8. [ ] Сохранение токенов в БД (зашифрованные)
 
 ### Этап 3: Синхронизация данных
 9. [ ] Реализовать StepikAdapter.getUserCourses()
 10. [ ] Реализовать StepikAdapter.getDeadlines()
-11. [ ] Создать endpoint POST /api/platforms/stepik/sync
+11. [x] Создать endpoint POST /api/stepik/sync
 12. [ ] Сохранение курсов и дедлайнов в БД
 
 ### Этап 4: API для фронтенда
@@ -798,3 +798,507 @@ PLATFORM_TOKENS_ENCRYPTION_KEY=random_32_byte_key
 
 *Документ создан: 6 декабря 2025*
 *Версия: 1.0*
+
+---
+
+## Часть 6: Архитектура хранения аутентификационных данных
+
+### 6.1 Обзор системы хранения
+
+Каждый пользователь может подключить несколько образовательных платформ. Для каждого подключения хранятся зашифрованные OAuth токены и метаданные синхронизации.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    АРХИТЕКТУРА ХРАНЕНИЯ ДАННЫХ                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────┐         ┌────────────────────┐                     │
+│  │  User   │ 1 ─── N │ PlatformConnection │                     │
+│  │ (EPA)   │         │                    │                     │
+│  └─────────┘         │ • accessToken 🔒   │                     │
+│                      │ • refreshToken 🔒  │                     │
+│                      │ • tokenExpiresAt   │                     │
+│                      │ • connectionStatus │                     │
+│                      │ • syncStatus       │                     │
+│                      │ • lastSyncAt       │                     │
+│                      └────────────────────┘                     │
+│                               │                                 │
+│                      ┌────────┴────────┐                        │
+│                      ▼                 ▼                        │
+│            ┌─────────────────┐ ┌──────────────────┐             │
+│            │ ExternalCourses │ │ CourseDeadlines  │             │
+│            │                 │ │                  │             │
+│            │ • title         │ │ • title          │             │
+│            │ • progress      │ │ • dueDate        │             │
+│            │ • isCompleted   │ │ • deadlineType   │             │
+│            │ • courseUrl     │ │ • isCompleted    │             │
+│            └─────────────────┘ └──────────────────┘             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 6.2 Схема таблицы platform_connections
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | UUID | Первичный ключ |
+| `userId` | UUID (FK) | Ссылка на пользователя EPA |
+| `platformId` | UUID (FK) | Ссылка на платформу |
+| `externalUserId` | VARCHAR(255) | ID пользователя на внешней платформе |
+| `accessTokenEncrypted` | TEXT | Зашифрованный access token (AES-256-GCM) |
+| `refreshTokenEncrypted` | TEXT | Зашифрованный refresh token (AES-256-GCM) |
+| `tokenExpiresAt` | TIMESTAMP | Время истечения access token |
+| `connectionStatus` | VARCHAR(20) | Статус: active, expired, reauth_required, revoked |
+| `syncStatus` | VARCHAR(20) | Статус синхронизации: idle, syncing, failed |
+| `lastSyncAt` | TIMESTAMP | Время последней успешной синхронизации |
+| `lastSyncError` | TEXT | Сообщение об ошибке последней синхронизации |
+| `createdAt` | TIMESTAMP | Дата создания записи |
+| `updatedAt` | TIMESTAMP | Дата последнего обновления |
+
+**Индексы:**
+- `platform_connections_user_platform_idx` — (userId, platformId)
+- `platform_connections_user_idx` — (userId) — быстрый поиск подключений пользователя
+- `platform_connections_platform_idx` — (platformId)
+- `platform_connections_status_idx` — (connectionStatus) — фильтрация по статусу
+
+### 6.3 Шифрование токенов (AES-256-GCM)
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    ПРОЦЕСС ШИФРОВАНИЯ                           │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  Входные данные:                                               │
+│  ├─ plaintext: "access_token_value"                            │
+│  ├─ masterSecret: process.env.PLATFORM_TOKENS_ENCRYPTION_KEY   │
+│  │                                                             │
+│  Шаг 1: Деривация ключа (Scrypt)                               │
+│  ├─ masterKey = scryptSync(masterSecret, 'salt', 32)           │
+│  │   (фиксированная соль для детерминированной деривации)      │
+│  │                                                             │
+│  Шаг 2: Генерация IV                                           │
+│  ├─ iv = randomBytes(12)  // 96 бит для GCM                    │
+│  │                                                             │
+│  Шаг 3: Шифрование                                             │
+│  ├─ cipher = createCipheriv('aes-256-gcm', masterKey, iv)      │
+│  ├─ encrypted = cipher.update(plaintext) + cipher.final()      │
+│  ├─ authTag = cipher.getAuthTag()  // 128 бит                  │
+│  │                                                             │
+│  Выходные данные (JSON):                                       │
+│  {                                                             │
+│    "encrypted": "a1b2c3...",  // hex                           │
+│    "iv": "d4e5f6...",         // hex                           │
+│    "authTag": "789abc..."     // hex                           │
+│  }                                                             │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Характеристики алгоритма:**
+- **Алгоритм**: AES-256-GCM (Galois/Counter Mode)
+- **Длина ключа**: 256 бит (32 байта)
+- **IV длина**: 96 бит (12 байт)
+- **Auth Tag**: 128 бит (16 байт)
+- **Key Derivation**: Scrypt с фиксированной солью 'salt'
+
+**Формат хранения в БД:**
+Токены сохраняются в колонках `accessTokenEncrypted`/`refreshTokenEncrypted` как JSON-строка:
+```json
+{
+  "encrypted": "a1b2c3d4e5f6...",
+  "iv": "123abc456def...",
+  "authTag": "789xyz012abc..."
+}
+```
+
+**Ключевые методы EncryptionService:**
+- `serializeEncrypted(plaintext)` — шифрует и возвращает JSON-строку для БД
+- `deserializeEncrypted(json)` — парсит JSON и расшифровывает
+
+### 6.4 Жизненный цикл токенов
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    ЖИЗНЕННЫЙ ЦИКЛ ТОКЕНОВ                       │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  1. СОЗДАНИЕ (OAuth Callback)                                  │
+│     ├─ Пользователь авторизуется на платформе                  │
+│     ├─ EPA получает authorization_code                         │
+│     ├─ Обмен code → access_token + refresh_token               │
+│     ├─ Токены шифруются (AES-256-GCM)                          │
+│     ├─ Сохранение в platform_connections                       │
+│     └─ connectionStatus = 'active'                             │
+│                                                                │
+│  2. ИСПОЛЬЗОВАНИЕ (API запросы)                                │
+│     ├─ Загрузка зашифрованных токенов из БД                    │
+│     ├─ Расшифровка access_token                                │
+│     ├─ Проверка tokenExpiresAt                                 │
+│     │   ├─ Не истёк: использовать для API                      │
+│     │   └─ Истёк: перейти к шагу 3                             │
+│     └─ Выполнение API запросов к платформе                     │
+│                                                                │
+│  3. ОБНОВЛЕНИЕ (Token Refresh)                                 │
+│     ├─ Расшифровка refresh_token                               │
+│     ├─ POST /oauth2/token/ с grant_type=refresh_token          │
+│     │   ├─ Успех:                                              │
+│     │   │   ├─ Шифрование новых токенов                        │
+│     │   │   ├─ Обновление в БД                                 │
+│     │   │   └─ Продолжить с новым access_token                 │
+│     │   └─ Ошибка 401 (invalid_grant):                         │
+│     │       ├─ connectionStatus = 'reauth_required'            │
+│     │       └─ Уведомить пользователя                          │
+│                                                                │
+│  4. ОТЗЫВ (Disconnect)                                         │
+│     ├─ Пользователь отключает платформу                        │
+│     ├─ Удаление записи из platform_connections                 │
+│     └─ Удаление связанных external_courses и deadlines         │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 6.5 Матрица состояний подключения
+
+| Состояние | Описание | Действие системы | Действие пользователя |
+|-----------|----------|------------------|----------------------|
+| `active` | Подключение активно, токены валидны | Синхронизация работает | Нет действий |
+| `expired` | Access token истёк, refresh валиден | Автообновление токена | Нет действий |
+| `reauth_required` | Refresh token истёк или отозван | Блок синхронизации | Переподключиться |
+| `revoked` | Пользователь отозвал доступ на платформе | Уведомление | Переподключиться |
+
+---
+
+## Часть 7: Хранение синхронизированных данных
+
+### 7.1 ERD диаграмма
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         ERD ДИАГРАММА                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐                                                │
+│  │   users     │                                                │
+│  ├─────────────┤                                                │
+│  │ id (PK)     │◄───────────────────────────────────────┐       │
+│  │ email       │                                        │       │
+│  │ firstName   │                                        │       │
+│  │ planType    │                                        │       │
+│  └─────────────┘                                        │       │
+│         │                                               │       │
+│         │ 1:N                                           │       │
+│         ▼                                               │       │
+│  ┌───────────────────────┐     ┌─────────────────┐      │       │
+│  │ platform_connections  │     │   platforms     │      │       │
+│  ├───────────────────────┤     ├─────────────────┤      │       │
+│  │ id (PK)               │     │ id (PK)         │      │       │
+│  │ userId (FK)───────────┼────►│ code            │      │       │
+│  │ platformId (FK)───────┼────►│ name            │      │       │
+│  │ accessTokenEncrypted  │     │ apiType         │      │       │
+│  │ refreshTokenEncrypted │     │ color           │      │       │
+│  │ connectionStatus      │     └─────────────────┘      │       │
+│  │ syncStatus            │                              │       │
+│  └───────────────────────┘                              │       │
+│         │                                               │       │
+│         │ 1:N                                           │       │
+│         ▼                                               │       │
+│  ┌───────────────────────┐                              │       │
+│  │   external_courses    │                              │       │
+│  ├───────────────────────┤                              │       │
+│  │ id (PK)               │                              │       │
+│  │ userId (FK)───────────┼──────────────────────────────┘       │
+│  │ platformId (FK)       │                                      │
+│  │ externalCourseId      │◄─────────────────────────────┐       │
+│  │ title                 │                              │       │
+│  │ progress              │                              │       │
+│  │ isCompleted           │                              │       │
+│  │ courseUrl             │                              │       │
+│  └───────────────────────┘                              │       │
+│         │                                               │       │
+│         │ 1:N                                           │       │
+│         ▼                                               │       │
+│  ┌───────────────────────┐                              │       │
+│  │   course_deadlines    │                              │       │
+│  ├───────────────────────┤                              │       │
+│  │ id (PK)               │                              │       │
+│  │ externalCourseId (FK)─┼──────────────────────────────┘       │
+│  │ platformId (FK)       │                                      │
+│  │ userId (FK)           │                                      │
+│  │ title                 │                                      │
+│  │ dueDate               │                                      │
+│  │ deadlineType          │                                      │
+│  │ metadata (JSONB)      │                                      │
+│  └───────────────────────┘                                      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 7.2 Схема таблицы external_courses
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | UUID | Первичный ключ EPA |
+| `userId` | UUID (FK) | Ссылка на пользователя |
+| `platformId` | UUID (FK) | Ссылка на платформу |
+| `externalCourseId` | VARCHAR(255) | ID курса на внешней платформе |
+| `title` | VARCHAR(500) | Название курса |
+| `description` | TEXT | Описание курса |
+| `imageUrl` | TEXT | URL обложки курса |
+| `courseUrl` | TEXT | Ссылка на курс |
+| `progress` | INTEGER | Прогресс прохождения (0-100%) |
+| `isCompleted` | BOOLEAN | Флаг завершения курса |
+| `startDate` | TIMESTAMP | Дата начала курса |
+| `endDate` | TIMESTAMP | Дата окончания курса |
+| `language` | VARCHAR(20) | Язык курса (ru, en) |
+| `certificateAvailable` | BOOLEAN | Доступен ли сертификат |
+| `workload` | INTEGER | Нагрузка (часы в неделю) |
+| `metadata` | JSONB | Дополнительные данные (slug, etc.) |
+| `externalLastUpdatedAt` | TIMESTAMP | Время последнего обновления на платформе |
+| `lastSyncedAt` | TIMESTAMP | Время последней синхронизации EPA |
+| `createdAt` | TIMESTAMP | Дата создания записи |
+| `updatedAt` | TIMESTAMP | Дата обновления записи |
+
+**Индексы:**
+- `external_courses_user_idx` — (userId)
+- `external_courses_platform_idx` — (platformId)
+- `external_courses_external_id_idx` — (externalCourseId)
+- `external_courses_user_platform_idx` — (userId, platformId)
+
+### 7.3 Схема таблицы course_deadlines
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | UUID | Первичный ключ |
+| `externalCourseId` | UUID (FK) | Ссылка на external_courses.id |
+| `platformId` | UUID (FK) | Ссылка на платформу |
+| `userId` | UUID (FK) | Ссылка на пользователя |
+| `externalDeadlineId` | VARCHAR(255) | ID дедлайна на платформе |
+| `title` | VARCHAR(500) | Название дедлайна/секции |
+| `description` | TEXT | Описание задания |
+| `dueDate` | TIMESTAMP | Срок сдачи |
+| `deadlineType` | VARCHAR(50) | Тип: soft, hard, lesson, section |
+| `metadata` | JSONB | Дополнительные данные (sectionId, position) |
+| `externalLastUpdatedAt` | TIMESTAMP | Время последнего обновления на платформе |
+| `createdAt` | TIMESTAMP | Дата создания записи |
+| `updatedAt` | TIMESTAMP | Дата обновления записи |
+
+**Индексы:**
+- `course_deadlines_external_course_idx` — (externalCourseId)
+- `course_deadlines_user_idx` — (userId)
+- `course_deadlines_due_date_idx` — (dueDate)
+- `course_deadlines_platform_idx` — (platformId)
+
+### 7.4 API Endpoints (Stepik интеграция)
+
+Все API для интеграции Stepik доступны по пути `/api/stepik/*`:
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| GET | `/api/stepik/auth-url` | Получить OAuth URL для авторизации на Stepik |
+| GET | `/api/stepik/callback` | OAuth callback для обмена code → tokens |
+| GET | `/api/stepik/status` | Проверить статус подключения к Stepik |
+| POST | `/api/stepik/sync` | Запустить синхронизацию курсов и дедлайнов |
+| GET | `/api/stepik/courses` | Получить синхронизированные курсы пользователя |
+| POST | `/api/stepik/disconnect` | Отключить Stepik и удалить данные |
+
+---
+
+## Часть 8: Интеграция подписок и платформ (ПЛАНИРУЕМЫЙ ФУНКЦИОНАЛ)
+
+> **Статус:** Данный раздел описывает планируемую интеграцию подписок с функционалом синхронизации. На текущий момент ограничения по тарифам НЕ применяются — все пользователи имеют полный доступ к функционалу интеграции.
+
+### 8.1 Планируемые ограничения по тарифным планам
+
+| Функционал | Free | Standard | Premium |
+|------------|------|----------|---------|
+| Количество платформ | 1 | 5 | Безлимит |
+| Синхронизация | Ручная | Авто (6ч) | Авто (1ч) |
+| История синхронизаций | 7 дней | 30 дней | Безлимит |
+| Экспорт данных | — | CSV | CSV + API |
+| Push-уведомления дедлайнов | — | Email | Email + Push |
+| Аналитика | Базовая | Расширенная | Полная |
+
+### 8.2 Проверка доступа к функционалу (планируемая реализация)
+
+> **Примечание:** Данный код является планируемой реализацией и ещё не внедрён в production.
+
+```typescript
+// server/middleware/subscriptionGuard.ts (ПЛАНИРУЕМЫЙ КОД)
+
+// Проверка лимита подключённых платформ по тарифу пользователя
+export async function checkPlatformLimit(userId: string): Promise<boolean> {
+  const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  const planType = user[0]?.planType || 'free';
+  
+  const connectedPlatforms = await db
+    .select({ count: count() })
+    .from(platformConnections)
+    .where(eq(platformConnections.userId, userId));
+  
+  const limits = { free: 1, standard: 5, premium: null }; // null = безлимит
+  const maxPlatforms = limits[planType as keyof typeof limits];
+  
+  if (maxPlatforms === null) return true;
+  return connectedPlatforms[0].count < maxPlatforms;
+}
+
+// Получение интервала синхронизации по тарифу (в мс)
+export function getSyncInterval(planType: string): number | null {
+  switch (planType) {
+    case 'premium': return 1 * 60 * 60 * 1000;  // 1 час
+    case 'standard': return 6 * 60 * 60 * 1000; // 6 часов
+    default: return null; // Только ручная синхронизация
+  }
+}
+```
+
+> **Текущая реализация:** На данный момент ограничения по тарифам не применяются к интеграции Stepik. Все пользователи могут подключить Stepik и синхронизировать курсы без ограничений.
+
+### 8.3 Матрица: Тариф → Платформы → Функционал
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  МАТРИЦА ДОСТУПА                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Пользователь → Подписка → Проверка → Функционал               │
+│                                                                 │
+│  ┌──────────┐     ┌──────────────┐     ┌────────────────────┐   │
+│  │ User     │────►│ Subscription │────►│ PlatformLimit      │   │
+│  │          │     │              │     │ SyncInterval       │   │
+│  │ planType │     │ status       │     │ AnalyticsLevel     │   │
+│  └──────────┘     │ expiresAt    │     │ ExportFormats      │   │
+│                   └──────────────┘     └────────────────────┘   │
+│                          │                                      │
+│                          ▼                                      │
+│                   ┌──────────────┐                              │
+│                   │ Проверки:    │                              │
+│                   │ • Активна?   │                              │
+│                   │ • Не истекла?│                              │
+│                   │ • Лимиты OK? │                              │
+│                   └──────────────┘                              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Часть 9: Потоки данных и синхронизация
+
+### 9.1 Полный поток синхронизации
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ПОТОК СИНХРОНИЗАЦИИ                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Триггер                  EPA Backend                Platform   │
+│     │                         │                         │       │
+│     │ 1. Запрос синхронизации │                         │       │
+│     │ ────────────────────────►                         │       │
+│     │                         │                         │       │
+│     │                         │ 2. Загрузка токенов     │       │
+│     │                         │ (decrypt)               │       │
+│     │                         │                         │       │
+│     │                         │ 3. Проверка expiry      │       │
+│     │                         │ ┌─────────────────────┐ │       │
+│     │                         │ │ Если истёк:         │ │       │
+│     │                         │ │ refresh_token flow  │──►      │
+│     │                         │ │ update tokens in DB │ │       │
+│     │                         │ └─────────────────────┘ │       │
+│     │                         │                         │       │
+│     │                         │ 4. GET /api/enrollments │       │
+│     │                         │ ────────────────────────►       │
+│     │                         │ ◄────────────────────────       │
+│     │                         │                         │       │
+│     │                         │ 5. GET /api/courses     │       │
+│     │                         │ ────────────────────────►       │
+│     │                         │ ◄────────────────────────       │
+│     │                         │                         │       │
+│     │                         │ 6. GET /api/progresses  │       │
+│     │                         │ ────────────────────────►       │
+│     │                         │ ◄────────────────────────       │
+│     │                         │                         │       │
+│     │                         │ 7. GET /api/sections    │       │
+│     │                         │ (дедлайны)              │       │
+│     │                         │ ────────────────────────►       │
+│     │                         │ ◄────────────────────────       │
+│     │                         │                         │       │
+│     │                         │ 8. Маппинг → EPA format │       │
+│     │                         │                         │       │
+│     │                         │ 9. UPSERT external_courses      │
+│     │                         │ 10. UPSERT course_deadlines     │
+│     │                         │                         │       │
+│     │ 11. Результат синхронизации                       │       │
+│     │ ◄────────────────────────                         │       │
+│     │                         │                         │       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 9.2 Триггеры синхронизации
+
+| Триггер | Тип | Условие | Действие |
+|---------|-----|---------|----------|
+| OAuth Callback | Автоматический | Новое подключение | Полная синхронизация |
+| Открытие дашборда | Lazy | > 1 час с последней | Инкрементальная |
+| Фоновый таймер | Cron | По расписанию (1-6ч) | Полная синхронизация |
+| Кнопка "Обновить" | Ручной | Клик пользователя | Полная синхронизация |
+| Webhook (если есть) | Push | Событие на платформе | Точечное обновление |
+
+### 9.3 Обработка ошибок
+
+```typescript
+// Стратегия обработки ошибок синхронизации
+
+enum SyncErrorType {
+  NETWORK_ERROR = 'network_error',       // Повторить через 5 мин
+  TOKEN_EXPIRED = 'token_expired',       // Автообновление
+  TOKEN_REVOKED = 'token_revoked',       // Требует реавторизации
+  RATE_LIMITED = 'rate_limited',         // Exponential backoff
+  API_ERROR = 'api_error',               // Логировать, уведомить
+  PARSE_ERROR = 'parse_error',           // Пропустить элемент
+}
+
+async function handleSyncError(
+  error: Error,
+  connection: PlatformConnection
+): Promise<'retry' | 'reauth' | 'skip' | 'fail'> {
+  
+  if (isNetworkError(error)) {
+    await scheduleSyncRetry(connection.id, 5 * 60 * 1000);
+    return 'retry';
+  }
+  
+  if (isTokenExpired(error)) {
+    const refreshed = await refreshTokenSafe(connection);
+    return refreshed ? 'retry' : 'reauth';
+  }
+  
+  if (isTokenRevoked(error)) {
+    await updateConnectionStatus(connection.id, 'reauth_required');
+    await notifyUser(connection.userId, 'platform_reauth_needed');
+    return 'reauth';
+  }
+  
+  if (isRateLimited(error)) {
+    const backoff = calculateExponentialBackoff(connection.retryCount);
+    await scheduleSyncRetry(connection.id, backoff);
+    return 'retry';
+  }
+  
+  // Неизвестная ошибка
+  await logSyncError(connection, error);
+  await updateSyncStatus(connection.id, 'failed', error.message);
+  return 'fail';
+}
+```
+
+### 9.4 Оптимизация запросов
+
+- **Batch запросы**: До 100 курсов/прогрессов за один запрос
+- **Параллельные запросы**: Курсы и прогресс загружаются параллельно
+- **Инкрементальная синхронизация**: Только изменённые данные (где поддерживается)
+- **Кэширование**: Метаданные курсов кэшируются на 24 часа
+- **Rate Limiting**: Соблюдение лимитов API платформ (~100 req/min)
+
+---
