@@ -282,7 +282,7 @@ export function SubscriptionPage() {
           </span>
         </div>
         {billingPeriod === 'yearly' && (
-          <Badge className="bg-green-100 text-green-700">-17%</Badge>
+          <Badge className="bg-green-100 text-green-700">-20%</Badge>
         )}
       </div>
 
