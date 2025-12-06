@@ -437,6 +437,14 @@ export function AddCourseModal({
         onClose={() => setShowPlatformSelector(false)}
         onSelect={(platformId) => handleChange('platformId', platformId)}
         connectedPlatforms={connectedPlatforms}
+        platforms={platforms.map(p => ({
+          id: p.id,
+          name: p.name,
+          displayName: p.name,
+          websiteUrl: '',
+          authType: 'oauth',
+          category: 'Образование',
+        }))}
       />
     </Dialog>
   );

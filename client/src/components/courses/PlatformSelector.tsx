@@ -44,6 +44,7 @@ interface PlatformSelectorProps {
   onClose: () => void;
   onSelect: (platformId: string) => void;
   connectedPlatforms?: Set<string>;
+  platforms?: Platform[];
 }
 
 export function PlatformSelector({
@@ -51,12 +52,16 @@ export function PlatformSelector({
   onClose,
   onSelect,
   connectedPlatforms = new Set(),
+  platforms,
 }: PlatformSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [requestingConnect, setRequestingConnect] = useState<string | null>(null);
 
-  const connected = globalPlatforms.filter(p => connectedPlatforms.has(p.id));
-  const available = globalPlatforms.filter(p => !connectedPlatforms.has(p.id));
+  // Use provided platforms or fallback to globalPlatforms
+  const allPlatforms = platforms || globalPlatforms;
+  
+  const connected = allPlatforms.filter(p => connectedPlatforms.has(p.id));
+  const available = allPlatforms.filter(p => !connectedPlatforms.has(p.id));
 
   const filterPlatforms = (platforms: Platform[]) => {
     if (!searchQuery) return platforms;
