@@ -298,7 +298,7 @@ export function SubscriptionPage() {
           return (
             <Card 
               key={plan.id} 
-              className={`relative overflow-hidden transition-shadow hover:shadow-lg ${
+              className={`relative overflow-hidden transition-shadow hover:shadow-lg flex flex-col ${
                 plan.code === 'standard' ? 'border-blue-300 shadow-blue-100' : ''
               } ${plan.code === 'premium' ? 'border-yellow-300 shadow-yellow-100' : ''
               } ${isCurrentPlan ? 'ring-2 ring-purple-500' : ''}`}
@@ -322,7 +322,7 @@ export function SubscriptionPage() {
                 <CardDescription>{plan.description}</CardDescription>
               </CardHeader>
 
-              <CardContent>
+              <CardContent className="flex-grow">
                 <div className="mb-6">
                   <span className="text-3xl font-bold text-gray-800">
                     {formatPrice(price)}
@@ -368,7 +368,7 @@ export function SubscriptionPage() {
                 </ul>
               </CardContent>
 
-              <CardFooter>
+              <CardFooter className="mt-auto">
                 {isCurrentPlan ? (
                   <Button disabled className="w-full" variant="outline">
                     Текущий план
