@@ -125,3 +125,75 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 - Query optimization techniques (batching, parallel requests)
 
 ---
+
+## Recurring Payments System - Phase 5: Auto-renewal Implementation (Dec 6, 2025)
+
+### Database Changes:
+- Added `autoRenewalEnabled` (boolean, default false) - toggle automatic renewal
+- Added `lastAutoPaymentAttemptAt` (timestamp) - track retry logic
+- Fields `yoomoneyPaymentMethodId` already present to store payment token
+
+### Backend Implementation:
+
+**YooKassa Service Enhancements:**
+- **`createPayment()`** - Now requests card saving with `payment_method_data.save: true`
+- **`processWebhook()`** - Extracts and saves `payment_method.id` from YooKassa response
+- **`createAutoPayment(subscriptionId)`** - New method for charging saved payment methods
+- **`processAutoPayments()`** - New method that:
+  - Runs hourly via cron-job in server/index.ts
+  - Checks all subscriptions with autoRenewalEnabled=true
+  - Initiates payment if currentPeriodEnd is within 24 hours
+  - Handles retry tracking via lastAutoPaymentAttemptAt
+
+**New API Endpoint:**
+- `POST /api/subscriptions/toggle-auto-renewal` - Enable/disable auto-renewal
+  - Validates payment method exists before enabling
+  - Updates subscription.autoRenewalEnabled
+
+### Frontend Updates:
+
+**SubscriptionPage.tsx Enhancements:**
+- Shows "Автоматическое продление" (Auto-renewal) checkbox when payment method exists
+- Toggle enables/disables auto-renewal with loading state
+- Displays active status with green "✓ АКТИВНА" badge
+- Shows next payment date alongside expiry date
+- Improved payment history with color-coded status (green=completed, yellow=pending, red=failed)
+
+### How It Works:
+
+**User Flow:**
+1. User subscribes and YooKassa requests card save permission
+2. Card is saved and `paymentMethodId` stored in subscriptions table
+3. User enables "Автоматическое продление" toggle in Settings → Subscription
+4. Hourly cron-job checks for upcoming renewals (within 24 hours)
+5. Auto-payment is created using saved card (no user interaction needed)
+6. Webhook confirms payment status and updates subscription period
+
+**Error Handling:**
+- If auto-payment fails, lastAutoPaymentAttemptAt is recorded for retry logic
+- Failed payments are tracked in payment history with status 'failed'
+- User can manually renew or disable auto-renewal anytime
+
+### Testing Instructions:
+
+1. **Enable auto-renewal:**
+   - Go to Settings → Subscription
+   - Complete a payment (card saving will be requested)
+   - Toggle "Автоматическое продление" checkbox
+   - Verify checkbox is enabled and saved
+
+2. **Monitor auto-payments:**
+   - Check server logs for "Running auto payment processor..." messages (every hour)
+   - Look in Payment History for auto-renewal payments
+   - Check subscription status for nextPaymentAt date
+
+3. **Manual testing (development):**
+   - Call `yookassaService.processAutoPayments()` directly
+   - Set a subscription's currentPeriodEnd to tomorrow
+   - Auto-payment should trigger immediately
+
+### Scheduled Tasks:
+- Auto-renewal processor runs every **3,600,000ms (1 hour)**
+- Can be adjusted in server/index.ts line 92
+
+---

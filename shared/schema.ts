@@ -324,14 +324,17 @@ export const subscriptions = pgTable("subscriptions", {
   cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
   cancelledAt: timestamp("cancelled_at"),
   yoomoneyPaymentMethodId: varchar("yoomoney_payment_method_id", { length: 255 }), // saved payment method
+  autoRenewalEnabled: boolean("auto_renewal_enabled").default(false), // enable automatic recurring payments
   lastPaymentAt: timestamp("last_payment_at"),
   nextPaymentAt: timestamp("next_payment_at"),
+  lastAutoPaymentAttemptAt: timestamp("last_auto_payment_attempt_at"), // for tracking retry logic
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   userSubIdx: index("subscriptions_user_idx").on(table.userId),
   planSubIdx: index("subscriptions_plan_idx").on(table.planId),
   statusIdx: index("subscriptions_status_idx").on(table.status),
+  autoRenewalIdx: index("subscriptions_auto_renewal_idx").on(table.autoRenewalEnabled),
 }));
 
 // Payments table - Payment history

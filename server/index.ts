@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { config, validateConfig } from "../config/environment";
 import { logger } from "./services/logger";
+import { yookassaService } from "./services/yookassaService";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
@@ -78,4 +79,14 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${config.port}`);
   });
+
+  // Start auto payment processing - runs every hour
+  setInterval(() => {
+    logger.info('Running auto payment processor...');
+    yookassaService.processAutoPayments().catch(err => {
+      logger.error('Error in auto payment processor:', err);
+    });
+  }, 3600000); // 1 hour
+
+  logger.info('Auto payment processor scheduled to run every hour');
 })();

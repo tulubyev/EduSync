@@ -38,6 +38,8 @@ interface UserSubscription {
     currentPeriodStart: string;
     currentPeriodEnd: string;
     cancelAtPeriodEnd: boolean;
+    autoRenewalEnabled?: boolean;
+    yoomoneyPaymentMethodId?: string | null;
   };
   plan: SubscriptionPlan;
 }
@@ -61,6 +63,7 @@ export function SubscriptionPage() {
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [yoomoneyConfigured, setYoomoneyConfigured] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [autoRenewalLoading, setAutoRenewalLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -162,6 +165,34 @@ export function SubscriptionPage() {
     }
   };
 
+  const toggleAutoRenewal = async (enabled: boolean) => {
+    try {
+      setAutoRenewalLoading(true);
+      const token = localStorage.getItem('accessToken');
+      
+      const response = await fetch('/api/subscriptions/toggle-auto-renewal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ enabled }),
+      });
+
+      if (response.ok) {
+        fetchData();
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Ошибка при изменении автопродления');
+      }
+    } catch (error) {
+      console.error('Error toggling auto renewal:', error);
+      alert('Ошибка соединения');
+    } finally {
+      setAutoRenewalLoading(false);
+    }
+  };
+
   const handleCancelSubscription = async () => {
     if (!confirm('Вы уверены, что хотите отменить подписку? Вы сохраните доступ до конца оплаченного периода.')) {
       return;
@@ -251,7 +282,7 @@ export function SubscriptionPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-6 text-sm text-gray-600">
+            <div className="grid grid-cols-2 gap-6 text-sm text-gray-600 mb-4">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 <div>
@@ -267,6 +298,21 @@ export function SubscriptionPage() {
                 </div>
               </div>
             </div>
+            {currentSubscription.subscription.yoomoneyPaymentMethodId && (
+              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200 mb-3">
+                <input
+                  type="checkbox"
+                  checked={currentSubscription.subscription.autoRenewalEnabled || false}
+                  onChange={(e) => toggleAutoRenewal(e.target.checked)}
+                  disabled={autoRenewalLoading}
+                  className="w-4 h-4 rounded cursor-pointer"
+                />
+                <div className="flex-1">
+                  <p className="font-medium text-sm text-green-900">Автоматическое продление</p>
+                  <p className="text-xs text-green-700">Подписка будет автоматически продлеваться</p>
+                </div>
+              </div>
+            )}
             {currentSubscription.subscription.cancelAtPeriodEnd && (
               <div className="mt-4 p-3 bg-orange-50 rounded-lg flex items-center gap-2 text-orange-700">
                 <AlertCircle className="w-5 h-5" />

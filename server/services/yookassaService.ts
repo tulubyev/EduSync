@@ -161,7 +161,7 @@ class YookassaService {
       const idempotenceKey = uuidv4();
       const description = `Подписка ${selectedPlan.name} - ${options.billingPeriod === 'yearly' ? 'Годовая' : 'Месячная'}`;
 
-      const paymentData = {
+      const paymentData: any = {
         amount: {
           value: price.toFixed(2),
           currency: 'RUB',
@@ -177,6 +177,10 @@ class YookassaService {
           planId: options.planId,
           billingPeriod: options.billingPeriod,
           planName: selectedPlan.name,
+        },
+        payment_method_data: {
+          type: 'bank_card',
+          save: true, // Запросить разрешение на сохранение карты
         },
       };
 
@@ -306,11 +310,15 @@ class YookassaService {
 
         const metadata = paymentRecord.metadata as { planId: string; billingPeriod: string } | null;
         if (metadata?.planId) {
+          // Save payment method for auto-renewal if available
+          const paymentMethodId = object.payment_method?.id;
+          
           await this.activateSubscription(
             paymentRecord.userId,
             metadata.planId,
             (metadata.billingPeriod as 'monthly' | 'yearly') || 'monthly',
-            paymentRecord.id
+            paymentRecord.id,
+            paymentMethodId
           );
         }
 
@@ -343,7 +351,8 @@ class YookassaService {
     userId: string,
     planId: string,
     billingPeriod: 'monthly' | 'yearly',
-    paymentId: string
+    paymentId: string,
+    paymentMethodId?: string
   ): Promise<void> {
     const now = new Date();
     const periodEnd = new Date(now);
@@ -375,6 +384,7 @@ class YookassaService {
           currentPeriodEnd: periodEnd,
           lastPaymentAt: now,
           nextPaymentAt: periodEnd,
+          yoomoneyPaymentMethodId: paymentMethodId || existingSub[0].yoomoneyPaymentMethodId,
           updatedAt: now,
           cancelAtPeriodEnd: false,
           cancelledAt: null,
@@ -397,6 +407,7 @@ class YookassaService {
           currentPeriodEnd: periodEnd,
           lastPaymentAt: now,
           nextPaymentAt: periodEnd,
+          yoomoneyPaymentMethodId: paymentMethodId,
         })
         .returning();
 
@@ -419,7 +430,126 @@ class YookassaService {
         .where(eq(users.id, userId));
     }
 
-    console.log(`YookassaService: Subscription activated for user ${userId}, plan ${planId}`);
+    console.log(`YookassaService: Subscription activated for user ${userId}, plan ${planId}, paymentMethodId: ${paymentMethodId || 'none'}`);
+  }
+
+  async createAutoPayment(subscriptionId: string): Promise<{ success: boolean; error?: string; paymentId?: string }> {
+    if (!this.isReady()) {
+      return { success: false, error: 'YooKassa не настроена' };
+    }
+
+    try {
+      const sub = await db
+        .select({
+          subscription: subscriptions,
+          plan: subscriptionPlans,
+          user: users,
+        })
+        .from(subscriptions)
+        .innerJoin(subscriptionPlans, eq(subscriptions.planId, subscriptionPlans.id))
+        .innerJoin(users, eq(subscriptions.userId, users.id))
+        .where(eq(subscriptions.id, subscriptionId))
+        .limit(1);
+
+      if (!sub[0] || !sub[0].subscription.yoomoneyPaymentMethodId) {
+        return { success: false, error: 'Подписка или сохранённый способ оплаты не найден' };
+      }
+
+      const { subscription, plan, user } = sub[0];
+      const price = subscription.billingPeriod === 'yearly' 
+        ? parseFloat(plan.priceYearly || plan.priceMonthly)
+        : parseFloat(plan.priceMonthly);
+
+      if (price === 0) {
+        return { success: false, error: 'Бесплатный план' };
+      }
+
+      const idempotenceKey = uuidv4();
+      const paymentData = {
+        amount: {
+          value: price.toFixed(2),
+          currency: 'RUB',
+        },
+        payment_method_id: subscription.yoomoneyPaymentMethodId,
+        capture: true,
+        description: `Автопродление: ${plan.name} (${subscription.billingPeriod === 'yearly' ? 'год' : 'месяц'})`,
+        metadata: {
+          userId: user.id,
+          planId: plan.id,
+          billingPeriod: subscription.billingPeriod,
+          subscriptionId,
+          autoRenewal: true,
+        },
+      };
+
+      const payment = await this.apiRequest<YookassaPayment>(
+        'POST',
+        '/payments',
+        paymentData,
+        idempotenceKey
+      );
+
+      await db.insert(payments).values({
+        userId: user.id,
+        subscriptionId,
+        yoomoneyOperationId: payment.id,
+        amount: price.toString(),
+        currency: 'RUB',
+        status: 'pending',
+        description: `Auto: ${plan.name}`,
+        metadata: {
+          planId: plan.id,
+          billingPeriod: subscription.billingPeriod,
+          autoRenewal: true,
+        },
+      });
+
+      await db
+        .update(subscriptions)
+        .set({ lastAutoPaymentAttemptAt: new Date() })
+        .where(eq(subscriptions.id, subscriptionId));
+
+      return { success: true, paymentId: payment.id };
+    } catch (error: any) {
+      console.error('YookassaService: Auto payment error:', error);
+      await db
+        .update(subscriptions)
+        .set({ lastAutoPaymentAttemptAt: new Date() })
+        .where(eq(subscriptions.id, subscriptionId));
+      
+      return { success: false, error: error.message || 'Ошибка автоплатежа' };
+    }
+  }
+
+  async processAutoPayments(): Promise<void> {
+    if (!this.isReady()) return;
+
+    try {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const dueSubs = await db
+        .select()
+        .from(subscriptions)
+        .where(
+          and(
+            eq(subscriptions.status, 'active'),
+            eq(subscriptions.autoRenewalEnabled, true),
+            eq(subscriptions.cancelAtPeriodEnd, false),
+            // Get subs where currentPeriodEnd is between now and tomorrow
+          )
+        );
+
+      for (const sub of dueSubs) {
+        if (sub.currentPeriodEnd <= tomorrow && sub.currentPeriodEnd > now) {
+          console.log(`YookassaService: Processing auto payment for subscription ${sub.id}`);
+          await this.createAutoPayment(sub.id);
+        }
+      }
+    } catch (error) {
+      console.error('YookassaService: Error processing auto payments:', error);
+    }
   }
 
   async cancelSubscription(userId: string): Promise<{ success: boolean; error?: string }> {

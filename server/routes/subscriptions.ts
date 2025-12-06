@@ -131,6 +131,39 @@ router.post('/cancel', authenticateToken as any, async (req: AuthRequest, res: R
   }
 });
 
+router.post('/toggle-auto-renewal', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { enabled } = req.body;
+
+    const sub = await yookassaService.getUserSubscription(userId);
+    if (!sub) {
+      return res.status(404).json({ message: 'Активная подписка не найдена' });
+    }
+
+    if (enabled && !sub.subscription.yoomoneyPaymentMethodId) {
+      return res.status(400).json({ message: 'Способ оплаты не сохранен. Сделайте новый платеж.' });
+    }
+
+    const { db } = await import('../db');
+    const { subscriptions } = await import('../../shared/schema');
+    const { eq } = await import('drizzle-orm');
+
+    await db
+      .update(subscriptions)
+      .set({ autoRenewalEnabled: enabled })
+      .where(eq(subscriptions.id, sub.subscription.id));
+
+    res.json({ 
+      message: enabled ? 'Автопродление включено' : 'Автопродление отключено',
+      success: true,
+    });
+  } catch (error) {
+    logger.error('Error toggling auto renewal:', error);
+    res.status(500).json({ message: 'Ошибка при изменении автопродления' });
+  }
+});
+
 router.get('/history', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
