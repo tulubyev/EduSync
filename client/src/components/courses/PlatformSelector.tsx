@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CheckCircle, Link as LinkIcon, Search } from 'lucide-react';
+import { CheckCircle, Link as LinkIcon, Search, Globe } from 'lucide-react';
 
 interface Platform {
   id: string;
@@ -55,22 +55,45 @@ export function PlatformSelector({
   platforms,
 }: PlatformSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [requestingConnect, setRequestingConnect] = useState<string | null>(null);
 
   // Use provided platforms or fallback to globalPlatforms
   const allPlatforms = platforms || globalPlatforms;
   
+  // Extract unique categories from platforms
+  const categories = Array.from(new Set(allPlatforms.map(p => p.category).filter(Boolean))).sort();
+  
+  // Determine if showing global/russian filter (useful for large lists)
+  const hasGlobal = allPlatforms.some(p => (p as any).isGlobal === true);
+  const hasRussian = allPlatforms.some(p => (p as any).isGlobal === false);
+  
   const connected = allPlatforms.filter(p => connectedPlatforms.has(p.id));
   const available = allPlatforms.filter(p => !connectedPlatforms.has(p.id));
 
   const filterPlatforms = (platforms: Platform[]) => {
-    if (!searchQuery) return platforms;
-    const query = searchQuery.toLowerCase();
-    return platforms.filter(p =>
-      p.displayName.toLowerCase().includes(query) ||
-      p.description?.toLowerCase().includes(query) ||
-      p.category.toLowerCase().includes(query)
-    );
+    return platforms.filter(p => {
+      // Filter by search query
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch = 
+          p.displayName.toLowerCase().includes(query) ||
+          p.description?.toLowerCase().includes(query) ||
+          p.category.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+      
+      // Filter by category
+      if (selectedCategory !== 'all' && selectedCategory !== 'global' && selectedCategory !== 'russian') {
+        if (p.category !== selectedCategory) return false;
+      }
+      
+      // Filter by region type
+      if (selectedCategory === 'global' && (p as any).isGlobal !== true) return false;
+      if (selectedCategory === 'russian' && (p as any).isGlobal !== false) return false;
+      
+      return true;
+    });
   };
 
   const handleConnect = async (platform: Platform) => {
@@ -109,14 +132,68 @@ export function PlatformSelector({
           <DialogTitle>Выберите образовательную платформу</DialogTitle>
         </DialogHeader>
 
-        <div className="px-4 relative mb-2">
-          <Search className="absolute left-7 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Поиск платформы..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        <div className="px-4 space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Поиск платформы..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          
+          {(categories.length > 0 || hasGlobal || hasRussian) && (
+            <>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                <Button
+                  variant={selectedCategory === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => setSelectedCategory('all')}
+                >
+                  Все ({allPlatforms.length})
+                </Button>
+                {hasGlobal && (
+                  <Button
+                    variant={selectedCategory === 'global' ? 'default' : 'outline'}
+                    size="sm"
+                    className="text-xs h-7 whitespace-nowrap"
+                    onClick={() => setSelectedCategory('global')}
+                  >
+                    <Globe className="h-3 w-3 mr-1" />
+                    Глобальные
+                  </Button>
+                )}
+                {hasRussian && (
+                  <Button
+                    variant={selectedCategory === 'russian' ? 'default' : 'outline'}
+                    size="sm"
+                    className="text-xs h-7 whitespace-nowrap"
+                    onClick={() => setSelectedCategory('russian')}
+                  >
+                    <Globe className="h-3 w-3 mr-1" />
+                    Русские
+                  </Button>
+                )}
+              </div>
+              {categories.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {categories.map((cat) => (
+                    <Button
+                      key={cat}
+                      variant={selectedCategory === cat ? 'default' : 'outline'}
+                      size="sm"
+                      className="text-xs h-7 whitespace-nowrap"
+                      onClick={() => setSelectedCategory(cat)}
+                    >
+                      {cat}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         <ScrollArea className="flex-1 px-4 overflow-y-auto">
