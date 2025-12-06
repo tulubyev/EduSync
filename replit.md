@@ -57,3 +57,40 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
     - `/api/subscriptions/admin/plans` (POST, PUT, DELETE)
 - **YooKassa**: Payment gateway for subscriptions.
 - **Stepik API**: External learning platform API for course and deadline synchronization.
+---
+
+## Stepik Integration - Phase 3: UI Components - COMPLETE (Dec 6, 2025)
+
+### Components Created:
+- **`StepikConnectionPage.tsx`** - Main UI for Stepik connection management
+  - OAuth authorization button with redirect to Stepik
+  - Connection status display (connected/disconnected)
+  - Manual sync button with loading state
+  - Synced courses list with progress tracking
+  - Disconnect button with confirmation dialog
+  - Error alerts and last sync timestamp
+  - Responsive design using Shadcn UI
+
+- **`OAuthCallbackHandler.tsx`** - OAuth callback URL handler
+  - Processes authorization code from Stepik
+  - Exchanges code for tokens (via backend)
+  - Handles errors gracefully
+  - Redirects to settings on success
+
+### Updates to Existing Files:
+- **`SettingsPage.tsx`** - Added Tabs navigation
+  - Profile tab - existing user profile management
+  - Platforms tab - StepikConnectionPage integration
+
+- **`App.tsx`** - Added OAuth callback route
+  - Route `/auth/stepik/callback` → OAuthCallbackHandler
+
+### Testing Instructions:
+1. Navigate to Settings → Platforms tab
+2. Click "Подключить к Stepik" button
+3. You'll be redirected to Stepik OAuth
+4. Authorize with Stepik account (test: alt@baikal-internet.ru / owerktoo)
+5. Automatically returned to Settings with sync starting
+6. View synced courses and manage connection (sync/disconnect)
+
+---

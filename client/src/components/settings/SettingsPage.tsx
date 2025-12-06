@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User, Upload, Mail, Phone } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { User, Upload, Mail, Phone, BookOpen } from 'lucide-react';
+import { StepikConnectionPage } from './StepikConnectionPage';
 
 interface UserProfile {
   id: string;
@@ -18,6 +20,7 @@ interface UserProfile {
 }
 
 export function SettingsPage() {
+  const [activeTab, setActiveTab] = useState('profile');
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -126,69 +129,72 @@ export function SettingsPage() {
     e.stopPropagation();
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      handlePhotoUpload({ target: { files: e.dataTransfer.files } } as any);
+      const event = { target: { files: [file] } } as any;
+      handlePhotoUpload(event);
     }
   };
 
-  const handleSaveProfile = async () => {
+  const handleSave = async () => {
     if (!validateForm()) return;
 
     try {
       setSaving(true);
-      setSuccessMessage('');
       const token = localStorage.getItem('accessToken');
+      
+      let photoToUpload = profile?.profileImageUrl || null;
+
+      if (selectedFile) {
+        const reader = new FileReader();
+        await new Promise((resolve) => {
+          reader.onload = async () => {
+            const base64 = reader.result as string;
+            
+            const photoRes = await fetch('/api/users/profile/photo', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ photoData: base64 })
+            });
+
+            if (photoRes.ok) {
+              photoToUpload = base64;
+            }
+            resolve(null);
+          };
+          reader.readAsDataURL(selectedFile);
+        });
+      }
 
       const response = await fetch('/api/users/profile', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          profileImageUrl: photoToUpload,
+        }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save profile');
+        const error = await response.json();
+        setErrors(prev => ({
+          ...prev,
+          submit: error.message || 'Ошибка при сохранении профиля',
+        }));
+        return;
       }
 
-      let updatedProfileData = await response.json();
-      console.log('✅ Profile saved:', updatedProfileData);
-
-      if (selectedFile) {
-        console.log('📸 Uploading photo:', selectedFile.name, selectedFile.size);
-        const formDataWithPhoto = new FormData();
-        formDataWithPhoto.append('photo', selectedFile);
-
-        const photoResponse = await fetch('/api/users/profile/photo', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formDataWithPhoto,
-        });
-
-        if (!photoResponse.ok) {
-          const errorData = await photoResponse.json();
-          console.error('❌ Photo upload failed:', errorData);
-          throw new Error(errorData.message || 'Failed to upload photo');
-        }
-
-        updatedProfileData = await photoResponse.json();
-        console.log('✅ Photo uploaded successfully:', updatedProfileData);
-      }
-
-      setSuccessMessage('Профиль успешно сохранен');
-      setSelectedFile(null);
-      setNewPhotoPreview(null);
-      setProfile(updatedProfileData);
+      const updatedProfileData = await response.json();
       
-      try {
-        localStorage.setItem('currentUser', JSON.stringify(updatedProfileData));
-      } catch (storageError) {
-        console.warn('localStorage quota exceeded, clearing old data');
-        localStorage.clear();
-        localStorage.setItem('accessToken', token);
-        localStorage.setItem('currentUser', JSON.stringify(updatedProfileData));
-      }
+      setSuccessMessage('✓ Профиль успешно обновлен');
+      setProfile(updatedProfileData);
       
       // Dispatch custom event to notify App component about user update
       window.dispatchEvent(new CustomEvent('userUpdated', { 
@@ -248,218 +254,197 @@ export function SettingsPage() {
         <p className="text-muted-foreground">Управление вашим профилем и учетной записью</p>
       </div>
 
-      {/* Success Message */}
-      {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
-          ✓ {successMessage}
-        </div>
-      )}
+      {/* Tabs Navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="profile" className="flex items-center gap-2">
+            <User className="w-4 h-4" />
+            Профиль
+          </TabsTrigger>
+          <TabsTrigger value="platforms" className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4" />
+            Платформы
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Error Message */}
-      {errors.submit && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          ✕ {errors.submit}
-        </div>
-      )}
+        {/* Profile Tab */}
+        <TabsContent value="profile" className="space-y-6">
+          {/* Success Message */}
+          {successMessage && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+              ✓ {successMessage}
+            </div>
+          )}
 
-      {/* Profile Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Профиль пользователя
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Photo Upload - Two Column Layout */}
-          <div className="grid grid-cols-3 gap-6">
-            {/* Left - Current Photo (1/3) */}
-            <div className="col-span-1 flex flex-col items-center">
-              <label className="block text-sm font-semibold mb-3 text-center">Текущее фото</label>
-              {profile?.profileImageUrl ? (
-                <img
-                  src={profile.profileImageUrl}
-                  alt="Current Profile"
-                  className="w-full rounded-lg object-cover shadow-md border-2 border-purple-100"
-                />
-              ) : (
-                <div className="w-full aspect-square rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
-                  <div className="text-center">
-                    <User className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-                    <p className="text-xs text-gray-500">Нет фото</p>
+          {/* Error Message */}
+          {errors.submit && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+              ✕ {errors.submit}
+            </div>
+          )}
+
+          {/* Profile Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Профиль пользователя
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Photo Upload */}
+              <div className="flex items-center gap-6">
+                <div className="flex-shrink-0">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
+                    {newPhotoPreview || profile?.profileImageUrl ? (
+                      <img
+                        src={newPhotoPreview || profile?.profileImageUrl}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-10 h-10 text-gray-400" />
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Right - Upload Zone (2/3) */}
-            <div className="col-span-2 flex flex-col">
-              <label className="block text-sm font-semibold mb-3">Загрузить новое фото</label>
-              <div
-                className="flex-1 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-purple-400 transition-colors flex flex-col items-center justify-center"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {newPhotoPreview ? (
-                  <div className="space-y-3 w-full">
-                    <img
-                      src={newPhotoPreview}
-                      alt="Preview"
-                      className="h-40 w-40 rounded-lg mx-auto object-cover"
+                <div className="flex-1">
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-500 transition-colors"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-5 h-5 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-600">Перетащите фото или нажмите</p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
                     />
-                    <p className="text-sm text-muted-foreground">Нажмите или перетащите для изменения</p>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Upload className="h-10 w-10 mx-auto text-gray-400" />
-                    <p className="text-sm font-medium">Перетащите фото сюда</p>
-                    <p className="text-xs text-muted-foreground mt-1">или нажмите для выбора</p>
-                    <p className="text-xs text-gray-500 mt-2">PNG, JPG, GIF до 5MB</p>
-                  </div>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handlePhotoUpload}
-                />
+                  {errors.photo && <p className="text-red-600 text-sm mt-2">{errors.photo}</p>}
+                </div>
               </div>
-              {errors.photo && <p className="text-sm text-red-600 mt-2">{errors.photo}</p>}
-            </div>
-          </div>
 
-          {/* Form Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Имя</label>
-              <input
-                type="text"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleInputChange}
-                placeholder="Ваше имя"
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  errors.firstName ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.firstName && <p className="text-sm text-red-600 mt-1">{errors.firstName}</p>}
-            </div>
+              {/* Form Fields */}
+              <div className="space-y-4">
+                {/* Email */}
+                <div>
+                  <label className="text-sm font-medium flex items-center gap-2 mb-2">
+                    <Mail className="w-4 h-4" />
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.email && <p className="text-red-600 text-sm mt-1">{errors.email}</p>}
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Фамилия</label>
-              <input
-                type="text"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleInputChange}
-                placeholder="Ваша фамилия"
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  errors.lastName ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.lastName && <p className="text-sm text-red-600 mt-1">{errors.lastName}</p>}
-            </div>
+                {/* First Name */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Имя</label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.firstName && <p className="text-red-600 text-sm mt-1">{errors.firstName}</p>}
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                Email
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="your@email.com"
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  errors.email ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.email && <p className="text-sm text-red-600 mt-1">{errors.email}</p>}
-              {profile?.isEmailVerified && (
-                <p className="text-xs text-green-600 mt-1">✓ Email подтвержден</p>
-              )}
-            </div>
+                {/* Last Name */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Фамилия</label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.lastName && <p className="text-red-600 text-sm mt-1">{errors.lastName}</p>}
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                Телефон
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                placeholder="+7 (XXX) XXX-XX-XX"
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  errors.phone ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.phone && <p className="text-sm text-red-600 mt-1">{errors.phone}</p>}
-              {profile?.isPhoneVerified && (
-                <p className="text-xs text-green-600 mt-1">✓ Телефон подтвержден</p>
-              )}
-            </div>
-          </div>
+                {/* Phone */}
+                <div>
+                  <label className="text-sm font-medium flex items-center gap-2 mb-2">
+                    <Phone className="w-4 h-4" />
+                    Телефон
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.phone && <p className="text-red-600 text-sm mt-1">{errors.phone}</p>}
+                </div>
+              </div>
 
-          {/* Save Button */}
-          <Button
-            onClick={handleSaveProfile}
-            disabled={saving}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-          >
-            {saving ? 'Сохранение...' : 'Сохранить профиль'}
-          </Button>
-        </CardContent>
-      </Card>
+              {/* Save Button */}
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full"
+              >
+                {saving ? 'Сохранение...' : 'Сохранить изменения'}
+              </Button>
+            </CardContent>
+          </Card>
 
-      {/* Subscription Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Статус подписки</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Текущий план</p>
-              <p className="text-lg font-semibold">{profile && getPlanLabel(profile.planType)}</p>
-            </div>
-            <Badge className={getPlanBadgeColor(profile?.planType || 'free')}>
-              {profile?.planType.toUpperCase()}
-            </Badge>
-          </div>
-          
-          <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-            <p className="text-sm text-blue-700">
-              Функциональность платежей будет добавлена в следующих версиях.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Subscription Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Статус подписки</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Текущий план</p>
+                  <p className="text-lg font-semibold">{profile && getPlanLabel(profile.planType)}</p>
+                </div>
+                <Badge className={getPlanBadgeColor(profile?.planType || 'free')}>
+                  {profile?.planType.toUpperCase()}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Account Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Информация об учетной записи</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-muted-foreground">ID пользователя:</span>
-            <span className="font-mono text-sm">{profile?.id}</span>
-          </div>
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-muted-foreground">Создана:</span>
-            <span>{profile && new Date(profile.createdAt).toLocaleDateString('ru-RU')}</span>
-          </div>
-          <div className="flex justify-between py-2">
-            <span className="text-muted-foreground">Статус:</span>
-            <span className="text-green-600 font-medium">✓ Активна</span>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Account Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Информация об учетной записи</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-muted-foreground">ID пользователя:</span>
+                <span className="font-mono text-sm">{profile?.id}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-muted-foreground">Создана:</span>
+                <span>{profile && new Date(profile.createdAt).toLocaleDateString('ru-RU')}</span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="text-muted-foreground">Статус:</span>
+                <span className="text-green-600 font-medium">✓ Активна</span>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Platforms Tab */}
+        <TabsContent value="platforms">
+          <StepikConnectionPage />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

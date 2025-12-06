@@ -10,6 +10,7 @@ import { PlatformsPage } from './components/platforms/PlatformsPage';
 import { AnalyticsPage } from './components/analytics/AnalyticsPage';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { SubscriptionPage } from './components/settings/SubscriptionPage';
+import { OAuthCallbackHandler } from './components/OAuthCallbackHandler';
 import { 
   BookOpen, 
   Calendar, 
@@ -171,6 +172,7 @@ function App() {
           <Route path="/settings" component={SettingsPage} />
           <Route path="/subscription" component={SubscriptionPage} />
           <Route path="/subscription/success" component={SubscriptionSuccessPage} />
+          <Route path="/auth/stepik/callback" component={OAuthCallbackHandler} />
           <Route component={() => <Dashboard user={currentUser} />} />
         </Switch>
       </main>
