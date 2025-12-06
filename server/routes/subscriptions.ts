@@ -2,9 +2,11 @@ import { Router, Request, Response } from 'express';
 import { logger } from "../services/logger";
 import { authenticateToken } from '../middleware/auth';
 import { yookassaService } from '../services/yookassaService';
+import { PaymentFactory } from '../services/payments/paymentFactory';
+import type { PaymentProvider } from '../services/payments/paymentGateway';
 import { db } from '../db';
-import { subscriptionPlans } from '../../shared/schema';
-import { eq } from 'drizzle-orm';
+import { subscriptionPlans, subscriptions } from '../../shared/schema';
+import { eq, and } from 'drizzle-orm';
 
 const router = Router();
 
@@ -50,7 +52,7 @@ router.get('/current', authenticateToken as any, async (req: AuthRequest, res: R
 router.post('/create-payment', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { planId, billingPeriod } = req.body;
+    const { planId, billingPeriod, provider } = req.body;
 
     if (!planId) {
       return res.status(400).json({ message: 'Не указан тарифный план' });
@@ -61,12 +63,27 @@ router.post('/create-payment', authenticateToken as any, async (req: AuthRequest
       return res.status(400).json({ message: 'Неверный период оплаты' });
     }
 
+    const validProviders = ['yookassa', 'alfabank'];
+    const selectedProvider = (provider && validProviders.includes(provider)) 
+      ? provider as PaymentProvider 
+      : 'yookassa';
+
+    const gateway = PaymentFactory.getGateway(selectedProvider);
+    
+    if (!gateway.isReady()) {
+      return res.status(400).json({ 
+        message: selectedProvider === 'alfabank' 
+          ? 'Платежи через Альфа-Банк временно недоступны' 
+          : 'Платежная система не настроена' 
+      });
+    }
+
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.headers['x-forwarded-host'] || req.get('host');
     const baseUrl = `${protocol}://${host}`;
     const returnUrl = `${baseUrl}/subscription/success`;
 
-    const result = await yookassaService.createPayment({
+    const result = await gateway.createPayment({
       userId,
       planId,
       billingPeriod,
@@ -80,6 +97,7 @@ router.post('/create-payment', authenticateToken as any, async (req: AuthRequest
     res.json({
       paymentUrl: result.paymentUrl,
       paymentId: result.paymentId,
+      provider: selectedProvider,
     });
   } catch (error) {
     logger.error('Error creating payment:', error);
@@ -108,6 +126,32 @@ router.post('/webhook', async (req: Request, res: Response) => {
     res.status(200).send('OK');
   } catch (error) {
     logger.error('YooKassa webhook error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+router.post('/webhook/alfabank', async (req: Request, res: Response) => {
+  try {
+    const notification = req.body;
+    
+    logger.info('Alfabank webhook received:', {
+      orderId: notification.orderId || notification.mdOrder,
+      orderStatus: notification.orderStatus,
+      operation: notification.operation,
+    });
+
+    const gateway = PaymentFactory.getGateway('alfabank');
+    const success = await gateway.processWebhook(notification);
+
+    if (!success) {
+      logger.warn('Alfabank webhook processing failed:', notification.orderId);
+      return res.status(400).send('Invalid notification');
+    }
+
+    logger.info('Alfabank webhook processed successfully:', notification.orderId);
+    res.status(200).send('OK');
+  } catch (error) {
+    logger.error('Alfabank webhook error:', error);
     res.status(500).send('Internal Server Error');
   }
 });
@@ -141,13 +185,14 @@ router.post('/toggle-auto-renewal', authenticateToken as any, async (req: AuthRe
       return res.status(404).json({ message: 'Активная подписка не найдена' });
     }
 
-    if (enabled && !sub.subscription.yoomoneyPaymentMethodId) {
+    const provider = sub.subscription.paymentProvider || 'yookassa';
+    const hasPaymentMethod = provider === 'alfabank' 
+      ? !!sub.subscription.alfabankPaymentMethodId 
+      : !!sub.subscription.yoomoneyPaymentMethodId;
+
+    if (enabled && !hasPaymentMethod) {
       return res.status(400).json({ message: 'Способ оплаты не сохранен. Сделайте новый платеж.' });
     }
-
-    const { db } = await import('../db');
-    const { subscriptions } = await import('../../shared/schema');
-    const { eq } = await import('drizzle-orm');
 
     await db
       .update(subscriptions)
@@ -192,11 +237,28 @@ router.post('/initialize-plans', authenticateToken as any, async (req: AuthReque
 });
 
 router.get('/status', (req: Request, res: Response) => {
+  const yookassaReady = yookassaService.isReady();
+  const alfabankGateway = PaymentFactory.getGateway('alfabank');
+  const alfabankReady = alfabankGateway.isReady();
+  
   res.json({
-    yoomoneyConfigured: yookassaService.isReady(),
-    message: yookassaService.isReady() 
-      ? 'Платежная система YooKassa настроена' 
-      : 'Платежная система YooKassa не настроена',
+    yoomoneyConfigured: yookassaReady,
+    alfabankConfigured: alfabankReady,
+    providers: {
+      yookassa: {
+        available: yookassaReady,
+        name: 'YooKassa',
+        description: 'Оплата картой через YooKassa',
+      },
+      alfabank: {
+        available: alfabankReady,
+        name: 'Альфа-Банк',
+        description: 'Оплата картой через Альфа-Банк',
+      },
+    },
+    message: yookassaReady || alfabankReady
+      ? 'Платежная система настроена' 
+      : 'Платежные системы не настроены',
   });
 });
 

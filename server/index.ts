@@ -4,6 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { config, validateConfig } from "../config/environment";
 import { logger } from "./services/logger";
 import { yookassaService } from "./services/yookassaService";
+import { PaymentFactory } from "./services/payments/paymentFactory";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
@@ -89,12 +90,20 @@ app.use((req, res, next) => {
     
     const timeUntilNextRun = nextRun.getTime() - now.getTime();
     
-    const runProcessor = () => {
-      logger.info('Running daily auto payment processor...');
-      yookassaService.processAutoPayments().catch(err => {
-        logger.error('Error in auto payment processor:', err);
-      });
-      // Schedule next run for tomorrow at midnight
+    const runProcessor = async () => {
+      logger.info('Running daily auto payment processor for all providers...');
+      
+      const gateways = PaymentFactory.getReadyGateways();
+      for (const gateway of gateways) {
+        try {
+          logger.info(`Processing auto payments for ${gateway.providerName}...`);
+          await gateway.processAutoPayments();
+        } catch (err) {
+          logger.error(`Error in auto payment processor for ${gateway.providerName}:`, err);
+        }
+      }
+      
+      logger.info('Daily auto payment processor completed for all providers');
       setTimeout(runProcessor, 24 * 60 * 60 * 1000);
     };
     

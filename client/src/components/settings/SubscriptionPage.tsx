@@ -40,6 +40,8 @@ interface UserSubscription {
     cancelAtPeriodEnd: boolean;
     autoRenewalEnabled?: boolean;
     yoomoneyPaymentMethodId?: string | null;
+    alfabankPaymentMethodId?: string | null;
+    paymentProvider?: string | null;
   };
   plan: SubscriptionPlan;
 }
@@ -52,6 +54,22 @@ interface Payment {
   description: string;
   createdAt: string;
   processedAt: string | null;
+  paymentProvider?: string;
+}
+
+interface PaymentProviderInfo {
+  available: boolean;
+  name: string;
+  description: string;
+}
+
+interface PaymentProvidersStatus {
+  yoomoneyConfigured: boolean;
+  alfabankConfigured: boolean;
+  providers: {
+    yookassa: PaymentProviderInfo;
+    alfabank: PaymentProviderInfo;
+  };
 }
 
 export function SubscriptionPage() {
@@ -62,6 +80,8 @@ export function SubscriptionPage() {
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [yoomoneyConfigured, setYoomoneyConfigured] = useState(false);
+  const [alfabankConfigured, setAlfabankConfigured] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<'yookassa' | 'alfabank'>('yookassa');
   const [showHistory, setShowHistory] = useState(false);
   const [autoRenewalLoading, setAutoRenewalLoading] = useState(false);
 
@@ -113,8 +133,12 @@ export function SubscriptionPage() {
       }
 
       if (statusRes.ok) {
-        const statusData = await statusRes.json();
+        const statusData: PaymentProvidersStatus = await statusRes.json();
         setYoomoneyConfigured(statusData.yoomoneyConfigured);
+        setAlfabankConfigured(statusData.alfabankConfigured);
+        if (!statusData.yoomoneyConfigured && statusData.alfabankConfigured) {
+          setSelectedProvider('alfabank');
+        }
       }
 
       if (historyRes.ok) {
@@ -129,8 +153,9 @@ export function SubscriptionPage() {
   };
 
   const handleSubscribe = async (planId: string) => {
-    if (!yoomoneyConfigured) {
-      alert('Платежная система временно недоступна. Пожалуйста, попробуйте позже.');
+    const providerAvailable = selectedProvider === 'alfabank' ? alfabankConfigured : yoomoneyConfigured;
+    if (!providerAvailable) {
+      alert('Выбранная платежная система временно недоступна. Пожалуйста, выберите другую или попробуйте позже.');
       return;
     }
 
@@ -147,6 +172,7 @@ export function SubscriptionPage() {
         body: JSON.stringify({
           planId,
           billingPeriod,
+          provider: selectedProvider,
         }),
       });
 
@@ -356,10 +382,44 @@ export function SubscriptionPage() {
         </div>
       </div>
 
-      {!yoomoneyConfigured && (
+      {(yoomoneyConfigured || alfabankConfigured) && (
+        <div className="flex items-center justify-center gap-4 mb-6">
+          <span className="text-sm text-gray-600">Способ оплаты:</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedProvider('yookassa')}
+              disabled={!yoomoneyConfigured}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                selectedProvider === 'yookassa'
+                  ? 'bg-purple-600 text-white'
+                  : yoomoneyConfigured
+                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              YooKassa
+            </button>
+            <button
+              onClick={() => setSelectedProvider('alfabank')}
+              disabled={!alfabankConfigured}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                selectedProvider === 'alfabank'
+                  ? 'bg-red-600 text-white'
+                  : alfabankConfigured
+                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              Альфа-Банк
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!yoomoneyConfigured && !alfabankConfigured && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-yellow-600" />
-          <span className="text-yellow-800">Платежная система в процессе настройки. Оплата временно недоступна.</span>
+          <span className="text-yellow-800">Платежные системы в процессе настройки. Оплата временно недоступна.</span>
         </div>
       )}
 
