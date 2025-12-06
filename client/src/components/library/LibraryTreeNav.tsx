@@ -104,15 +104,8 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMa
     return groups;
   };
 
-  const groupByName = () => {
-    const sorted = [...notes].sort((a, b) => a.title.localeCompare(b.title, 'ru'));
-    const groups: Record<string, Note[]> = {};
-    sorted.forEach(note => {
-      const firstLetter = note.title.charAt(0).toUpperCase() || '#';
-      if (!groups[firstLetter]) groups[firstLetter] = [];
-      groups[firstLetter].push(note);
-    });
-    return groups;
+  const sortByName = () => {
+    return [...notes].sort((a, b) => a.title.localeCompare(b.title, 'ru'));
   };
 
   const groupByDate = () => {
@@ -243,10 +236,8 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMa
         );
       }
       case 'name': {
-        const groups = groupByName();
-        return Object.entries(groups).map(([letter, items]) => 
-          renderGroup(`name-${letter}`, letter, items, <SortAsc className="h-4 w-4 text-gray-500" />)
-        );
+        const sorted = sortByName();
+        return sorted.map(note => renderMaterialItem(note, 0));
       }
       case 'date': {
         const groups = groupByDate();
@@ -281,9 +272,6 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMa
                 setActiveSort(btn.id);
                 if (btn.id === 'type') {
                   setExpandedNodes(new Set(['type-image', 'type-video', 'type-audio', 'type-link', 'type-text']));
-                } else if (btn.id === 'name') {
-                  const letters = [...new Set(notes.map(n => n.title.charAt(0).toUpperCase() || '#'))];
-                  setExpandedNodes(new Set(letters.map(l => `name-${l}`)));
                 } else if (btn.id === 'date') {
                   setExpandedNodes(new Set(['date-Сегодня', 'date-Вчера', 'date-Эта неделя', 'date-Этот месяц', 'date-Ранее']));
                 } else if (btn.id === 'tags') {
