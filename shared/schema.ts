@@ -103,20 +103,77 @@ export const platformRegions = pgTable("platform_regions", {
   sortIdx: index("platform_regions_sort_idx").on(table.sortOrder),
 }));
 
-// Platform Connections table - User connections to platforms
+// Platform Connections table - User connections to platforms (OAuth tokens)
 export const platformConnections = pgTable("platform_connections", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id).notNull(),
   platformId: uuid("platform_id").references(() => platforms.id).notNull(),
-  accessToken: text("access_token"), // encrypted
-  refreshToken: text("refresh_token"), // encrypted
-  externalUserId: varchar("external_user_id", { length: 255 }),
-  status: varchar("status", { length: 20 }).default("active"), // active, expired, revoked
-  lastSyncAt: timestamp("last_sync_at"),
+  externalUserId: varchar("external_user_id", { length: 255 }), // Stepik user ID, etc.
+  accessTokenEncrypted: text("access_token_encrypted"), // Encrypted OAuth access token
+  refreshTokenEncrypted: text("refresh_token_encrypted"), // Encrypted OAuth refresh token
+  tokenExpiresAt: timestamp("token_expires_at"), // When access token expires
+  connectionStatus: varchar("connection_status", { length: 20 }).default("active"), // active, expired, reauth_required, revoked
+  syncStatus: varchar("sync_status", { length: 20 }).default("idle"), // idle, syncing, failed
+  lastSyncAt: timestamp("last_sync_at"), // Last successful sync timestamp
+  lastSyncError: text("last_sync_error"), // Error message from last sync if failed
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   userPlatformIdx: index("platform_connections_user_platform_idx").on(table.userId, table.platformId),
+  userIdx: index("platform_connections_user_idx").on(table.userId),
+  platformIdx: index("platform_connections_platform_idx").on(table.platformId),
+  statusIdx: index("platform_connections_status_idx").on(table.connectionStatus),
+}));
+
+// External Courses table - Courses synced from external platforms (Stepik, Coursera, etc.)
+export const externalCourses = pgTable("external_courses", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  platformId: uuid("platform_id").references(() => platforms.id).notNull(),
+  externalCourseId: varchar("external_course_id", { length: 255 }).notNull(), // ID from platform (e.g., Stepik course ID)
+  title: varchar("title", { length: 500 }).notNull(),
+  description: text("description"),
+  imageUrl: varchar("image_url", { length: 500 }),
+  courseUrl: varchar("course_url", { length: 500 }).notNull(), // Link to course on platform
+  progress: integer("progress").default(0), // 0-100%
+  isCompleted: boolean("is_completed").default(false),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  language: varchar("language", { length: 20 }), // en, ru, etc.
+  certificateAvailable: boolean("certificate_available").default(false),
+  workload: integer("workload"), // estimated hours per week
+  metadata: jsonb("metadata"), // additional data from platform
+  externalLastUpdatedAt: timestamp("external_last_updated_at"), // When platform updated this course
+  lastSyncedAt: timestamp("last_synced_at"), // When we last synced this course
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userCourseIdx: index("external_courses_user_idx").on(table.userId),
+  platformCourseIdx: index("external_courses_platform_idx").on(table.platformId),
+  externalIdIdx: index("external_courses_external_id_idx").on(table.externalCourseId),
+  userPlatformIdx: index("external_courses_user_platform_idx").on(table.userId, table.platformId),
+}));
+
+// Course Deadlines table - Deadlines from external platforms
+export const courseDeadlines = pgTable("course_deadlines", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  externalCourseId: uuid("external_course_id").references(() => externalCourses.id).notNull(),
+  platformId: uuid("platform_id").references(() => platforms.id).notNull(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  externalDeadlineId: varchar("external_deadline_id", { length: 255 }), // ID from platform
+  title: varchar("title", { length: 500 }).notNull(),
+  description: text("description"),
+  dueDate: timestamp("due_date").notNull(),
+  deadlineType: varchar("deadline_type", { length: 50 }), // soft, hard, lesson, section, etc.
+  metadata: jsonb("metadata"), // additional deadline data
+  externalLastUpdatedAt: timestamp("external_last_updated_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  externalCourseIdx: index("course_deadlines_external_course_idx").on(table.externalCourseId),
+  userIdx: index("course_deadlines_user_idx").on(table.userId),
+  dueDateIdx: index("course_deadlines_due_date_idx").on(table.dueDate),
+  platformIdx: index("course_deadlines_platform_idx").on(table.platformId),
 }));
 
 // Courses table - User's courses from various platforms
@@ -354,9 +411,23 @@ export const platformRegionsRelations = relations(platformRegions, ({ many }) =>
   platforms: many(platforms),
 }));
 
-export const platformConnectionsRelations = relations(platformConnections, ({ one }) => ({
+export const platformConnectionsRelations = relations(platformConnections, ({ one, many }) => ({
   user: one(users, { fields: [platformConnections.userId], references: [users.id] }),
   platform: one(platforms, { fields: [platformConnections.platformId], references: [platforms.id] }),
+  externalCourses: many(externalCourses),
+  courseDeadlines: many(courseDeadlines),
+}));
+
+export const externalCoursesRelations = relations(externalCourses, ({ one, many }) => ({
+  user: one(users, { fields: [externalCourses.userId], references: [users.id] }),
+  platform: one(platforms, { fields: [externalCourses.platformId], references: [platforms.id] }),
+  deadlines: many(courseDeadlines),
+}));
+
+export const courseDeadlinesRelations = relations(courseDeadlines, ({ one }) => ({
+  externalCourse: one(externalCourses, { fields: [courseDeadlines.externalCourseId], references: [externalCourses.id] }),
+  platform: one(platforms, { fields: [courseDeadlines.platformId], references: [platforms.id] }),
+  user: one(users, { fields: [courseDeadlines.userId], references: [users.id] }),
 }));
 
 export const coursesRelations = relations(courses, ({ one, many }) => ({
@@ -431,6 +502,18 @@ export const insertPlatformConnectionSchema = createInsertSchema(platformConnect
   updatedAt: true,
 });
 
+export const insertExternalCourseSchema = createInsertSchema(externalCourses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCourseDeadlineSchema = createInsertSchema(courseDeadlines).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertCourseSchema = createInsertSchema(courses).omit({
   id: true,
   createdAt: true,
@@ -497,6 +580,12 @@ export type InsertPlatform = z.infer<typeof insertPlatformSchema>;
 
 export type PlatformConnection = typeof platformConnections.$inferSelect;
 export type InsertPlatformConnection = z.infer<typeof insertPlatformConnectionSchema>;
+
+export type ExternalCourse = typeof externalCourses.$inferSelect;
+export type InsertExternalCourse = z.infer<typeof insertExternalCourseSchema>;
+
+export type CourseDeadline = typeof courseDeadlines.$inferSelect;
+export type InsertCourseDeadline = z.infer<typeof insertCourseDeadlineSchema>;
 
 export type Course = typeof courses.$inferSelect;
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
