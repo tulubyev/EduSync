@@ -91,7 +91,15 @@ export function SubscriptionPage() {
     // Refetch data when page becomes visible (user returns from payment)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        fetchData();
+        // Aggressive refresh for 30 seconds when returning from payment
+        let count = 0;
+        const aggressiveInterval = setInterval(() => {
+          fetchData();
+          count++;
+          if (count >= 15) { // 15 checks * 2 seconds = 30 seconds
+            clearInterval(aggressiveInterval);
+          }
+        }, 2000);
       }
     };
     
@@ -179,6 +187,16 @@ export function SubscriptionPage() {
       if (response.ok) {
         const data = await response.json();
         window.open(data.paymentUrl, '_blank');
+        
+        // Start aggressive polling to catch payment completion
+        let pollCount = 0;
+        const pollInterval = setInterval(() => {
+          fetchData();
+          pollCount++;
+          if (pollCount >= 30) { // 30 checks * 2 seconds = 60 seconds max
+            clearInterval(pollInterval);
+          }
+        }, 2000);
       } else {
         const error = await response.json();
         alert(error.message || 'Ошибка создания платежа');

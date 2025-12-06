@@ -275,8 +275,12 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMa
                 } else if (btn.id === 'date') {
                   setExpandedNodes(new Set(['date-Сегодня', 'date-Вчера', 'date-Эта неделя', 'date-Этот месяц', 'date-Ранее']));
                 } else if (btn.id === 'tags') {
-                  const tags = [...new Set(notes.flatMap(n => n.tags || []))];
-                  setExpandedNodes(new Set([...tags.map(t => `tag-${t}`), 'tag-Без тегов']));
+                  const tagSet = new Set<string>();
+                  notes.forEach(n => {
+                    (n.tags || []).forEach(tag => tagSet.add(tag));
+                  });
+                  const expandedTagIds = Array.from(tagSet).map(t => `tag-${t}`);
+                  setExpandedNodes(new Set([...expandedTagIds, 'tag-Без тегов']));
                 } else {
                   setExpandedNodes(new Set(['all']));
                 }
