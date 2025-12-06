@@ -260,32 +260,30 @@ export function SubscriptionPage() {
         </Card>
       )}
 
-      <div className="flex items-center justify-center gap-3 mb-8 flex-wrap">
-        <div className="flex items-center gap-3 whitespace-nowrap">
-          <span className={`text-sm font-medium transition-colors ${billingPeriod === 'monthly' ? 'text-gray-800' : 'text-gray-500'}`}>
+      <div className="flex flex-col items-center justify-center gap-2 mb-8">
+        <div className="flex items-center gap-4">
+          <span className={`text-sm font-medium transition-colors min-w-fit ${billingPeriod === 'monthly' ? 'text-gray-900' : 'text-gray-500'}`}>
             Ежемесячно
           </span>
           <button
             onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'yearly' : 'monthly')}
-            className={`relative w-16 h-8 rounded-full transition-all flex-shrink-0 border-2 ${
-              billingPeriod === 'yearly' ? 'bg-purple-600 border-purple-600' : 'bg-gray-200 border-gray-300'
+            className={`relative w-16 h-8 rounded-full transition-all flex-shrink-0 ${
+              billingPeriod === 'yearly' ? 'bg-purple-600' : 'bg-gray-300'
             }`}
           >
             <span
-              className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform shadow-sm ${
-                billingPeriod === 'yearly' ? 'translate-x-7' : 'translate-x-0.5'
+              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform shadow-sm ${
+                billingPeriod === 'yearly' ? 'translate-x-8' : 'translate-x-0'
               }`}
             />
           </button>
-          <div className="flex items-center gap-2 whitespace-nowrap">
-            <span className={`text-sm font-medium transition-colors ${billingPeriod === 'yearly' ? 'text-gray-800' : 'text-gray-500'}`}>
-              Ежегодно
-            </span>
-            {billingPeriod === 'yearly' && (
-              <Badge variant="secondary" className="bg-green-100 text-green-700 flex-shrink-0">-17%</Badge>
-            )}
-          </div>
+          <span className={`text-sm font-medium transition-colors min-w-fit ${billingPeriod === 'yearly' ? 'text-gray-900' : 'text-gray-500'}`}>
+            Ежегодно
+          </span>
         </div>
+        {billingPeriod === 'yearly' && (
+          <Badge className="bg-green-100 text-green-700">-17%</Badge>
+        )}
       </div>
 
       {!yoomoneyConfigured && (
