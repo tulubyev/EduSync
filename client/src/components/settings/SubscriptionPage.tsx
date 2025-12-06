@@ -119,14 +119,23 @@ export function SubscriptionPage() {
       setLoading(true);
       const token = localStorage.getItem('accessToken');
       
+      // Add cache busting to ensure fresh data
+      const cacheBuster = `?_t=${Date.now()}`;
+      
       const [plansRes, subRes, statusRes, historyRes] = await Promise.all([
-        fetch('/api/subscriptions/plans'),
-        fetch('/api/subscriptions/current', {
-          headers: { Authorization: `Bearer ${token}` },
+        fetch(`/api/subscriptions/plans${cacheBuster}`),
+        fetch(`/api/subscriptions/current${cacheBuster}`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache',
+          },
         }),
-        fetch('/api/subscriptions/status'),
-        fetch('/api/subscriptions/history', {
-          headers: { Authorization: `Bearer ${token}` },
+        fetch(`/api/subscriptions/status${cacheBuster}`),
+        fetch(`/api/subscriptions/history${cacheBuster}`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache',
+          },
         }),
       ]);
 
@@ -137,7 +146,10 @@ export function SubscriptionPage() {
 
       if (subRes.ok) {
         const subData = await subRes.json();
+        console.log('📊 Updated subscription data:', subData);
         setCurrentSubscription(subData);
+      } else {
+        console.log('⚠️ Subscription endpoint returned:', subRes.status);
       }
 
       if (statusRes.ok) {
