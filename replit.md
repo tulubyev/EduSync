@@ -17,7 +17,7 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 - **Library (Materials Management)**: Supports web resource URLs (with auto content type detection) and local file uploads (images, videos, audio, PDF, documents) with base64 encoding. Features optimized image compression (max 1200px), platform/course linking, category tags, material pinning, and hierarchical tree-based navigation. The UI includes a three-column layout (Navigation | Material list | Detail view) with resizable columns and a modal view for material details.
 - **Security**: Implements AES-256-GCM encryption for sensitive data, Scrypt key derivation, rate limiting, and Helmet middleware.
 - **API-first Architecture**: All communication between frontend and backend is via REST API.
-- **Subscription Management**: Integrated YooKassa for payment processing, supporting Free, Standard, and Premium plans with monthly/yearly billing. Includes plan comparison, payment history, and admin tools for plan management.
+- **Subscription Management**: Integrated YooKassa for payment processing, supporting Free, Standard, and Premium plans with monthly/yearly billing. Includes plan comparison, payment history, and admin tools for plan management. Supports recurring payments with daily auto-renewal processing and saved payment methods. **See [docs/payments.md](docs/payments.md) for complete payment system documentation including integration guides for additional payment gateways like Альфа-Банк.**
 - **External Platform Sync**: Implements OAuth 2.0 (e.g., for Stepik) to sync external courses and deadlines, using encrypted tokens and refresh mechanisms.
 
 **System Design Choices:**
