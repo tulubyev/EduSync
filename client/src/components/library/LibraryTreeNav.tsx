@@ -5,10 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import {
   ChevronDown,
   ChevronRight,
-  Folder,
   FileText,
   Pin,
-  Zap,
+  Image as ImageIcon,
+  Video,
+  Music,
+  Link as LinkIcon,
+  Calendar,
+  SortAsc,
+  Clock,
+  Hash,
 } from 'lucide-react';
 
 interface Note {
@@ -30,15 +36,6 @@ interface Note {
   };
 }
 
-interface TreeNode {
-  id: string;
-  label: string;
-  type: 'pinned' | 'platform' | 'course' | 'tag' | 'uncategorized' | 'material';
-  count?: number;
-  children?: TreeNode[];
-  parentId?: string;
-}
-
 interface LibraryTreeNavProps {
   notes: Note[];
   selectedNodeId: string | null;
@@ -47,10 +44,11 @@ interface LibraryTreeNavProps {
   onSelectMaterial?: (note: Note) => void;
 }
 
-export function LibraryTreeNav({ notes, selectedNodeId, selectedMaterialId, onSelectNode, onSelectMaterial }: LibraryTreeNavProps) {
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
-    new Set(['platforms', 'courses', 'tags'])
-  );
+type SortType = 'all' | 'type' | 'name' | 'date' | 'tags';
+
+export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMaterial }: LibraryTreeNavProps) {
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['all']));
+  const [activeSort, setActiveSort] = useState<SortType>('all');
 
   const toggleNode = (nodeId: string) => {
     const newExpanded = new Set(expandedNodes);
@@ -62,217 +60,244 @@ export function LibraryTreeNav({ notes, selectedNodeId, selectedMaterialId, onSe
     setExpandedNodes(newExpanded);
   };
 
-  // Группируем материалы
-  const pinnedNotes = notes.filter(n => n.isPinned);
-  const platformsMap = new Map<string, Note[]>();
-  const coursesMap = new Map<string, Note[]>();
-  const tagsMap = new Map<string, Note[]>();
-  let uncategorizedCount = 0;
-
-  notes.forEach(note => {
-    if (note.platformId) {
-      if (!platformsMap.has(note.platformId)) {
-        platformsMap.set(note.platformId, []);
-      }
-      platformsMap.get(note.platformId)!.push(note);
-    } else if (!note.courseId && (!note.tags || note.tags.length === 0)) {
-      uncategorizedCount++;
+  const getFileType = (url: string | undefined): string => {
+    if (!url) return 'text';
+    if (url.startsWith('data:image/') || url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp')) {
+      return 'image';
     }
-
-    if (note.courseId) {
-      if (!coursesMap.has(note.courseId)) {
-        coursesMap.set(note.courseId, []);
-      }
-      coursesMap.get(note.courseId)!.push(note);
+    if (url.startsWith('data:video/') || url.includes('.mp4') || url.includes('.webm') || url.includes('youtube.com') || url.includes('youtu.be')) {
+      return 'video';
     }
-
-    if (note.tags) {
-      note.tags.forEach(tag => {
-        if (!tagsMap.has(tag)) {
-          tagsMap.set(tag, []);
-        }
-        tagsMap.get(tag)!.push(note);
-      });
+    if (url.startsWith('data:audio/') || url.includes('.mp3') || url.includes('.wav') || url.includes('.ogg')) {
+      return 'audio';
     }
-  });
-
-  // Получаем Note объект для материала
-  const getNoteById = (materialId: string): Note | undefined => {
-    return notes.find(n => n.id === materialId);
+    if (url.startsWith('http')) {
+      return 'link';
+    }
+    return 'text';
   };
 
-  const renderTreeNode = (
-    node: TreeNode,
-    level: number = 0
-  ) => {
-    const isExpanded = expandedNodes.has(node.id);
-    const hasChildren = node.children && node.children.length > 0;
-    const isSelected = selectedNodeId === node.id;
-    const isMaterialSelected = selectedMaterialId === node.id.replace('material-', '');
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'image': return <ImageIcon className="h-4 w-4 text-blue-500" />;
+      case 'video': return <Video className="h-4 w-4 text-red-500" />;
+      case 'audio': return <Music className="h-4 w-4 text-purple-500" />;
+      case 'link': return <LinkIcon className="h-4 w-4 text-green-500" />;
+      default: return <FileText className="h-4 w-4 text-gray-500" />;
+    }
+  };
 
+  const pinnedNotes = notes.filter(n => n.isPinned);
+
+  const groupByType = () => {
+    const groups: Record<string, Note[]> = {
+      image: [],
+      video: [],
+      audio: [],
+      link: [],
+      text: [],
+    };
+    notes.forEach(note => {
+      const type = getFileType(note.resourceUrl);
+      groups[type].push(note);
+    });
+    return groups;
+  };
+
+  const groupByName = () => {
+    const sorted = [...notes].sort((a, b) => a.title.localeCompare(b.title, 'ru'));
+    const groups: Record<string, Note[]> = {};
+    sorted.forEach(note => {
+      const firstLetter = note.title.charAt(0).toUpperCase() || '#';
+      if (!groups[firstLetter]) groups[firstLetter] = [];
+      groups[firstLetter].push(note);
+    });
+    return groups;
+  };
+
+  const groupByDate = () => {
+    const today = new Date();
+    const groups: Record<string, Note[]> = {
+      'Сегодня': [],
+      'Вчера': [],
+      'Эта неделя': [],
+      'Этот месяц': [],
+      'Ранее': [],
+    };
+    
+    notes.forEach(note => {
+      const date = new Date(note.createdAt);
+      const diffDays = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) groups['Сегодня'].push(note);
+      else if (diffDays === 1) groups['Вчера'].push(note);
+      else if (diffDays <= 7) groups['Эта неделя'].push(note);
+      else if (diffDays <= 30) groups['Этот месяц'].push(note);
+      else groups['Ранее'].push(note);
+    });
+    
+    return groups;
+  };
+
+  const groupByTags = () => {
+    const groups: Record<string, Note[]> = {};
+    const noTags: Note[] = [];
+    
+    notes.forEach(note => {
+      if (note.tags && note.tags.length > 0) {
+        note.tags.forEach(tag => {
+          if (!groups[tag]) groups[tag] = [];
+          groups[tag].push(note);
+        });
+      } else {
+        noTags.push(note);
+      }
+    });
+    
+    if (noTags.length > 0) {
+      groups['Без тегов'] = noTags;
+    }
+    
+    return groups;
+  };
+
+  const typeLabels: Record<string, string> = {
+    image: 'Изображения',
+    video: 'Видео',
+    audio: 'Аудио',
+    link: 'Ссылки',
+    text: 'Заметки',
+  };
+
+  const sortButtons = [
+    { id: 'all' as SortType, label: 'Все', icon: <FileText className="h-3 w-3" /> },
+    { id: 'type' as SortType, label: 'По типу', icon: <ImageIcon className="h-3 w-3" /> },
+    { id: 'name' as SortType, label: 'По имени', icon: <SortAsc className="h-3 w-3" /> },
+    { id: 'date' as SortType, label: 'По дате', icon: <Calendar className="h-3 w-3" /> },
+    { id: 'tags' as SortType, label: 'По тегам', icon: <Hash className="h-3 w-3" /> },
+  ];
+
+  const renderMaterialItem = (note: Note, level: number = 1) => {
+    const isSelected = selectedNodeId === `material-${note.id}`;
     return (
-      <div key={node.id}>
+      <Button
+        key={note.id}
+        variant={isSelected ? 'default' : 'ghost'}
+        size="sm"
+        className="w-full justify-start text-left h-7 mb-0.5"
+        style={{ paddingLeft: `${level * 12 + 8}px` }}
+        onClick={() => {
+          onSelectNode(`material-${note.id}`, 'material');
+          if (onSelectMaterial) onSelectMaterial(note);
+        }}
+      >
+        {getTypeIcon(getFileType(note.resourceUrl))}
+        <span className="flex-1 truncate ml-2 text-xs">{note.title}</span>
+        {note.isPinned && <Pin className="h-3 w-3 text-yellow-500 ml-1" />}
+      </Button>
+    );
+  };
+
+  const renderGroup = (groupId: string, label: string, items: Note[], icon: React.ReactNode, level: number = 0) => {
+    if (items.length === 0) return null;
+    
+    const isExpanded = expandedNodes.has(groupId);
+    const isSelected = selectedNodeId === groupId;
+    
+    return (
+      <div key={groupId}>
         <Button
-          variant={isSelected || (node.type === 'material' && isMaterialSelected) ? 'default' : 'ghost'}
+          variant={isSelected ? 'default' : 'ghost'}
           size="sm"
-          className="w-full justify-start text-left h-8 mb-1"
-          style={{ paddingLeft: `${level * 16 + 8}px` }}
+          className="w-full justify-start text-left h-7 mb-0.5"
+          style={{ paddingLeft: `${level * 12 + 8}px` }}
           onClick={() => {
-            if (node.type === 'material') {
-              const materialId = node.id.replace('material-', '');
-              const material = getNoteById(materialId);
-              if (material && onSelectMaterial) {
-                onSelectMaterial(material);
-              }
-            } else {
-              onSelectNode(node.id, node.type);
-              if (hasChildren) {
-                toggleNode(node.id);
-              }
-            }
+            onSelectNode(groupId, 'group');
+            toggleNode(groupId);
           }}
         >
-          {hasChildren && (
-            <span className="mr-1" onClick={(e) => {
-              e.stopPropagation();
-              toggleNode(node.id);
-            }}>
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </span>
-          )}
-          {!hasChildren && <span className="w-4 mr-1" />}
-
-          {node.type === 'pinned' && <Pin className="h-4 w-4 mr-2 text-yellow-500" />}
-          {node.type === 'platform' && <Zap className="h-4 w-4 mr-2 text-blue-500" />}
-          {node.type === 'course' && <Folder className="h-4 w-4 mr-2 text-purple-500" />}
-          {node.type === 'tag' && <FileText className="h-4 w-4 mr-2 text-green-500" />}
-          {node.type === 'uncategorized' && <FileText className="h-4 w-4 mr-2 text-gray-500" />}
-          {node.type === 'material' && <FileText className="h-3 w-3 mr-2 text-slate-400" />}
-
-          <span className="flex-1 truncate">{node.label}</span>
-          {node.count !== undefined && (
-            <Badge variant="secondary" className="ml-2 text-xs">
-              {node.count}
-            </Badge>
-          )}
+          <span className="mr-1">
+            {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          </span>
+          {icon}
+          <span className="flex-1 truncate ml-1 text-xs">{label}</span>
+          <Badge variant="secondary" className="ml-1 text-xs h-4 px-1">
+            {items.length}
+          </Badge>
         </Button>
-
-        {isExpanded && hasChildren && (
+        {isExpanded && (
           <div>
-            {node.children!.map(child => renderTreeNode(child, level + 1))}
+            {items.map(note => renderMaterialItem(note, level + 1))}
           </div>
         )}
       </div>
     );
   };
 
+  const renderContent = () => {
+    switch (activeSort) {
+      case 'type': {
+        const groups = groupByType();
+        return Object.entries(groups).map(([type, items]) => 
+          renderGroup(`type-${type}`, typeLabels[type] || type, items, getTypeIcon(type))
+        );
+      }
+      case 'name': {
+        const groups = groupByName();
+        return Object.entries(groups).map(([letter, items]) => 
+          renderGroup(`name-${letter}`, letter, items, <SortAsc className="h-4 w-4 text-gray-500" />)
+        );
+      }
+      case 'date': {
+        const groups = groupByDate();
+        return Object.entries(groups).map(([period, items]) => 
+          renderGroup(`date-${period}`, period, items, <Clock className="h-4 w-4 text-orange-500" />)
+        );
+      }
+      case 'tags': {
+        const groups = groupByTags();
+        return Object.entries(groups).map(([tag, items]) => 
+          renderGroup(`tag-${tag}`, tag === 'Без тегов' ? tag : `#${tag}`, items, <Hash className="h-4 w-4 text-green-500" />)
+        );
+      }
+      default: {
+        return notes.map(note => renderMaterialItem(note, 0));
+      }
+    }
+  };
+
   return (
     <Card className="h-full flex flex-col border-r">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Навигация</CardTitle>
+      <CardHeader className="pb-2 px-3 pt-3">
+        <CardTitle className="text-sm">Навигация</CardTitle>
+        <div className="flex flex-wrap gap-1 mt-2">
+          {sortButtons.map(btn => (
+            <Button
+              key={btn.id}
+              variant={activeSort === btn.id ? 'default' : 'outline'}
+              size="sm"
+              className="h-6 text-xs px-2"
+              onClick={() => {
+                setActiveSort(btn.id);
+                if (btn.id !== 'all') {
+                  setExpandedNodes(new Set([btn.id]));
+                }
+              }}
+            >
+              {btn.icon}
+              <span className="ml-1 hidden sm:inline">{btn.label}</span>
+            </Button>
+          ))}
+        </div>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto space-y-1">
-        {/* Закреплённые */}
-        {pinnedNotes.length > 0 && renderTreeNode({
-          id: 'pinned',
-          label: 'Закреплённые',
-          type: 'pinned',
-          count: pinnedNotes.length,
-          children: pinnedNotes.map(note => ({
-            id: `material-${note.id}`,
-            label: note.title,
-            type: 'material',
-            parentId: 'pinned',
-          })),
-        })}
-
-        {/* Платформы */}
-        {platformsMap.size > 0 && renderTreeNode({
-          id: 'platforms',
-          label: 'Платформы',
-          type: 'platform',
-          count: Array.from(platformsMap.values()).flat().length,
-          children: Array.from(platformsMap.entries()).map(([platformId, platformNotes]) => {
-            const platform = platformNotes[0]?.platform;
-            return {
-              id: `platform-${platformId}`,
-              label: platform?.name || 'Платформа',
-              type: 'platform',
-              count: platformNotes.length,
-              children: platformNotes.map(note => ({
-                id: `material-${note.id}`,
-                label: note.title,
-                type: 'material',
-                parentId: `platform-${platformId}`,
-              })),
-            };
-          }),
-        })}
-
-        {/* Курсы */}
-        {coursesMap.size > 0 && renderTreeNode({
-          id: 'courses',
-          label: 'Курсы',
-          type: 'course',
-          count: Array.from(coursesMap.values()).flat().length,
-          children: Array.from(coursesMap.entries()).map(([courseId, courseNotes]) => {
-            const course = courseNotes[0]?.course;
-            return {
-              id: `course-${courseId}`,
-              label: course?.title || 'Курс',
-              type: 'course',
-              count: courseNotes.length,
-              children: courseNotes.map(note => ({
-                id: `material-${note.id}`,
-                label: note.title,
-                type: 'material',
-                parentId: `course-${courseId}`,
-              })),
-            };
-          }),
-        })}
-
-        {/* Теги */}
-        {tagsMap.size > 0 && renderTreeNode({
-          id: 'tags',
-          label: 'Теги',
-          type: 'tag',
-          count: Array.from(tagsMap.values()).flat().length,
-          children: Array.from(tagsMap.entries()).map(([tag, tagNotes]) => {
-            return {
-              id: `tag-${tag}`,
-              label: tag,
-              type: 'tag',
-              count: tagNotes.length,
-              children: tagNotes.map(note => ({
-                id: `material-${note.id}`,
-                label: note.title,
-                type: 'material',
-                parentId: `tag-${tag}`,
-              })),
-            };
-          }),
-        })}
-
-        {/* Без категории */}
-        {uncategorizedCount > 0 && renderTreeNode({
-          id: 'uncategorized',
-          label: 'Без категории',
-          type: 'uncategorized',
-          count: uncategorizedCount,
-          children: notes
-            .filter(n => !n.platformId && !n.courseId && (!n.tags || n.tags.length === 0))
-            .map(note => ({
-              id: `material-${note.id}`,
-              label: note.title,
-              type: 'material',
-              parentId: 'uncategorized',
-            })),
-        })}
+      <CardContent className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5">
+        {pinnedNotes.length > 0 && (
+          <>
+            {renderGroup('pinned', 'Закреплённые', pinnedNotes, <Pin className="h-4 w-4 text-yellow-500" />)}
+            <div className="border-b my-2" />
+          </>
+        )}
+        {renderContent()}
       </CardContent>
     </Card>
   );
