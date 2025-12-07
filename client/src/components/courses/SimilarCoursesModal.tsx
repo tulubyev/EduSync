@@ -43,9 +43,11 @@ const difficultyColors: Record<string, string> = {
   advanced: 'bg-red-100 text-red-800',
 };
 
-const formatCost = (cost?: number | null) => {
-  if (cost === null || cost === undefined) return 'Бесплатно';
-  return `₽${cost.toFixed(2)}`;
+const formatCost = (cost?: number | string | null) => {
+  if (cost === null || cost === undefined || cost === 0 || cost === '0') return 'Бесплатно';
+  const numCost = typeof cost === 'string' ? parseFloat(cost) : cost;
+  if (isNaN(numCost)) return 'Бесплатно';
+  return `₽${numCost.toFixed(2)}`;
 };
 
 export function SimilarCoursesModal({
