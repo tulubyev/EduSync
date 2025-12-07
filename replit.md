@@ -2,24 +2,45 @@
 My EPA (Агрегатор Онлайн Обучения) is an educational platform aggregator for the Russian market. It consolidates online courses from various global and regional platforms into specialized categories. The platform offers user profile management, course aggregation, deadline tracking, progress analytics, and an extensive admin panel. It features a desktop-first design with mobile portability and uses a PostgreSQL database to integrate over 89 educational platforms. The project aims to provide a comprehensive learning hub and has integrated payment solutions for subscription management.
 
 # Recent Changes (December 07, 2025)
-- **Stream/Lecture Recording Feature**:
-  - New UI component `RecordingModal.tsx` for scheduling broadcast recordings with parameters (URL, password, time, duration)
-  - Backend API endpoints:
-    - `/api/library/recording/schedule` - Schedule recording to Library or Yandex.Disk
-    - `/api/library/recording/yandex-disk/status` - Check Yandex.Disk connection and quota
-    - `/api/library/recording/yandex-disk/files` - List files on Yandex.Disk
-  - Yandex.Disk integration with `YandexDiskService`:
-    - OAuth token authentication
-    - Automatic folder creation for recordings
-    - File upload with mime type support
-    - Public link generation
-    - File deletion and listing
-  - Recordings saved to Library (as materials with 📹 emoji) or Yandex.Disk
-  - Integration with existing Library system - recordings appear as tagged materials
-  - New button "+ Записать трансляцию" in Library page next to "+ Новый материал"
-  - Full form validation for stream URLs, scheduled times, and duration (1-1440 minutes)
-  - Environment variables: `YANDEX_DISK_TOKEN`, `YANDEX_DISK_FOLDER_ID`
-  - Ready for user-provided TypeScript implementation files for actual broadcast recording capture
+- **Autonomous Stream/Lecture Recording System** (FULL IMPLEMENTATION):
+  - **Recording Architecture**:
+    - `RecorderService`: Headless Playwright + CDP screencast for video capture
+    - `TaskManager`: Queue management with 20-minute chunking (avoids Replit 30-min timeout)
+    - `RecordingScheduler`: Checks for scheduled tasks every minute
+    - `PlaylistGenerator`: Creates HLS .m3u8 playlists for multi-chunk recordings
+    - Database table `recording_tasks` for task persistence and status tracking
+  - **Workflow**:
+    1. User schedules recording via RecordingModal (URL, password, time, duration)
+    2. Task saved to database with status "scheduled"
+    3. Scheduler picks up task at scheduled time, changes status to "recording"
+    4. Playwright opens page, CDP screencast captures frames
+    5. FFmpeg encodes frames to webm chunks (20-min each)
+    6. Chunks auto-upload to Yandex.Disk immediately after capture
+    7. HLS playlist generated for seamless playback
+    8. Status updated to "completed" with public URLs
+  - **API Endpoints**:
+    - `POST /api/recordings/schedule` - Schedule new recording task
+    - `GET /api/recordings/tasks` - List user's recording tasks with status
+    - `GET /api/recordings/tasks/:id` - Get specific task details
+    - `DELETE /api/recordings/tasks/:id` - Cancel scheduled task
+    - `POST /api/recordings/trigger` - External trigger endpoint for cron-job.org
+    - `GET /api/library/recording/yandex-disk/status` - Check Yandex.Disk quota
+  - **System Dependencies**: ffmpeg, chromium, playwright, mesa, nss, libgbm, libxshmfence
+  - **Environment Variables**: `YANDEX_DISK_TOKEN`, `YANDEX_DISK_FOLDER_ID`
+  - **Current Limitations** (v1.0):
+    - Headless-only capture (no Xvfb on Replit)
+    - Video-only recording (CDP screencast doesn't capture audio)
+    - Memory buffering - works for recordings up to ~10 minutes, longer may OOM
+    - Recommended: short lectures (5-10 min) or external recording for longer streams
+  - **Future Improvements** (v2.0):
+    - Stream frames directly to FFmpeg to avoid memory issues
+    - Audio capture via Chrome audio sink or WebRTC
+    - Real-time chunk rotation during recording
+
+- **UI Components**:
+  - `RecordingModal.tsx`: Form for scheduling with validation, save target selection (Yandex.Disk default)
+  - Integration with Library page - "+ Записать трансляцию" button
+  - Yandex.Disk as default save location (more reliable for long recordings)
 
 - **Admin Panel Expansion with Real Data**:
   - **Payment Systems Management**: New dashboard for YooKassa/Alfabank monitoring with real connection status from environment variables, transaction history, revenue statistics from actual payment records
