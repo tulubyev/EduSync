@@ -42,6 +42,7 @@ import {
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { RecordingModal, type RecordingData } from './RecordingModal';
+import { RecordingTasksList } from './RecordingTasksList';
 
 interface Note {
   id: string;
@@ -708,6 +709,13 @@ export function LibraryPage() {
         onSubmit={handleRecordingSubmit}
         isLoading={isRecordingLoading}
       />
+
+      <div className="fixed bottom-0 right-0 left-64 max-h-96 border-t bg-white shadow-lg overflow-y-auto">
+        <div className="p-4">
+          <h3 className="font-semibold mb-3 text-sm">📹 Запланированные и завершённые записи</h3>
+          <RecordingTasksList />
+        </div>
+      </div>
     </div>
   );
 }
@@ -766,7 +774,13 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx!.drawImage(img, 0, 0, width, height);
-          canvas.toBlob(resolve, 'image/jpeg', 0.85);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to compress image'));
+            }
+          }, 'image/jpeg', 0.85);
         };
         img.onerror = reject;
       };

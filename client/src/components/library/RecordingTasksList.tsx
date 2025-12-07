@@ -1,0 +1,186 @@
+import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, CheckCircle, Clock, Play, Trash2 } from 'lucide-react';
+
+interface RecordingPart {
+  partNumber: number;
+  fileName: string;
+  startTime: string;
+  status: 'pending' | 'recording' | 'completed' | 'failed';
+  fileSize?: number;
+}
+
+interface RecordingTask {
+  id: string;
+  title: string;
+  description?: string;
+  streamUrl: string;
+  scheduledTime: string;
+  duration: number;
+  status: 'scheduled' | 'recording' | 'completed' | 'failed';
+  parts: RecordingPart[];
+  playlistUrl?: string;
+  errorMessage?: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export function RecordingTasksList() {
+  const [tasks, setTasks] = useState<RecordingTask[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchTasks = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/library/recording/tasks', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTasks(data);
+      }
+    } catch (error) {
+      console.error('Error fetching recording tasks:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+    const interval = setInterval(fetchTasks, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatDuration = (minutes: number) => {
+    const mins = Math.floor(minutes);
+    const secs = Math.round((minutes % 1) * 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getTotalFileSize = (parts: RecordingPart[]) => {
+    const totalBytes = parts.reduce((sum, part) => sum + (part.fileSize || 0), 0);
+    if (totalBytes === 0) return 'N/A';
+    if (totalBytes > 1024 * 1024 * 1024) {
+      return `${(totalBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    }
+    return `${(totalBytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      scheduled: 'bg-blue-100 text-blue-800',
+      recording: 'bg-yellow-100 text-yellow-800',
+      completed: 'bg-green-100 text-green-800',
+      failed: 'bg-red-100 text-red-800',
+    };
+
+    const labels: Record<string, string> = {
+      scheduled: 'Запланирована',
+      recording: 'Идёт запись',
+      completed: 'Завершена',
+      failed: 'Ошибка',
+    };
+
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${styles[status]}`}>
+        {status === 'completed' && <CheckCircle className="h-4 w-4" />}
+        {status === 'recording' && <Clock className="h-4 w-4 animate-spin" />}
+        {status === 'failed' && <AlertCircle className="h-4 w-4" />}
+        {labels[status]}
+      </span>
+    );
+  };
+
+  const handleDelete = async (taskId: string) => {
+    if (!confirm('Отменить эту запись?')) return;
+    try {
+      const token = localStorage.getItem('accessToken');
+      await fetch(`/api/library/recording/tasks/${taskId}/cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      await fetchTasks();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="text-center py-8 text-gray-500">Загрузка списка записей...</div>;
+  }
+
+  if (tasks.length === 0) {
+    return <div className="text-center py-8 text-gray-500">Нет запланированных или завершённых записей</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {tasks.map((task) => (
+        <div
+          key={task.id}
+          className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <h4 className="font-semibold text-gray-900">{task.title}</h4>
+              {task.description && (
+                <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                {format(new Date(task.scheduledTime), 'dd MMMM yyyy, HH:mm', { locale: ru })}
+              </p>
+            </div>
+            <div className="ml-4">{getStatusBadge(task.status)}</div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mb-3 text-sm">
+            <div className="bg-gray-50 p-2 rounded">
+              <span className="text-gray-600">Длительность</span>
+              <p className="font-semibold">{formatDuration(task.duration)} мин</p>
+            </div>
+            <div className="bg-gray-50 p-2 rounded">
+              <span className="text-gray-600">Размер</span>
+              <p className="font-semibold">{getTotalFileSize(task.parts)}</p>
+            </div>
+            <div className="bg-gray-50 p-2 rounded">
+              <span className="text-gray-600">Части</span>
+              <p className="font-semibold">{task.parts.filter(p => p.status === 'completed').length}/{task.parts.length}</p>
+            </div>
+          </div>
+
+          {task.errorMessage && (
+            <div className="bg-red-50 border border-red-200 rounded p-2 mb-3">
+              <p className="text-sm text-red-800">{task.errorMessage}</p>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            {task.status === 'completed' && task.playlistUrl && (
+              <Button size="sm" variant="outline" asChild>
+                <a href={task.playlistUrl} target="_blank" rel="noopener noreferrer">
+                  <Play className="h-4 w-4 mr-1" />
+                  Воспроизвести
+                </a>
+              </Button>
+            )}
+            {task.status !== 'recording' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleDelete(task.id)}
+                className="text-red-600 hover:text-red-700"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Удалить
+              </Button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
