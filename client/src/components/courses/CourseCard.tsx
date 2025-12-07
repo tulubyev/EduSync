@@ -98,9 +98,11 @@ export function CourseCard({
     return `${mins}м`;
   };
 
-  const formatCost = (cost?: number | null) => {
-    if (cost === null || cost === undefined || cost === 0) return 'Бесплатно';
-    return `₽${cost.toFixed(2)}`;
+  const formatCost = (cost?: number | string | null) => {
+    if (cost === null || cost === undefined || cost === 0 || cost === '0') return 'Бесплатно';
+    const numCost = typeof cost === 'string' ? parseFloat(cost) : cost;
+    if (isNaN(numCost)) return 'Бесплатно';
+    return `₽${numCost.toFixed(2)}`;
   };
 
   const handleStartCourse = () => {
