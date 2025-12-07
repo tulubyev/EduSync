@@ -143,56 +143,52 @@ export function PlatformSelector({
             />
           </div>
           
-          {(categories.length > 0 || hasGlobal || hasRussian) && (
-            <>
-              <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            <Button
+              variant={selectedCategory === 'all' ? 'default' : 'outline'}
+              size="sm"
+              className="text-xs h-7"
+              onClick={() => setSelectedCategory('all')}
+            >
+              Все ({allPlatforms.length})
+            </Button>
+            {hasGlobal && (
+              <Button
+                variant={selectedCategory === 'global' ? 'default' : 'outline'}
+                size="sm"
+                className="text-xs h-7 whitespace-nowrap"
+                onClick={() => setSelectedCategory('global')}
+              >
+                <Globe className="h-3 w-3 mr-1" />
+                Глобальные
+              </Button>
+            )}
+            {hasRussian && (
+              <Button
+                variant={selectedCategory === 'russian' ? 'default' : 'outline'}
+                size="sm"
+                className="text-xs h-7 whitespace-nowrap"
+                onClick={() => setSelectedCategory('russian')}
+              >
+                <Globe className="h-3 w-3 mr-1" />
+                Русские
+              </Button>
+            )}
+          </div>
+          {categories.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {categories.map((cat) => (
                 <Button
-                  variant={selectedCategory === 'all' ? 'default' : 'outline'}
+                  key={cat}
+                  variant={selectedCategory === cat ? 'default' : 'outline'}
                   size="sm"
-                  className="text-xs h-7"
-                  onClick={() => setSelectedCategory('all')}
+                  className="text-xs h-7 whitespace-nowrap"
+                  onClick={() => setSelectedCategory(cat)}
                 >
-                  Все ({allPlatforms.length})
+                  {cat}
                 </Button>
-                {hasGlobal && (
-                  <Button
-                    variant={selectedCategory === 'global' ? 'default' : 'outline'}
-                    size="sm"
-                    className="text-xs h-7 whitespace-nowrap"
-                    onClick={() => setSelectedCategory('global')}
-                  >
-                    <Globe className="h-3 w-3 mr-1" />
-                    Глобальные
-                  </Button>
-                )}
-                {hasRussian && (
-                  <Button
-                    variant={selectedCategory === 'russian' ? 'default' : 'outline'}
-                    size="sm"
-                    className="text-xs h-7 whitespace-nowrap"
-                    onClick={() => setSelectedCategory('russian')}
-                  >
-                    <Globe className="h-3 w-3 mr-1" />
-                    Русские
-                  </Button>
-                )}
-              </div>
-              {categories.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {categories.map((cat) => (
-                    <Button
-                      key={cat}
-                      variant={selectedCategory === cat ? 'default' : 'outline'}
-                      size="sm"
-                      className="text-xs h-7 whitespace-nowrap"
-                      onClick={() => setSelectedCategory(cat)}
-                    >
-                      {cat}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </>
+              ))}
+            </div>
           )}
         </div>
 
@@ -217,7 +213,7 @@ export function PlatformSelector({
                     >
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="font-medium text-green-900">{platform.displayName}</div>
+                          <div className="font-medium text-green-900">{platform.displayName || platform.name}</div>
                           <div className="text-xs text-green-700">{platform.description}</div>
                         </div>
                         <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
@@ -243,7 +239,7 @@ export function PlatformSelector({
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <div className="font-medium">{platform.displayName}</div>
+                          <div className="font-medium">{platform.displayName || platform.name}</div>
                           <div className="text-xs text-muted-foreground">{platform.description}</div>
                           <Badge variant="outline" className="mt-2 text-xs">
                             {platform.category}
