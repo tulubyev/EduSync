@@ -8,8 +8,8 @@
 
 import { db } from "../db";
 import { platforms, courses, users } from "@shared/schema";
-import { eq, isNull } from "drizzle-orm";
-import { nanoid } from "nanoid";
+import { eq, and, sql } from "drizzle-orm";
+import { PLATFORM_COURSE_DATA } from "../services/courseDiscoveryService";
 
 interface CourseData {
   title: string;
@@ -24,146 +24,6 @@ interface CourseData {
   duration?: number;
   externalCourseId?: string;
 }
-
-interface PlatformCourses {
-  platformName: string;
-  platformId: string;
-  courses: CourseData[];
-}
-
-/**
- * Sample course data for different platforms
- * This is a template that can be expanded with real data from web searches
- */
-const PLATFORM_COURSE_DATA: Record<string, CourseData[]> = {
-  coursera: [
-    {
-      title: "Machine Learning by Andrew Ng",
-      description: "Learn machine learning from one of its pioneers. Master the fundamentals of machine learning and AI.",
-      courseUrl: "https://www.coursera.org/learn/machine-learning",
-      imageUrl: "https://coursera.com/machine-learning.jpg",
-      category: "Data Science",
-      language: "en",
-      cost: 0,
-      instructor: "Andrew Ng",
-      difficulty: "intermediate",
-      duration: 3600,
-      externalCourseId: "coursera-ml"
-    },
-    {
-      title: "Python for Everybody",
-      description: "Beginner's guide to programming with Python. Learn the fundamentals from scratch.",
-      courseUrl: "https://www.coursera.org/learn/python-for-everybody",
-      category: "Programming",
-      language: "en",
-      cost: 0,
-      instructor: "Dr. Charles Severance",
-      difficulty: "beginner",
-      duration: 2400,
-      externalCourseId: "coursera-python"
-    }
-  ],
-  edx: [
-    {
-      title: "CS50's Introduction to Computer Science",
-      description: "Harvard's introduction to the intellectual enterprises of computer science and the art of programming.",
-      courseUrl: "https://www.edx.org/course/cs50s-introduction-computer-science-harvardx-cs50x",
-      category: "Computer Science",
-      language: "en",
-      cost: 0,
-      instructor: "David J. Malan",
-      difficulty: "beginner",
-      duration: 4000,
-      externalCourseId: "edx-cs50"
-    },
-    {
-      title: "Introduction to Linux",
-      description: "Learn Linux fundamentals and system administration. Perfect for beginners.",
-      courseUrl: "https://www.edx.org/course/introduction-linux-linuxfoundationx-lfs101x",
-      category: "System Administration",
-      language: "en",
-      cost: 0,
-      difficulty: "beginner",
-      duration: 3000,
-      externalCourseId: "edx-linux"
-    }
-  ],
-  udemy: [
-    {
-      title: "Complete Python Bootcamp",
-      description: "Learn Python programming comprehensively. From basics to advanced concepts.",
-      courseUrl: "https://www.udemy.com/course/complete-python-bootcamp/",
-      category: "Programming",
-      language: "en",
-      cost: 9.99,
-      instructor: "Jose Portilla",
-      difficulty: "beginner",
-      duration: 2200,
-      externalCourseId: "udemy-python-bootcamp"
-    },
-    {
-      title: "The Web Developer Bootcamp",
-      description: "Learn web development with HTML, CSS, JavaScript, and more.",
-      courseUrl: "https://www.udemy.com/course/the-web-developer-bootcamp/",
-      category: "Web Development",
-      language: "en",
-      cost: 12.99,
-      instructor: "Colt Steele",
-      difficulty: "beginner",
-      duration: 2600,
-      externalCourseId: "udemy-web-bootcamp"
-    }
-  ],
-  stepik: [
-    {
-      title: "Обучение Python на русском",
-      description: "Полный курс программирования на Python для начинающих на русском языке.",
-      courseUrl: "https://stepik.org/course/python/",
-      category: "Программирование",
-      language: "ru",
-      cost: 0,
-      difficulty: "beginner",
-      duration: 2400,
-      externalCourseId: "stepik-python-ru"
-    },
-    {
-      title: "Web-разработка на Python и Django",
-      description: "Полный курс веб-разработки с использованием фреймворка Django.",
-      courseUrl: "https://stepik.org/course/django/",
-      category: "Веб-разработка",
-      language: "ru",
-      cost: 0,
-      instructor: "Mykola Horovyy",
-      difficulty: "intermediate",
-      duration: 3000,
-      externalCourseId: "stepik-django"
-    }
-  ],
-  skillbox: [
-    {
-      title: "Профессия: Data Scientist на Python",
-      description: "Полное обучение профессии Data Scientist на базе Python.",
-      courseUrl: "https://skillbox.ru/course/profession-datascientist/",
-      category: "Data Science",
-      language: "ru",
-      cost: 5990,
-      difficulty: "intermediate",
-      duration: 5000,
-      externalCourseId: "skillbox-datascientist"
-    },
-    {
-      title: "Профессия: Full-Stack разработчик на JavaScript",
-      description: "Обучение полному стеку веб-разработки с JavaScript, Node.js и React.",
-      courseUrl: "https://skillbox.ru/course/profession-fullstack-js/",
-      category: "Веб-разработка",
-      language: "ru",
-      cost: 5490,
-      difficulty: "intermediate",
-      duration: 4500,
-      externalCourseId: "skillbox-fullstack"
-    }
-  ]
-};
 
 async function getAdminUser() {
   const adminUser = await db
@@ -199,9 +59,47 @@ async function saveCourses(
   coursesData: CourseData[]
 ) {
   const savedCourses = [];
+  let skippedCount = 0;
   
   for (const courseData of coursesData) {
     try {
+      let existingCourse = null;
+      
+      if (courseData.externalCourseId) {
+        const byExternalId = await db
+          .select({ id: courses.id })
+          .from(courses)
+          .where(
+            and(
+              eq(courses.platformId, platformId),
+              eq(courses.externalCourseId, courseData.externalCourseId)
+            )
+          )
+          .limit(1);
+        existingCourse = byExternalId.length > 0 ? byExternalId[0] : null;
+      }
+      
+      if (!existingCourse) {
+        const normalizedTitle = courseData.title.trim().toLowerCase();
+        const byTitle = await db
+          .select({ id: courses.id })
+          .from(courses)
+          .where(
+            and(
+              eq(courses.platformId, platformId),
+              sql`lower(trim(${courses.title})) = ${normalizedTitle}`
+            )
+          )
+          .limit(1);
+        existingCourse = byTitle.length > 0 ? byTitle[0] : null;
+      }
+      
+      if (existingCourse) {
+        console.log(`  ⏭️  Skipped (exists): ${courseData.title}`);
+        skippedCount++;
+        continue;
+      }
+      
       const newCourse = await db
         .insert(courses)
         .values({
@@ -227,6 +125,10 @@ async function saveCourses(
     } catch (error) {
       console.error(`  ❌ Error saving "${courseData.title}":`, error);
     }
+  }
+  
+  if (skippedCount > 0) {
+    console.log(`  ℹ️  Skipped ${skippedCount} existing courses`);
   }
   
   return savedCourses;
