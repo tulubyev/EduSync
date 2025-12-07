@@ -3,6 +3,8 @@ import { storage } from "../storage";
 import { authenticateToken } from "../middleware/auth";
 import { z } from "zod";
 import { v4 as uuidv4 } from 'uuid';
+import { yandexDiskService } from "../services/yandexDiskService";
+import { logger } from "../services/logger";
 
 const router = Router();
 
@@ -88,6 +90,28 @@ router.get('/status/:taskId', authenticateToken as any, async (req: AuthRequest,
   } catch (error) {
     console.error('Error fetching recording status:', error);
     res.status(500).json({ message: 'Ошибка получения статуса записи' });
+  }
+});
+
+// Get Yandex.Disk connection status
+router.get('/yandex-disk/status', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const status = await yandexDiskService.getStatus();
+    res.json(status);
+  } catch (error) {
+    logger.error('Error getting Yandex.Disk status:', error);
+    res.status(500).json({ message: 'Ошибка получения статуса Яндекс.Диска' });
+  }
+});
+
+// List recordings from Yandex.Disk
+router.get('/yandex-disk/files', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const files = await yandexDiskService.listFiles();
+    res.json(files);
+  } catch (error) {
+    logger.error('Error listing Yandex.Disk files:', error);
+    res.status(500).json({ message: 'Ошибка получения списка файлов' });
   }
 });
 

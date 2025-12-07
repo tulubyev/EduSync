@@ -4,12 +4,22 @@ My EPA (Агрегатор Онлайн Обучения) is an educational plat
 # Recent Changes (December 07, 2025)
 - **Stream/Lecture Recording Feature**:
   - New UI component `RecordingModal.tsx` for scheduling broadcast recordings with parameters (URL, password, time, duration)
-  - Backend API endpoint `/api/library/recording/schedule` for recording task management
-  - Recordings can be saved to Library (as materials) or Yandex.Disk (when user provides implementation files)
-  - Integration with existing Library system - recordings appear as tagged materials with 📹 emoji
+  - Backend API endpoints:
+    - `/api/library/recording/schedule` - Schedule recording to Library or Yandex.Disk
+    - `/api/library/recording/yandex-disk/status` - Check Yandex.Disk connection and quota
+    - `/api/library/recording/yandex-disk/files` - List files on Yandex.Disk
+  - Yandex.Disk integration with `YandexDiskService`:
+    - OAuth token authentication
+    - Automatic folder creation for recordings
+    - File upload with mime type support
+    - Public link generation
+    - File deletion and listing
+  - Recordings saved to Library (as materials with 📹 emoji) or Yandex.Disk
+  - Integration with existing Library system - recordings appear as tagged materials
   - New button "+ Записать трансляцию" in Library page next to "+ Новый материал"
   - Full form validation for stream URLs, scheduled times, and duration (1-1440 minutes)
-  - Ready for user-provided TypeScript implementation files for actual recording capture
+  - Environment variables: `YANDEX_DISK_TOKEN`, `YANDEX_DISK_FOLDER_ID`
+  - Ready for user-provided TypeScript implementation files for actual broadcast recording capture
 
 - **Admin Panel Expansion with Real Data**:
   - **Payment Systems Management**: New dashboard for YooKassa/Alfabank monitoring with real connection status from environment variables, transaction history, revenue statistics from actual payment records
