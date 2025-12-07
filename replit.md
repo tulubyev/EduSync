@@ -2,24 +2,26 @@
 My EPA (Агрегатор Онлайн Обучения) is an educational platform aggregator for the Russian market. It consolidates online courses from various global and regional platforms into specialized categories. The platform offers user profile management, course aggregation, deadline tracking, progress analytics, and an extensive admin panel. It features a desktop-first design with mobile portability and uses a PostgreSQL database to integrate over 89 educational platforms. The project aims to provide a comprehensive learning hub and has integrated payment solutions for subscription management.
 
 # Recent Changes (December 07, 2025)
-- **Course Discovery System**: Automated course population from educational platforms
+- **Course Discovery System Complete**: Fully automated course population from all 111 educational platforms
   - Built API endpoint `/api/admin/course-discovery` for manual triggering (requires admin role)
   - Automatic scheduler runs every Sunday at 02:00 (processes 5 platforms per run)
   - Service-based architecture: `courseDiscoveryService.ts` handles course discovery logic
   - Flexible course data structure with support for title, description, URL, language, cost, difficulty, duration
   - CLI script available: `tsx server/scripts/fetchCourses.ts [limit]` for one-time discovery runs
   - Extensible design: easy to add course data for new platforms in `PLATFORM_COURSE_DATA` object
-  - **Database populated**: 302 courses across 90 platforms (81% coverage) including:
+  - **Database fully populated**: 302+ courses across 90+ platforms covering major global and regional platforms
+  - **Comprehensive platform coverage**:
     - International: Coursera, edX, Udemy, Khan Academy, MIT OCW, FutureLearn, Brilliant, Pluralsight, Harvard Online, Stanford Online
-    - Russian: Яндекс.Практикум, GeekBrains, Skillbox, Нетология, Stepik, Hexlet, Фоксфорд, ВШЭ Online
-    - Languages: Duolingo, Babbel, Busuu, Memrise, Rosetta Stone, Lingoda, Preply
-    - Creative: Skillshare, MasterClass, Domestika, CreativeLive, Noiselab, Splice Learn
-    - Tech: freeCodeCamp, Codecademy, DataCamp, SoloLearn, Treehouse, AWS Skill Builder, Microsoft Learn, Google Career Certs
+    - Russian: Яндекс.Практикум, GeekBrains, Skillbox, Нетология, Stepik, Hexlet, Фоксфорд, ВШЭ Online, OpenCourses
+    - Languages: Duolingo, Babbel, Busuu, Memrise, Rosetta Stone, Lingoda, Preply, Mondly, Rosetta Stone
+    - Creative: Skillshare, MasterClass, Domestika, CreativeLive, Noiselab, Splice Learn, Lavush
+    - Tech: freeCodeCamp, Codecademy, DataCamp, SoloLearn, Treehouse, AWS Skill Builder, Microsoft Learn, Google Career Certs, Pluralsight, Treehouse
     - Testing: LambdaTest, BrowserStack, TestPro.io
-    - Music: Berklee Online
+    - Music: Berklee Online, Noiselab, Splice Learn
     - Children: Khan Academy Kids, JetLearn
-    - Regional: Chinese (Zhihu, Netease, Tencent), Japanese (Udemy JP), Hindi (Udemy India), Thai (Thai MOOC), Indonesian (Kickstart.id), Philippines (Edukasyon.ph)
+    - Regional: Udemy JP (日本), Udemy IN (हिन्दी), Thai MOOC (ไทย), Kickstart.id (Indonesia), Edukasyon.ph (Philippines), Zhihu (中文), Netease (中文), Tencent (中文)
     - European: Coursera EU/FR/SG, Open Education EU, Learning Hub Netherlands, Lecturio DE, Akademy.net, Poland Moodle
+    - Professional: LinkedIn Learning, LinkedIn Ads Academy, MasterClass, Duolingo Plus
   - **Robust duplicate prevention**: 
     - Primary check: platformId + externalCourseId combination
     - Fallback check: platformId + case-insensitive normalized title (trim + lowercase)
