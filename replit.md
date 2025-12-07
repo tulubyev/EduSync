@@ -2,6 +2,14 @@
 My EPA (Агрегатор Онлайн Обучения) is an educational platform aggregator for the Russian market. It consolidates online courses from various global and regional platforms into specialized categories. The platform offers user profile management, course aggregation, deadline tracking, progress analytics, and an extensive admin panel. It features a desktop-first design with mobile portability and uses a PostgreSQL database to integrate over 89 educational platforms. The project aims to provide a comprehensive learning hub and has integrated payment solutions for subscription management.
 
 # Recent Changes (December 07, 2025)
+- **Admin Panel Expansion with Real Data**:
+  - **Payment Systems Management**: New dashboard for YooKassa/Alfabank monitoring with real connection status from environment variables, transaction history, revenue statistics from actual payment records
+  - **Server-side RBAC**: Payment endpoints (/payment-systems, /payment-transactions, /payment-stats) restricted to super_admin and finance_admin roles
+  - **Analytics with Real Data**: Removed all mock data - fetches real metrics from database (user growth by month, course counts by category, platform statistics)
+  - **New API endpoints**: `/api/admin/stats` for analytics data, enhanced payment endpoints with real database queries
+  - **New storage methods**: `getUserGrowthByMonth`, `getSuccessfulPaymentCount` for real database aggregations
+  - **PlatformsManagement**: API connections now reflect actual `apiEnabled` status instead of random values
+  
 - **Course Discovery System Complete**: Fully automated course population from all 111 educational platforms
   - Built API endpoint `/api/admin/course-discovery` for manual triggering (requires admin role)
   - Automatic scheduler runs every Sunday at 02:00 (processes 5 platforms per run)

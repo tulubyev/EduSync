@@ -52,6 +52,11 @@ export interface IAdminStorage {
   getAllUsers(): Promise<User[]>;
   getTotalUsersCount(): Promise<number>;
   getNewUsersCount(days: number): Promise<number>;
+  getUserGrowthByMonth(monthsBack?: number): Promise<Array<{ month: string; count: number }>>;
   updateUserByAdmin(id: string, updates: Partial<User>): Promise<User | undefined>;
   deleteUserByAdmin(id: string): Promise<void>;
+  getPaymentTransactionCount(provider?: string): Promise<number>;
+  getPaymentTotalAmount(provider?: string): Promise<number>;
+  getSuccessfulPaymentCount(provider?: string): Promise<number>;
+  getPaymentTransactions(fromDate: Date): Promise<any[]>;
 }

@@ -544,6 +544,146 @@ adminRouter.get('/users/detailed/all', authenticateToken, requireAdmin, asyncHan
   });
 }));
 
+// Payment systems management - restricted to super_admin and finance_admin
+adminRouter.get('/payment-systems', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const allowedRoles = ['super_admin', 'finance_admin'];
+  if (!allowedRoles.includes(req.user!.adminRole || '')) {
+    return res.status(403).json({ message: 'Доступ запрещен. Требуется роль super_admin или finance_admin' });
+  }
+  const yookassaConfigured = !!process.env.YOOKASSA_SHOP_ID && !!process.env.YOOKASSA_SECRET_KEY;
+  const alfabankConfigured = !!process.env.ALFABANK_USERNAME && !!process.env.ALFABANK_PASSWORD;
+  
+  const yookassaTransCount = await storage.getPaymentTransactionCount?.('yookassa') || 0;
+  const yookassaTotalAmount = await storage.getPaymentTotalAmount?.('yookassa') || 0;
+  const yookassaSuccessCount = await storage.getSuccessfulPaymentCount?.('yookassa') || 0;
+  const yookassaSuccessRate = yookassaTransCount > 0 ? Math.round((yookassaSuccessCount / yookassaTransCount) * 100 * 10) / 10 : 0;
+  
+  const alfabankTransCount = await storage.getPaymentTransactionCount?.('alfabank') || 0;
+  const alfabankTotalAmount = await storage.getPaymentTotalAmount?.('alfabank') || 0;
+  const alfabankSuccessCount = await storage.getSuccessfulPaymentCount?.('alfabank') || 0;
+  const alfabankSuccessRate = alfabankTransCount > 0 ? Math.round((alfabankSuccessCount / alfabankTransCount) * 100 * 10) / 10 : 0;
+  
+  const systems = [
+    {
+      id: '1',
+      name: 'YooKassa',
+      code: 'yookassa',
+      isActive: yookassaConfigured,
+      isConfigured: yookassaConfigured,
+      lastChecked: new Date().toISOString(),
+      totalTransactions: yookassaTransCount,
+      totalAmount: yookassaTotalAmount,
+      successRate: yookassaSuccessRate
+    },
+    {
+      id: '2',
+      name: 'Альфа-Банк',
+      code: 'alfabank',
+      isActive: alfabankConfigured,
+      isConfigured: alfabankConfigured,
+      lastChecked: new Date().toISOString(),
+      totalTransactions: alfabankTransCount,
+      totalAmount: alfabankTotalAmount,
+      successRate: alfabankSuccessRate
+    }
+  ];
+
+  res.json({ systems });
+}));
+
+adminRouter.get('/payment-transactions', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const allowedRoles = ['super_admin', 'finance_admin'];
+  if (!allowedRoles.includes(req.user!.adminRole || '')) {
+    return res.status(403).json({ message: 'Доступ запрещен. Требуется роль super_admin или finance_admin' });
+  }
+  const period = req.query.period as string || 'month';
+  
+  let dateFilter = new Date();
+  switch (period) {
+    case 'week':
+      dateFilter.setDate(dateFilter.getDate() - 7);
+      break;
+    case 'month':
+      dateFilter.setMonth(dateFilter.getMonth() - 1);
+      break;
+    case 'year':
+      dateFilter.setFullYear(dateFilter.getFullYear() - 1);
+      break;
+    default:
+      dateFilter = new Date(0);
+  }
+
+  const transactions = await storage.getPaymentTransactions?.(dateFilter) || [];
+  
+  res.json({ 
+    transactions: transactions.map((tx: any) => ({
+      id: tx.id,
+      paymentSystem: tx.paymentMethod || 'yookassa',
+      amount: parseFloat(tx.amount) || 0,
+      status: tx.status,
+      createdAt: tx.createdAt,
+      userId: tx.userId,
+      userName: tx.userName || 'Пользователь',
+      planName: tx.planName || 'Подписка'
+    })),
+    period 
+  });
+}));
+
+adminRouter.get('/payment-stats', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const allowedRoles = ['super_admin', 'finance_admin'];
+  if (!allowedRoles.includes(req.user!.adminRole || '')) {
+    return res.status(403).json({ message: 'Доступ запрещен. Требуется роль super_admin или finance_admin' });
+  }
+  const now = new Date();
+  const monthAgo = new Date(now);
+  monthAgo.setMonth(monthAgo.getMonth() - 1);
+  const weekAgo = new Date(now);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const allTransactions = await storage.getPaymentTransactions?.(new Date(0)) || [];
+  const monthTransactions = await storage.getPaymentTransactions?.(monthAgo) || [];
+  const weekTransactions = await storage.getPaymentTransactions?.(weekAgo) || [];
+
+  const calculateStats = (txs: any[]) => {
+    return {
+      total: txs.reduce((sum, tx) => sum + (parseFloat(tx.amount) || 0), 0),
+      count: txs.length,
+      successful: txs.filter((tx: any) => tx.status === 'succeeded' || tx.status === 'success').length,
+      failed: txs.filter((tx: any) => tx.status === 'failed' || tx.status === 'canceled').length,
+      pending: txs.filter((tx: any) => tx.status === 'pending').length
+    };
+  };
+
+  const allStats = calculateStats(allTransactions);
+  const monthStats = calculateStats(monthTransactions);
+  const weekStats = calculateStats(weekTransactions);
+
+  res.json({
+    totalRevenue: allStats.total,
+    monthlyRevenue: monthStats.total,
+    weeklyRevenue: weekStats.total,
+    transactionCount: allStats.count,
+    successfulPayments: allStats.successful,
+    failedPayments: allStats.failed,
+    pendingPayments: allStats.pending
+  });
+}));
+
+// Admin stats endpoint for analytics
+adminRouter.get('/stats', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const userGrowth = await storage.getUserGrowthByMonth?.(6) || [];
+  const totalUsers = await storage.getTotalUsersCount?.() || 0;
+  const newUsersThisMonth = await storage.getNewUsersCount?.(30) || 0;
+  
+  res.json({
+    totalUsers,
+    newUsersThisMonth,
+    userGrowth,
+    completedCourses: 0
+  });
+}));
+
 // Course discovery - trigger manual discovery
 adminRouter.post('/course-discovery', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   try {

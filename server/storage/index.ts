@@ -72,6 +72,9 @@ export class DatabaseStorage implements IStorage {
   getNewUsersCount(...args: Parameters<AdminStorage['getNewUsersCount']>) { return this.adminStorage.getNewUsersCount(...args); }
   updateUserByAdmin(...args: Parameters<AdminStorage['updateUserByAdmin']>) { return this.adminStorage.updateUserByAdmin(...args); }
   deleteUserByAdmin(...args: Parameters<AdminStorage['deleteUserByAdmin']>) { return this.adminStorage.deleteUserByAdmin(...args); }
+  getPaymentTransactionCount(...args: Parameters<AdminStorage['getPaymentTransactionCount']>) { return this.adminStorage.getPaymentTransactionCount(...args); }
+  getPaymentTotalAmount(...args: Parameters<AdminStorage['getPaymentTotalAmount']>) { return this.adminStorage.getPaymentTotalAmount(...args); }
+  getPaymentTransactions(...args: Parameters<AdminStorage['getPaymentTransactions']>) { return this.adminStorage.getPaymentTransactions(...args); }
 }
 
 export const storage = new DatabaseStorage();
