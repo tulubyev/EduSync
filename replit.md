@@ -1,12 +1,14 @@
 # Overview
 My EPA (Агрегатор Онлайн Обучения) is an educational platform aggregator for the Russian market. It consolidates online courses from various global and regional platforms into specialized categories. The platform offers user profile management, course aggregation, deadline tracking, progress analytics, and an extensive admin panel. It features a desktop-first design with mobile portability and uses a PostgreSQL database to integrate over 89 educational platforms. The project aims to provide a comprehensive learning hub and has integrated payment solutions for subscription management.
 
-# Recent Changes (December 06, 2025)
-- **Platform Selector Enhancement**: Added category and region filtering to platform selector modal when adding courses
-  - Dynamic category extraction from platform data
-  - Global/Russian region filtering (based on platform.isGlobal property)
-  - Scrollable filter buttons for better UX with large number of platforms
-  - Same filtering logic as Platforms page for consistency
+# Recent Changes (December 07, 2025)
+- **Course Discovery System**: Automated course population from educational platforms
+  - Built API endpoint `/api/admin/course-discovery` for manual triggering (requires admin role)
+  - Automatic scheduler runs every Sunday at 02:00 (processes 5 platforms per run)
+  - Service-based architecture: `courseDiscoveryService.ts` handles course discovery logic
+  - Flexible course data structure with support for title, description, URL, language, cost, difficulty, duration
+  - CLI script available: `tsx server/scripts/fetchCourses.ts [limit]` for one-time discovery runs
+  - Extensible design: easy to add course data for new platforms in `PLATFORM_COURSE_DATA` object
 
 # User Preferences
 I want to develop this project iteratively. Please provide clear and detailed explanations for any proposed changes or new features. When suggesting code, aim for modern React practices and ensure type safety with TypeScript. I prefer that you ask for my confirmation before making any significant architectural changes or adding new external dependencies.

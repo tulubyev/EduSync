@@ -5,6 +5,7 @@ import { config, validateConfig } from "../config/environment";
 import { logger } from "./services/logger";
 import { yookassaService } from "./services/yookassaService";
 import { PaymentFactory } from "./services/payments/paymentFactory";
+import { courseDiscoveryService } from "./services/courseDiscoveryService";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
@@ -112,4 +113,39 @@ app.use((req, res, next) => {
   };
   
   scheduleAutoPaymentProcessor();
+
+  // Start course discovery scheduler - runs every Sunday at 02:00
+  const scheduleCourseDiscovery = () => {
+    const now = new Date();
+    let nextRun = new Date(now);
+    
+    // Calculate next Sunday at 02:00
+    const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
+    nextRun.setDate(nextRun.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
+    nextRun.setHours(2, 0, 0, 0);
+    
+    const timeUntilNextRun = nextRun.getTime() - now.getTime();
+    
+    const runDiscovery = async () => {
+      try {
+        logger.info('Running weekly course discovery...');
+        const result = await courseDiscoveryService.discoverCourses(5);
+        logger.info(`Course discovery completed: ${result.totalSaved} courses saved from ${result.platformsWithCourses} platforms`);
+        
+        if (result.errors.length > 0) {
+          logger.warn(`Course discovery errors: ${JSON.stringify(result.errors)}`);
+        }
+      } catch (err) {
+        logger.error('Error in course discovery scheduler:', err);
+      }
+      
+      // Schedule next run in 7 days
+      setTimeout(runDiscovery, 7 * 24 * 60 * 60 * 1000);
+    };
+    
+    setTimeout(runDiscovery, timeUntilNextRun);
+    logger.info(`Course discovery scheduler scheduled to run weekly on Sunday at 02:00 (next run in ${Math.round(timeUntilNextRun / 1000 / 60)} minutes)`);
+  };
+  
+  scheduleCourseDiscovery();
 })();

@@ -544,4 +544,40 @@ adminRouter.get('/users/detailed/all', authenticateToken, requireAdmin, asyncHan
   });
 }));
 
+// Course discovery - trigger manual discovery
+adminRouter.post('/course-discovery', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { courseDiscoveryService } = await import("../services/courseDiscoveryService");
+    const limit = req.body.limit || 5;
+    
+    const result = await courseDiscoveryService.discoverCourses(limit);
+    
+    res.json({
+      success: result.success,
+      message: `Обнаружено и сохранено ${result.totalSaved} курсов из ${result.platformsWithCourses} платформ (${result.platformsProcessed} платформ обработано)`,
+      result: {
+        totalSaved: result.totalSaved,
+        platformsProcessed: result.platformsProcessed,
+        platformsWithCourses: result.platformsWithCourses,
+        duration: result.endTime.getTime() - result.startTime.getTime(),
+        errors: result.errors
+      }
+    });
+    
+    await logAdminAction(
+      req.user!.id,
+      'course_discovery',
+      'courses',
+      undefined,
+      { limit, saved: result.totalSaved, platforms: result.platformsWithCourses },
+      req
+    );
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Ошибка при обнаружении курсов',
+      error: String(error)
+    });
+  }
+}));
+
 export default adminRouter;
