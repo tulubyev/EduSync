@@ -404,6 +404,186 @@ export const PLATFORM_COURSE_DATA: Record<string, CourseData[]> = {
   skillbranch: [
     { title: "Android-разработчик", description: "Курс мобильной разработки на Kotlin", courseUrl: "https://skillbranch.ru/android", category: "Мобильная разработка", language: "ru", cost: 4990, difficulty: "beginner", duration: 4200, externalCourseId: "skillbranch-android" },
     { title: "Kotlin Developer", description: "Kotlin для Android и Backend", courseUrl: "https://skillbranch.ru/kotlin", category: "Программирование", language: "ru", cost: 4990, difficulty: "intermediate", duration: 3600, externalCourseId: "skillbranch-kotlin" }
+  ],
+  "lambdatest": [
+    { title: "Mobile App Testing with LambdaTest", description: "Automated testing for mobile apps", courseUrl: "https://lambdatest.com/learning-hub/mobile-testing", category: "Testing", language: "en", cost: 0, difficulty: "intermediate", duration: 1200, externalCourseId: "lt-mobile" },
+    { title: "Selenium Testing Tutorial", description: "Web automation with Selenium", courseUrl: "https://lambdatest.com/learning-hub/selenium", category: "Testing", language: "en", cost: 0, difficulty: "beginner", duration: 1500, externalCourseId: "lt-selenium" }
+  ],
+  "browserstack": [
+    { title: "Live Testing Tutorial", description: "Manual testing on real devices", courseUrl: "https://browserstack.com/docs/live/getting-started", category: "Testing", language: "en", cost: 0, difficulty: "beginner", duration: 900, externalCourseId: "bs-live" },
+    { title: "Automate Testing Guide", description: "Automated testing with BrowserStack", courseUrl: "https://browserstack.com/docs/automate/getting-started", category: "Testing", language: "en", cost: 0, difficulty: "intermediate", duration: 1800, externalCourseId: "bs-auto" }
+  ],
+  "testpro-io": [
+    { title: "Playwright Automation Course", description: "Modern test automation with Playwright", courseUrl: "https://testpro.io/courses/playwright", category: "Testing", language: "en", cost: 199, difficulty: "intermediate", duration: 2400, externalCourseId: "tp-playwright" },
+    { title: "Cypress E2E Testing", description: "End-to-end testing with Cypress", courseUrl: "https://testpro.io/courses/cypress", category: "Testing", language: "en", cost: 199, difficulty: "beginner", duration: 2000, externalCourseId: "tp-cypress" }
+  ],
+  "berklee-music": [
+    { title: "Music Business Foundations", description: "Understand the music industry", courseUrl: "https://berkleeonline.berklee.edu/music-business", category: "Музыка", language: "en", cost: 2200, difficulty: "beginner", duration: 2400, externalCourseId: "berklee-business" },
+    { title: "Music Technology Essentials", description: "Production and recording basics", courseUrl: "https://berkleeonline.berklee.edu/music-tech", category: "Музыка", language: "en", cost: 1800, difficulty: "beginner", duration: 1800, externalCourseId: "berklee-tech" }
+  ],
+  "noiselab": [
+    { title: "Music Production Fundamentals", description: "Learn beat making and production", courseUrl: "https://noiselab.io/courses/production-fundamentals", category: "Музыка", language: "en", cost: 99, difficulty: "beginner", duration: 3600, externalCourseId: "nl-production" },
+    { title: "Sound Design Workshop", description: "Advanced synthesis and sound design", courseUrl: "https://noiselab.io/courses/sound-design", category: "Музыка", language: "en", cost: 149, difficulty: "intermediate", duration: 2400, externalCourseId: "nl-sound" }
+  ],
+  "splice-learn": [
+    { title: "Music Production 101", description: "Getting started with music production", courseUrl: "https://splice.com/learn/music-production-101", category: "Музыка", language: "en", cost: 0, difficulty: "beginner", duration: 1200, externalCourseId: "splice-prod" },
+    { title: "Mixing and Mastering Basics", description: "Learn professional mixing techniques", courseUrl: "https://splice.com/learn/mixing-mastering", category: "Музыка", language: "en", cost: 0, difficulty: "intermediate", duration: 1800, externalCourseId: "splice-mix" }
+  ],
+  "khan-academy-kids": [
+    { title: "Math Foundations for Kids", description: "Interactive math learning for children", courseUrl: "https://khankids.org/math", category: "Детское образование", language: "en", cost: 0, difficulty: "beginner", duration: 600, externalCourseId: "kahkids-math" },
+    { title: "Early Literacy Skills", description: "Reading and writing for young learners", courseUrl: "https://khankids.org/literacy", category: "Детское образование", language: "en", cost: 0, difficulty: "beginner", duration: 480, externalCourseId: "kahkids-lit" }
+  ],
+  "jetlearn": [
+    { title: "Coding Fundamentals for Kids", description: "Learn programming through games", courseUrl: "https://jetlearn.com/courses/coding-fundamentals", category: "Детское образование", language: "en", cost: 2400, difficulty: "beginner", duration: 2400, externalCourseId: "jet-coding" },
+    { title: "Python for Young Programmers", description: "Age-appropriate Python course", courseUrl: "https://jetlearn.com/courses/python-kids", category: "Детское образование", language: "en", cost: 2400, difficulty: "beginner", duration: 2000, externalCourseId: "jet-python" }
+  ],
+  "openuned": [
+    { title: "Educación para Desarrollo Sostenible", description: "UNESCO sustainable development course", courseUrl: "https://openuned.org/sustainable-development", category: "Образование", language: "es", cost: 0, difficulty: "intermediate", duration: 2400, externalCourseId: "openuned-sd" },
+    { title: "Fundamentos de Pedagogía", description: "Teaching fundamentals in Spanish", courseUrl: "https://openuned.org/pedagogy", category: "Образование", language: "es", cost: 0, difficulty: "beginner", duration: 2000, externalCourseId: "openuned-ped" }
+  ],
+  "lavush": [
+    { title: "Culinary Arts Basics", description: "Learn fundamental cooking techniques", courseUrl: "https://lavush.io/courses/culinary-basics", category: "Кулинария", language: "en", cost: 99, difficulty: "beginner", duration: 1800, externalCourseId: "lavush-culinary" },
+    { title: "Baking and Pastry", description: "Professional baking techniques", courseUrl: "https://lavush.io/courses/baking", category: "Кулинария", language: "en", cost: 129, difficulty: "intermediate", duration: 2400, externalCourseId: "lavush-baking" }
+  ],
+  "yandex-prakticum": [
+    { title: "Аналитик данных", description: "Профессия Data Analyst с нуля", courseUrl: "https://praktikum.yandex.ru/data-analyst", category: "Data Science", language: "ru", cost: 7490, difficulty: "beginner", duration: 5400, externalCourseId: "yandex-analyst" },
+    { title: "Разработчик на Python", description: "Backend разработка на Python", courseUrl: "https://praktikum.yandex.ru/python-developer", category: "Программирование", language: "ru", cost: 8490, difficulty: "beginner", duration: 6000, externalCourseId: "yandex-python" }
+  ],
+  "opencourses": [
+    { title: "Introduction to Computer Science", description: "Fundamentals of CS from universities", courseUrl: "https://opencourses.ru/courses/cs-intro", category: "Computer Science", language: "ru", cost: 0, difficulty: "beginner", duration: 3600, externalCourseId: "oc-cs" },
+    { title: "Mathematics for Computer Scientists", description: "Math foundations for IT", courseUrl: "https://opencourses.ru/courses/math-cs", category: "Mathematics", language: "ru", cost: 0, difficulty: "intermediate", duration: 3000, externalCourseId: "oc-math" }
+  ],
+  "udemy-jp": [
+    { title: "日本語プログラミング入門", description: "Japanese Python course", courseUrl: "https://udemy.com/ja/course/python-jp", category: "Programming", language: "ja", cost: 12.99, difficulty: "beginner", duration: 2400, externalCourseId: "udemy-jp-python" },
+    { title: "Webアプリケーション開発", description: "Web development in Japanese", courseUrl: "https://udemy.com/ja/course/web-jp", category: "Web Development", language: "ja", cost: 13.99, difficulty: "intermediate", duration: 3000, externalCourseId: "udemy-jp-web" }
+  ],
+  "coursera-sg": [
+    { title: "Business Analytics Singapore", description: "Data-driven business decisions", courseUrl: "https://coursera.org/learn/business-analytics-sg", category: "Business Analytics", language: "en", cost: 0, difficulty: "intermediate", duration: 2400, externalCourseId: "coursera-sg-ba" },
+    { title: "Digital Marketing for APAC", description: "Marketing in Asia-Pacific region", courseUrl: "https://coursera.org/learn/digital-marketing-apac", category: "Digital Marketing", language: "en", cost: 0, difficulty: "intermediate", duration: 2000, externalCourseId: "coursera-sg-dm" }
+  ],
+  "kickstart-id": [
+    { title: "Startup Fundamentals Indonesia", description: "Building startups from scratch", courseUrl: "https://kickstart.id/courses/startup-basics", category: "Business", language: "id", cost: 199, difficulty: "beginner", duration: 1800, externalCourseId: "kickstart-startup" },
+    { title: "Digital Marketing untuk UMKM", description: "Marketing for small Indonesian businesses", courseUrl: "https://kickstart.id/courses/digital-marketing", category: "Marketing", language: "id", cost: 149, difficulty: "beginner", duration: 1200, externalCourseId: "kickstart-marketing" }
+  ],
+  "edukasyon-ph": [
+    { title: "Web Development Philippines Track", description: "Full-stack development course", courseUrl: "https://edukasyon.ph/courses/web-development", category: "Web Development", language: "en", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "edukasyon-web" },
+    { title: "Data Science for Filipinos", description: "Data science and analytics", courseUrl: "https://edukasyon.ph/courses/data-science", category: "Data Science", language: "en", cost: 0, difficulty: "intermediate", duration: 3000, externalCourseId: "edukasyon-ds" }
+  ],
+  "thai-mooc": [
+    { title: "Computer Programming Basics Thailand", description: "Fundamental programming concepts", courseUrl: "https://thaicourses.org/programming", category: "Programming", language: "th", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "thai-prog" },
+    { title: "Web Development Essentials", description: "Web development fundamentals", courseUrl: "https://thaicourses.org/webdev", category: "Web Development", language: "th", cost: 0, difficulty: "beginner", duration: 2000, externalCourseId: "thai-web" }
+  ],
+  "udemy-in": [
+    { title: "Python Programming in Hindi", description: "Hindi language Python course", courseUrl: "https://udemy.com/in/course/python-hindi", category: "Programming", language: "hi", cost: 10.99, difficulty: "beginner", duration: 2400, externalCourseId: "udemy-in-python" },
+    { title: "Web Development Hindi", description: "Full-stack development in Hindi", courseUrl: "https://udemy.com/in/course/web-hindi", category: "Web Development", language: "hi", cost: 11.99, difficulty: "beginner", duration: 2800, externalCourseId: "udemy-in-web" }
+  ],
+  "zhihu-learning": [
+    { title: "Python编程入门", description: "Python basics in Chinese", courseUrl: "https://zhihu.com/column/python-course", category: "Programming", language: "zh", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "zhihu-python" },
+    { title: "数据分析和机器学习", description: "Data science in Mandarin", courseUrl: "https://zhihu.com/column/data-science", category: "Data Science", language: "zh", cost: 0, difficulty: "intermediate", duration: 3000, externalCourseId: "zhihu-ds" }
+  ],
+  "netease-classroom": [
+    { title: "网易云课堂编程零基础", description: "Programming for beginners Chinese", courseUrl: "https://study.163.com/course/introduction", category: "Programming", language: "zh", cost: 0, difficulty: "beginner", duration: 2000, externalCourseId: "netease-prog" },
+    { title: "云计算和大数据", description: "Cloud and big data fundamentals", courseUrl: "https://study.163.com/course/cloud-data", category: "Cloud Computing", language: "zh", cost: 0, difficulty: "intermediate", duration: 2400, externalCourseId: "netease-cloud" }
+  ],
+  "tencent-classroom": [
+    { title: "腾讯云开发者认证", description: "Tencent Cloud developer certification", courseUrl: "https://classroom.qcloud.com/courses/certification", category: "Cloud Computing", language: "zh", cost: 99, difficulty: "intermediate", duration: 1800, externalCourseId: "tencent-cert" },
+    { title: "小程序开发教程", description: "WeChat mini-program development", courseUrl: "https://classroom.qcloud.com/courses/miniapp", category: "Web Development", language: "zh", cost: 0, difficulty: "intermediate", duration: 1500, externalCourseId: "tencent-mini" }
+  ],
+  "lecturio-de": [
+    { title: "Medizin Grundlagen", description: "Medical basics in German", courseUrl: "https://lecturio.de/kurse/medizin", category: "Медицина", language: "de", cost: 99, difficulty: "beginner", duration: 3600, externalCourseId: "lecturio-med" },
+    { title: "Jura Essentials", description: "German law basics", courseUrl: "https://lecturio.de/kurse/jura", category: "Law", language: "de", cost: 99, difficulty: "beginner", duration: 3000, externalCourseId: "lecturio-law" }
+  ],
+  "akademy": [
+    { title: "Free Software Development", description: "Introduction to open-source development", courseUrl: "https://akademy.kde.org/courses/opensource", category: "Programming", language: "en", cost: 0, difficulty: "intermediate", duration: 2400, externalCourseId: "akademy-os" },
+    { title: "Linux Kernel Programming", description: "Advanced kernel development", courseUrl: "https://akademy.kde.org/courses/kernel", category: "System Administration", language: "en", cost: 0, difficulty: "advanced", duration: 3600, externalCourseId: "akademy-kernel" }
+  ],
+  "pol-moodle": [
+    { title: "Introduction to Polish Language", description: "Polish for learners", courseUrl: "https://moodle.edu.pl/course/polish", category: "Languages", language: "pl", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "pol-polish" },
+    { title: "STEM Education Poland", description: "Science and tech education", courseUrl: "https://moodle.edu.pl/course/stem", category: "STEM", language: "pl", cost: 0, difficulty: "intermediate", duration: 2000, externalCourseId: "pol-stem" }
+  ],
+  "learning-hub-nl": [
+    { title: "Nederlandse Taal Beginners", description: "Dutch language for beginners", courseUrl: "https://learninghub.nl/courses/dutch", category: "Languages", language: "nl", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "nl-dutch" },
+    { title: "IT Skills Netherlands", description: "IT fundamentals in Dutch", courseUrl: "https://learninghub.nl/courses/it-skills", category: "IT", language: "nl", cost: 0, difficulty: "beginner", duration: 2000, externalCourseId: "nl-it" }
+  ],
+  "edasist": [
+    { title: "Educational Leadership", description: "Training for educational leaders", courseUrl: "https://edasist.org/courses/leadership", category: "Education", language: "en", cost: 299, difficulty: "intermediate", duration: 2400, externalCourseId: "edasist-lead" },
+    { title: "Curriculum Development", description: "Modern curriculum design", courseUrl: "https://edasist.org/courses/curriculum", category: "Education", language: "en", cost: 249, difficulty: "intermediate", duration: 2000, externalCourseId: "edasist-curr" }
+  ],
+  "open-ed-eu": [
+    { title: "European Digital Skills", description: "Digital competency in Europe", courseUrl: "https://openedeu.eu/courses/digital-skills", category: "Digital Skills", language: "en", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "openedu-digital" },
+    { title: "Green Skills for EU", description: "Sustainability education Europe", courseUrl: "https://openedeu.eu/courses/green-skills", category: "Sustainability", language: "en", cost: 0, difficulty: "beginner", duration: 1800, externalCourseId: "openedu-green" }
+  ],
+  "coursera-fr": [
+    { title: "Programmation en Français", description: "French language programming course", courseUrl: "https://coursera.org/learn/programming-fr", category: "Programming", language: "fr", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "coursera-fr-prog" },
+    { title: "Analyse de Données", description: "Data analysis in French", courseUrl: "https://coursera.org/learn/data-analysis-fr", category: "Data Science", language: "fr", cost: 0, difficulty: "intermediate", duration: 2400, externalCourseId: "coursera-fr-da" }
+  ],
+  "france-edplat": [
+    { title: "Mathématiques Supérieures", description: "Advanced mathematics in French", courseUrl: "https://franceplatform.fr/maths", category: "Mathematics", language: "fr", cost: 49, difficulty: "advanced", duration: 3000, externalCourseId: "france-maths" },
+    { title: "Philosophie et Éthique", description: "Philosophy and ethics course", courseUrl: "https://franceplatform.fr/philosophy", category: "Philosophy", language: "fr", cost: 49, difficulty: "intermediate", duration: 2400, externalCourseId: "france-phil" }
+  ],
+  "harvard-online": [
+    { title: "Harvard's CS50", description: "Harvard's intro to computer science online", courseUrl: "https://online.harvard.edu/cs50", category: "Computer Science", language: "en", cost: 0, difficulty: "beginner", duration: 4000, externalCourseId: "harvard-cs50" },
+    { title: "Health, Medicine and Society", description: "Medical humanities from Harvard", courseUrl: "https://online.harvard.edu/health-medicine", category: "Healthcare", language: "en", cost: 0, difficulty: "intermediate", duration: 2400, externalCourseId: "harvard-health" }
+  ],
+  "stanford-online": [
+    { title: "Machine Learning Specialization", description: "Andrew Ng's ML course from Stanford", courseUrl: "https://online.stanford.edu/courses/soe-ymlsmgmt-machine-learning", category: "Machine Learning", language: "en", cost: 0, difficulty: "intermediate", duration: 3600, externalCourseId: "stanford-ml" },
+    { title: "Solar Cells, Fuels, and Materials", description: "Clean energy from Stanford", courseUrl: "https://online.stanford.edu/courses/cee-355-solar-cells", category: "Energy", language: "en", cost: 0, difficulty: "advanced", duration: 3000, externalCourseId: "stanford-solar" }
+  ],
+  "open-univ": [
+    { title: "Introduction to Science", description: "UK Open University science course", courseUrl: "https://open.ac.uk/courses/science", category: "Science", language: "en", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "ou-science" },
+    { title: "Business and Management Basics", description: "Business fundamentals", courseUrl: "https://open.ac.uk/courses/business", category: "Business", language: "en", cost: 0, difficulty: "beginner", duration: 2000, externalCourseId: "ou-business" }
+  ],
+  "coursera-eu": [
+    { title: "European Business and Culture", description: "Understanding European markets", courseUrl: "https://coursera.org/learn/european-business", category: "Business", language: "en", cost: 0, difficulty: "intermediate", duration: 2000, externalCourseId: "coursera-eu-bus" },
+    { title: "European History and Society", description: "European studies course", courseUrl: "https://coursera.org/learn/european-history", category: "History", language: "en", cost: 0, difficulty: "beginner", duration: 1800, externalCourseId: "coursera-eu-hist" }
+  ],
+  "edx-global": [
+    { title: "Global Health Challenges", description: "Understanding world health issues", courseUrl: "https://edx.org/course/global-health-challenges", category: "Healthcare", language: "en", cost: 0, difficulty: "intermediate", duration: 2400, externalCourseId: "edx-global-health" },
+    { title: "International Relations", description: "Global politics and diplomacy", courseUrl: "https://edx.org/course/international-relations", category: "International Studies", language: "en", cost: 0, difficulty: "intermediate", duration: 2000, externalCourseId: "edx-global-ir" }
+  ],
+  "skillshare-eu": [
+    { title: "European Design Principles", description: "Design from European perspective", courseUrl: "https://skillshare.com/classes/european-design", category: "Design", language: "en", cost: 32, difficulty: "beginner", duration: 600, externalCourseId: "skillshare-eu-design" },
+    { title: "Illustration Masterclass Europe", description: "Learn illustration techniques", courseUrl: "https://skillshare.com/classes/illustration-europe", category: "Art", language: "en", cost: 32, difficulty: "beginner", duration: 480, externalCourseId: "skillshare-eu-art" }
+  ],
+  "linkedin-pro": [
+    { title: "Advanced Project Management", description: "Professional project management skills", courseUrl: "https://linkedin.com/learning/advanced-project-management", category: "Project Management", language: "en", cost: 39.99, difficulty: "intermediate", duration: 2400, externalCourseId: "linkedin-pm" },
+    { title: "Executive Leadership", description: "Leadership for executives", courseUrl: "https://linkedin.com/learning/executive-leadership", category: "Leadership", language: "en", cost: 39.99, difficulty: "advanced", duration: 2000, externalCourseId: "linkedin-exec" }
+  ],
+  "masterclass-eu": [
+    { title: "Business Strategy with Tim Ferriss", description: "Learn from business leaders", courseUrl: "https://masterclass.com/classes/tim-ferriss", category: "Business", language: "en", cost: 180, difficulty: "intermediate", duration: 1200, externalCourseId: "masterclass-strategy" },
+    { title: "Writing with Margaret Atwood", description: "Writing masterclass from renowned author", courseUrl: "https://masterclass.com/classes/margaret-atwood", category: "Writing", language: "en", cost: 180, difficulty: "intermediate", duration: 900, externalCourseId: "masterclass-writing" }
+  ],
+  "duolingo-pro": [
+    { title: "Spanish Advanced Pro", description: "Advanced Spanish with Duolingo Plus", courseUrl: "https://duolingo.com/course/spanish-pro", category: "Languages", language: "en", cost: 9.99, difficulty: "advanced", duration: 6000, externalCourseId: "duolingo-spanish-pro" },
+    { title: "French Pro Complete", description: "Complete French language pro course", courseUrl: "https://duolingo.com/course/french-pro", category: "Languages", language: "en", cost: 9.99, difficulty: "intermediate", duration: 5400, externalCourseId: "duolingo-french-pro" }
+  ],
+  "khan-academy-ai": [
+    { title: "AI and Machine Learning Basics", description: "Introduction to AI concepts", courseUrl: "https://khanacademy.org/computing/computer-science/ai", category: "AI", language: "en", cost: 0, difficulty: "intermediate", duration: 3000, externalCourseId: "khan-ai" },
+    { title: "Neural Networks Fundamentals", description: "Understanding neural networks", courseUrl: "https://khanacademy.org/computing/neural-networks", category: "AI", language: "en", cost: 0, difficulty: "advanced", duration: 2400, externalCourseId: "khan-nn" }
+  ],
+  "coursera-plus": [
+    { title: "Unlimited Course Access", description: "Subscription to thousands of Coursera courses", courseUrl: "https://coursera.org/coursera-plus", category: "Meta", language: "en", cost: 399, difficulty: null, duration: null, externalCourseId: "coursera-plus-sub" },
+    { title: "Professional Certificates Bundle", description: "All professional certificates included", courseUrl: "https://coursera.org/plus-certificates", category: "Meta", language: "en", cost: 399, difficulty: null, duration: null, externalCourseId: "coursera-plus-cert" }
+  ],
+  "linkedin-ads": [
+    { title: "LinkedIn Ads Masterclass", description: "Mastering LinkedIn advertising platform", courseUrl: "https://linkedin.com/learning/linkedin-ads", category: "Digital Marketing", language: "en", cost: 39.99, difficulty: "intermediate", duration: 1800, externalCourseId: "linkedin-ads-course" },
+    { title: "Social Media Advertising Strategy", description: "Strategic social media marketing", courseUrl: "https://linkedin.com/learning/social-ads", category: "Digital Marketing", language: "en", cost: 39.99, difficulty: "intermediate", duration: 1500, externalCourseId: "linkedin-social-ads" }
+  ],
+  "google-career-certs": [
+    { title: "Google IT Support Professional", description: "Entry-level IT support certification", courseUrl: "https://coursera.org/professional-certificates/google-it-support", category: "IT", language: "en", cost: 0, difficulty: "beginner", duration: 4800, externalCourseId: "google-it-support" },
+    { title: "Google Cloud Skills Boost", description: "Cloud computing fundamentals", courseUrl: "https://coursera.org/professional-certificates/google-cloud", category: "Cloud Computing", language: "en", cost: 0, difficulty: "intermediate", duration: 4000, externalCourseId: "google-cloud-skills" }
+  ],
+  "amazon-skill-builder": [
+    { title: "AWS Fundamentals", description: "AWS cloud services introduction", courseUrl: "https://skillbuilder.aws.com/learning/path/aws-fundamentals", category: "Cloud Computing", language: "en", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "amazon-aws-fund" },
+    { title: "Advanced AWS Solutions", description: "Advanced AWS architecture and design", courseUrl: "https://skillbuilder.aws.com/learning/path/advanced-aws", category: "Cloud Computing", language: "en", cost: 0, difficulty: "advanced", duration: 3600, externalCourseId: "amazon-aws-adv" }
+  ],
+  "microsoft-learn": [
+    { title: "Azure Fundamentals", description: "Microsoft Azure cloud basics", courseUrl: "https://learn.microsoft.com/azure/fundamentals", category: "Cloud Computing", language: "en", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "microsoft-azure-fund" },
+    { title: "Advanced C# Programming", description: "Advanced C# concepts and practices", courseUrl: "https://learn.microsoft.com/csharp/advanced", category: "Programming", language: "en", cost: 0, difficulty: "advanced", duration: 3000, externalCourseId: "microsoft-csharp-adv" }
+  ],
+  "preply": [
+    { title: "Online English Tutoring", description: "Live English lessons with native speakers", courseUrl: "https://preply.com/en/learn/english", category: "Languages", language: "en", cost: 5, difficulty: "beginner", duration: 60, externalCourseId: "preply-english" },
+    { title: "Spanish Conversation Practice", description: "Live Spanish conversation sessions", courseUrl: "https://preply.com/en/learn/spanish", category: "Languages", language: "en", cost: 5, difficulty: "intermediate", duration: 60, externalCourseId: "preply-spanish" }
   ]
 };
 

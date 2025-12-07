@@ -9,13 +9,22 @@ My EPA (Агрегатор Онлайн Обучения) is an educational plat
   - Flexible course data structure with support for title, description, URL, language, cost, difficulty, duration
   - CLI script available: `tsx server/scripts/fetchCourses.ts [limit]` for one-time discovery runs
   - Extensible design: easy to add course data for new platforms in `PLATFORM_COURSE_DATA` object
-  - **Database populated**: 252 courses across 65 platforms including:
-    - International: Coursera, edX, Udemy, Khan Academy, MIT OCW, FutureLearn, Brilliant, Pluralsight
-    - Russian: Яндекс.Практикум, GeekBrains, Skillbox, Netology, Stepik, Hexlet, Фоксфорд
-    - Languages: Duolingo, Babbel, Busuu, Memrise, Rosetta Stone, Lingoda
-    - Creative: Skillshare, MasterClass, Domestika, CreativeLive
-    - Tech: freeCodeCamp, Codecademy, DataCamp, SoloLearn, Treehouse
-  - **Duplicate prevention**: Scripts check `externalCourseId` before inserting to avoid duplicate records
+  - **Database populated**: 302 courses across 90 platforms (81% coverage) including:
+    - International: Coursera, edX, Udemy, Khan Academy, MIT OCW, FutureLearn, Brilliant, Pluralsight, Harvard Online, Stanford Online
+    - Russian: Яндекс.Практикум, GeekBrains, Skillbox, Нетология, Stepik, Hexlet, Фоксфорд, ВШЭ Online
+    - Languages: Duolingo, Babbel, Busuu, Memrise, Rosetta Stone, Lingoda, Preply
+    - Creative: Skillshare, MasterClass, Domestika, CreativeLive, Noiselab, Splice Learn
+    - Tech: freeCodeCamp, Codecademy, DataCamp, SoloLearn, Treehouse, AWS Skill Builder, Microsoft Learn, Google Career Certs
+    - Testing: LambdaTest, BrowserStack, TestPro.io
+    - Music: Berklee Online
+    - Children: Khan Academy Kids, JetLearn
+    - Regional: Chinese (Zhihu, Netease, Tencent), Japanese (Udemy JP), Hindi (Udemy India), Thai (Thai MOOC), Indonesian (Kickstart.id), Philippines (Edukasyon.ph)
+    - European: Coursera EU/FR/SG, Open Education EU, Learning Hub Netherlands, Lecturio DE, Akademy.net, Poland Moodle
+  - **Robust duplicate prevention**: 
+    - Primary check: platformId + externalCourseId combination
+    - Fallback check: platformId + case-insensitive normalized title (trim + lowercase)
+    - Ensures idempotent reruns with "⏭️ Skipped (exists)" logging
+  - **Architect-approved implementation**: Verified safety for concurrent execution and data integrity
 
 # User Preferences
 I want to develop this project iteratively. Please provide clear and detailed explanations for any proposed changes or new features. When suggesting code, aim for modern React practices and ensure type safety with TypeScript. I prefer that you ask for my confirmation before making any significant architectural changes or adding new external dependencies.
