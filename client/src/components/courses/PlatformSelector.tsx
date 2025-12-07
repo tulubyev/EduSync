@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,41 +10,43 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Link as LinkIcon, Search, Globe } from 'lucide-react';
 
-interface Platform {
+interface ApiPlatform {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  categoryId?: string;
+  regionId?: string | null;
+  logoUrl?: string;
+  websiteUrl: string;
+  apiType: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  displayName: string;
+}
+
+interface NormalizedPlatform {
   id: string;
   displayName: string;
   name: string;
   description?: string;
   category: string;
+  categoryId?: string;
   logoUrl?: string;
   websiteUrl: string;
   authType: string;
-  isConnected?: boolean;
-  isGlobal?: boolean;
+  isGlobal: boolean;
 }
-
-const globalPlatforms: Platform[] = [
-  { id: 'coursera', displayName: 'Coursera', name: 'coursera', description: 'Курсы от лучших университетов мира', category: 'IT - General', websiteUrl: 'https://www.coursera.org', authType: 'oauth', isGlobal: true },
-  { id: 'udemy', displayName: 'Udemy', name: 'udemy', description: 'Крупнейшая платформа с курсами', category: 'Professional', websiteUrl: 'https://www.udemy.com', authType: 'api_key', isGlobal: true },
-  { id: 'edx', displayName: 'edX', name: 'edx', description: 'Курсы от MIT, Harvard, Berkeley', category: 'IT - General', websiteUrl: 'https://www.edx.org', authType: 'oauth', isGlobal: true },
-  { id: 'stepik', displayName: 'Stepik', name: 'stepik', description: 'Российская платформа с курсами', category: 'IT - Programming', websiteUrl: 'https://stepik.org', authType: 'oauth', isGlobal: false },
-  { id: 'skillbox', displayName: 'SkillBox', name: 'skillbox', description: 'Профессиональные курсы', category: 'Professional', websiteUrl: 'https://skillbox.ru', authType: 'oauth', isGlobal: false },
-  { id: 'khan-academy', displayName: 'Khan Academy', name: 'khan-academy', description: 'Бесплатные курсы мирового класса', category: 'IT - General', websiteUrl: 'https://www.khanacademy.org', authType: 'oauth', isGlobal: true },
-  { id: 'linkedin-learning', displayName: 'LinkedIn Learning', name: 'linkedin-learning', description: 'Профессиональное развитие', category: 'Professional', websiteUrl: 'https://www.linkedin.com/learning', authType: 'oauth', isGlobal: true },
-  { id: 'pluralsight', displayName: 'Pluralsight', name: 'pluralsight', description: 'Технические навыки для IT', category: 'IT - Programming', websiteUrl: 'https://www.pluralsight.com', authType: 'api_key', isGlobal: true },
-  { id: 'codecademy', displayName: 'Codecademy', name: 'codecademy', description: 'Интерактивное программирование', category: 'IT - Programming', websiteUrl: 'https://www.codecademy.com', authType: 'oauth', isGlobal: true },
-  { id: 'skillshare', displayName: 'Skillshare', name: 'skillshare', description: 'Творческие курсы', category: 'Art & Design', websiteUrl: 'https://www.skillshare.com', authType: 'api_key', isGlobal: true },
-  { id: 'udacity', displayName: 'Udacity', name: 'udacity', description: 'Нанодипломы в AI, Data Science', category: 'IT - Data Science', websiteUrl: 'https://www.udacity.com', authType: 'oauth', isGlobal: true },
-  { id: 'datacamp', displayName: 'DataCamp', name: 'datacamp', description: 'Data Science и Machine Learning', category: 'IT - Data Science', websiteUrl: 'https://www.datacamp.com', authType: 'api_key', isGlobal: true },
-  { id: 'duolingo', displayName: 'Duolingo', name: 'duolingo', description: 'Изучение языков в игровой форме', category: 'Language Learning', websiteUrl: 'https://www.duolingo.com', authType: 'oauth', isGlobal: true },
-];
 
 interface PlatformSelectorProps {
   open: boolean;
   onClose: () => void;
   onSelect: (platformId: string) => void;
   connectedPlatforms?: Set<string>;
-  platforms?: Platform[];
+  platforms?: ApiPlatform[];
 }
 
 export function PlatformSelector({
@@ -52,22 +54,46 @@ export function PlatformSelector({
   onClose,
   onSelect,
   connectedPlatforms = new Set(),
-  platforms,
+  platforms = [],
 }: PlatformSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [requestingConnect, setRequestingConnect] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  const allPlatforms = platforms || globalPlatforms;
-  
-  const categories = Array.from(
-    new Set(allPlatforms.map(p => p.category).filter(c => c && c.trim() !== ''))
+  useEffect(() => {
+    if (open) {
+      fetch('/api/platforms/categories')
+        .then(res => res.json())
+        .then(data => setCategories(data))
+        .catch(err => console.error('Failed to load categories:', err));
+    }
+  }, [open]);
+
+  const normalizedPlatforms: NormalizedPlatform[] = platforms.map(p => {
+    const cat = categories.find(c => c.id === p.categoryId);
+    return {
+      id: p.id,
+      displayName: p.name,
+      name: p.code || p.name,
+      description: p.description,
+      category: cat?.displayName || cat?.name || '',
+      categoryId: p.categoryId,
+      logoUrl: p.logoUrl,
+      websiteUrl: p.websiteUrl,
+      authType: p.apiType,
+      isGlobal: p.regionId === null || p.regionId === undefined,
+    };
+  });
+
+  const categoryNames = Array.from(
+    new Set(normalizedPlatforms.map(p => p.category).filter(c => c && c.trim() !== ''))
   ).sort();
   
-  const connected = allPlatforms.filter(p => connectedPlatforms.has(p.id));
-  const available = allPlatforms.filter(p => !connectedPlatforms.has(p.id));
+  const connected = normalizedPlatforms.filter(p => connectedPlatforms.has(p.id));
+  const available = normalizedPlatforms.filter(p => !connectedPlatforms.has(p.id));
 
-  const filterPlatforms = (platforms: Platform[]) => {
+  const filterPlatforms = (platforms: NormalizedPlatform[]) => {
     return platforms.filter(p => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -93,7 +119,7 @@ export function PlatformSelector({
     });
   };
 
-  const handleConnect = async (platform: Platform) => {
+  const handleConnect = async (platform: NormalizedPlatform) => {
     setRequestingConnect(platform.id);
     try {
       const token = localStorage.getItem('accessToken');
@@ -153,7 +179,7 @@ export function PlatformSelector({
               className="text-xs h-7"
               onClick={() => setSelectedCategory('all')}
             >
-              Все ({allPlatforms.length})
+              Все ({normalizedPlatforms.length})
             </Button>
             <Button
               variant={selectedCategory === 'global' ? 'default' : 'outline'}
@@ -173,7 +199,7 @@ export function PlatformSelector({
               <Globe className="h-3 w-3 mr-1" />
               Русские
             </Button>
-            {categories.map((cat) => (
+            {categoryNames.map((cat) => (
               <Button
                 key={cat}
                 variant={selectedCategory === cat ? 'default' : 'outline'}
@@ -207,7 +233,7 @@ export function PlatformSelector({
                     >
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="font-medium text-green-900">{platform.displayName || platform.name}</div>
+                          <div className="font-medium text-green-900">{platform.displayName}</div>
                           <div className="text-xs text-green-700">{platform.description}</div>
                         </div>
                         <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
@@ -232,7 +258,7 @@ export function PlatformSelector({
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <div className="font-medium">{platform.displayName || platform.name}</div>
+                          <div className="font-medium">{platform.displayName}</div>
                           <div className="text-xs text-muted-foreground">{platform.description}</div>
                           {platform.category && (
                             <Badge variant="outline" className="mt-2 text-xs">
