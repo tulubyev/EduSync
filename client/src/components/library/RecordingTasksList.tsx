@@ -2,7 +2,17 @@ import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface RecordingPart {
   partNumber: number;
@@ -31,6 +41,16 @@ export function RecordingTasksList() {
   const [tasks, setTasks] = useState<RecordingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
+  const [editingTask, setEditingTask] = useState<RecordingTask | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    description: '',
+    streamUrl: '',
+    streamPassword: '',
+    scheduledTime: '',
+    duration: 60,
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const fetchTasks = async () => {
     try {
@@ -130,6 +150,51 @@ export function RecordingTasksList() {
     }
   };
 
+  const handleEditStart = (task: RecordingTask) => {
+    setEditingTask(task);
+    setEditFormData({
+      title: task.title,
+      description: task.description || '',
+      streamUrl: task.streamUrl,
+      streamPassword: '',
+      scheduledTime: task.scheduledTime.substring(0, 16),
+      duration: task.duration,
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!editingTask || !editFormData.title.trim() || !editFormData.streamUrl.trim()) return;
+    
+    try {
+      setIsUpdating(true);
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`/api/library/recording/tasks/${editingTask.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: editFormData.title,
+          description: editFormData.description,
+          streamUrl: editFormData.streamUrl,
+          streamPassword: editFormData.streamPassword,
+          scheduledTime: new Date(editFormData.scheduledTime).toISOString(),
+          duration: editFormData.duration,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchTasks();
+        setEditingTask(null);
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="text-center py-8 text-gray-500">Загрузка списка записей...</div>;
   }
@@ -212,6 +277,16 @@ export function RecordingTasksList() {
                 </a>
               </Button>
             )}
+            {task.status === 'scheduled' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleEditStart(task)}
+              >
+                <Edit2 className="h-4 w-4 mr-1" />
+                Редактировать
+              </Button>
+            )}
             {task.status !== 'recording' && (
               <Button
                 size="sm"
@@ -226,6 +301,88 @@ export function RecordingTasksList() {
           </div>
         </div>
       ))}
+
+      {editingTask && (
+        <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Редактировать запись</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Название</Label>
+                <Input
+                  id="edit-title"
+                  value={editFormData.title}
+                  onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Описание (опционально)</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  className="min-h-[80px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-url">Ссылка на трансляцию</Label>
+                <Input
+                  id="edit-url"
+                  type="url"
+                  value={editFormData.streamUrl}
+                  onChange={(e) => setEditFormData({ ...editFormData, streamUrl: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-password">Пароль (опционально)</Label>
+                <Input
+                  id="edit-password"
+                  type="password"
+                  value={editFormData.streamPassword}
+                  onChange={(e) => setEditFormData({ ...editFormData, streamPassword: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-time">Время начала</Label>
+                <Input
+                  id="edit-time"
+                  type="datetime-local"
+                  value={editFormData.scheduledTime}
+                  onChange={(e) => setEditFormData({ ...editFormData, scheduledTime: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-duration">Длительность (минут)</Label>
+                <Input
+                  id="edit-duration"
+                  type="number"
+                  min="1"
+                  max="1440"
+                  value={editFormData.duration}
+                  onChange={(e) => setEditFormData({ ...editFormData, duration: parseInt(e.target.value) || 60 })}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingTask(null)} disabled={isUpdating}>
+                Отмена
+              </Button>
+              <Button onClick={handleEditSave} disabled={isUpdating}>
+                {isUpdating ? 'Сохранение...' : 'Сохранить'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

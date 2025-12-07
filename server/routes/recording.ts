@@ -144,6 +144,51 @@ router.post('/tasks/:taskId/recover', authenticateToken as any, async (req: Auth
   }
 });
 
+router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+    const { title, description, streamUrl, streamPassword, scheduledTime, duration } = req.body;
+
+    const task = await recordingTaskManager.getTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ message: 'Задача не найдена' });
+    }
+
+    if (task.userId !== userId) {
+      return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    }
+
+    if (task.status !== 'scheduled') {
+      return res.status(400).json({ message: 'Можно редактировать только запланированные задачи' });
+    }
+
+    // Validate input
+    if (!title?.trim() || !streamUrl?.trim() || !scheduledTime || !duration) {
+      return res.status(400).json({ message: 'Все обязательные поля должны быть заполнены' });
+    }
+
+    await db.update(recordingTasks)
+      .set({
+        title,
+        description: description || null,
+        streamUrl,
+        streamPassword: streamPassword || null,
+        scheduledTime: new Date(scheduledTime),
+        duration,
+        updatedAt: new Date(),
+      })
+      .where(eq(recordingTasks.id, taskId));
+
+    logger.info(`Updated recording task: ${taskId}`);
+    res.json({ success: true, message: 'Задача обновлена' });
+  } catch (error) {
+    logger.error('Error updating recording task:', error);
+    res.status(500).json({ message: 'Ошибка обновления задачи' });
+  }
+});
+
 router.post('/tasks/:taskId/execute', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const { taskId } = req.params;
