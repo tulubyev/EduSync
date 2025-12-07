@@ -236,13 +236,23 @@ export function LibraryPage() {
     try {
       setIsRecordingLoading(true);
       const token = localStorage.getItem('accessToken');
+      
+      // Преобразовать datetime-local в ISO 8601 формат
+      const scheduledDateTime = new Date(data.scheduledTime);
+      const isoTime = scheduledDateTime.toISOString();
+      
+      const body = {
+        ...data,
+        scheduledTime: isoTime,
+      };
+      
       const response = await fetch('/api/library/recording/schedule', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(body),
       });
       
       if (!response.ok) {
