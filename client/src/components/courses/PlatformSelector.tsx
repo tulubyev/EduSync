@@ -128,13 +128,13 @@ export function PlatformSelector({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Выберите образовательную платформу</DialogTitle>
         </DialogHeader>
 
-        <div className="px-4 space-y-3">
-          <div className="relative">
+        <div className="flex-shrink-0 px-4 pb-3 border-b">
+          <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Поиск платформы..."
@@ -144,11 +144,11 @@ export function PlatformSelector({
             />
           </div>
           
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-2">
             <Button
               variant={selectedCategory === 'all' ? 'default' : 'outline'}
               size="sm"
-              className="text-xs h-7"
+              className="text-xs h-7 flex-shrink-0"
               onClick={() => setSelectedCategory('all')}
             >
               Все ({allPlatforms.length})
@@ -157,7 +157,7 @@ export function PlatformSelector({
               <Button
                 variant={selectedCategory === 'global' ? 'default' : 'outline'}
                 size="sm"
-                className="text-xs h-7 whitespace-nowrap"
+                className="text-xs h-7 whitespace-nowrap flex-shrink-0"
                 onClick={() => setSelectedCategory('global')}
               >
                 <Globe className="h-3 w-3 mr-1" />
@@ -168,7 +168,7 @@ export function PlatformSelector({
               <Button
                 variant={selectedCategory === 'russian' ? 'default' : 'outline'}
                 size="sm"
-                className="text-xs h-7 whitespace-nowrap"
+                className="text-xs h-7 whitespace-nowrap flex-shrink-0"
                 onClick={() => setSelectedCategory('russian')}
               >
                 <Globe className="h-3 w-3 mr-1" />
@@ -183,7 +183,7 @@ export function PlatformSelector({
                   key={cat}
                   variant={selectedCategory === cat ? 'default' : 'outline'}
                   size="sm"
-                  className="text-xs h-7 whitespace-nowrap"
+                  className="text-xs h-7 whitespace-nowrap flex-shrink-0"
                   onClick={() => setSelectedCategory(cat)}
                 >
                   {cat}
@@ -193,7 +193,7 @@ export function PlatformSelector({
           )}
         </div>
 
-        <ScrollArea className="flex-1 px-4 overflow-y-auto">
+        <ScrollArea className="flex-1 overflow-y-auto px-4">
           <div className="space-y-4 pr-4">
             {/* Connected Platforms */}
             {filteredConnected.length > 0 && (
