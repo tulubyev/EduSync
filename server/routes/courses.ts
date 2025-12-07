@@ -29,6 +29,39 @@ const updateCourseSchema = courseSchema.partial().extend({
   isFavorite: z.boolean().optional(),
 });
 
+// Get all available courses from catalog (public, for all users)
+router.get('/catalog/all', async (req: Request, res: Response) => {
+  try {
+    const { db } = await import("../db");
+    const schema = await import("@shared/schema");
+    const coursesTable = schema.courses;
+    const usersTable = schema.users;
+    
+    const coursesData = await db.select().from(coursesTable).limit(500);
+    
+    const enriched = coursesData.map((course: any) => ({
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      instructor: course.instructor,
+      imageUrl: course.imageUrl,
+      courseUrl: course.courseUrl,
+      category: course.category,
+      difficulty: course.difficulty,
+      duration: course.duration,
+      platformId: course.platformId,
+      externalCourseId: course.externalCourseId,
+      tags: course.tags,
+      isFromCatalog: !course.userId || course.userId === 'system'
+    }));
+    
+    res.json(enriched);
+  } catch (error) {
+    console.error('Error fetching course catalog:', error);
+    res.status(500).json({ message: 'Ошибка получения каталога курсов' });
+  }
+});
+
 router.get('/', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;

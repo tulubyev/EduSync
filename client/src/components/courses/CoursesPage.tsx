@@ -41,6 +41,7 @@ interface Platform {
 
 export function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [catalogCourses, setCatalogCourses] = useState<Course[]>([]);
   const [platforms, setPlatforms] = useState<Record<string, Platform>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,25 +52,32 @@ export function CoursesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('updated');
+  const [viewMode, setViewMode] = useState<'my' | 'catalog'>('my');
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('accessToken');
+      let coursesData: Course[] = [];
       
-      // Fetch courses
+      // Fetch personal courses
       const coursesResponse = await fetch('/api/courses', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
       
-      if (!coursesResponse.ok) {
-        throw new Error('Ошибка загрузки курсов');
+      if (coursesResponse.ok) {
+        coursesData = await coursesResponse.json();
+        setCourses(coursesData);
       }
       
-      const coursesData = await coursesResponse.json();
-      setCourses(coursesData);
+      // Fetch catalog courses (public, available to all)
+      const catalogResponse = await fetch('/api/courses/catalog/all');
+      if (catalogResponse.ok) {
+        const catalogData = await catalogResponse.json();
+        setCatalogCourses(catalogData);
+      }
 
       // Fetch platforms
       const platformsResponse = await fetch('/api/platforms', {
@@ -91,11 +99,13 @@ export function CoursesPage() {
         setPlatforms(platformsMap);
 
         // Add platform names to courses
-        const coursesWithPlatforms = coursesData.map((course: Course) => ({
-          ...course,
-          platformName: course.platformId && platformsMap[course.platformId] ? platformsMap[course.platformId].name : undefined,
-        }));
-        setCourses(coursesWithPlatforms);
+        if (coursesData.length > 0) {
+          const coursesWithPlatforms = coursesData.map((course: Course) => ({
+            ...course,
+            platformName: course.platformId && platformsMap[course.platformId] ? platformsMap[course.platformId].name : undefined,
+          }));
+          setCourses(coursesWithPlatforms);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки');
@@ -251,7 +261,7 @@ export function CoursesPage() {
       }
     });
 
-  const categories = [...new Set(courses.map(c => c.category).filter(Boolean))];
+  const categories = Array.from(new Set(courses.map(c => c.category).filter(Boolean) as string[]));
 
   const stats = {
     total: courses.length,
@@ -277,81 +287,101 @@ export function CoursesPage() {
     );
   }
 
+  const displayCourses = viewMode === 'catalog' ? catalogCourses : filteredCourses;
+  
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <BookOpen className="h-6 w-6" />
-            Мои курсы
+            {viewMode === 'catalog' ? 'Каталог курсов' : 'Мои курсы'}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {stats.total} курсов • {stats.inProgress} в процессе • {stats.completed} завершено
+            {viewMode === 'catalog' 
+              ? `${catalogCourses.length} доступных курсов`
+              : `${stats.total} курсов • ${stats.inProgress} в процессе • ${stats.completed} завершено`
+            }
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Добавить курс
-        </Button>
+        {viewMode === 'my' && (
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Добавить курс
+          </Button>
+        )}
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Поиск курсов..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        
-        <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-auto">
-          <TabsList>
-            <TabsTrigger value="all">Все ({stats.total})</TabsTrigger>
-            <TabsTrigger value="in_progress">В процессе ({stats.inProgress})</TabsTrigger>
-            <TabsTrigger value="completed">Завершённые ({stats.completed})</TabsTrigger>
-            <TabsTrigger value="favorites">Избранное ({stats.favorites})</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'my' | 'catalog')} className="w-full mb-6">
+        <TabsList>
+          <TabsTrigger value="my">Мои курсы ({stats.total})</TabsTrigger>
+          <TabsTrigger value="catalog">Каталог ({catalogCourses.length})</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      <div className="flex gap-4 mb-6">
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-[180px]">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Категория" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все категории</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {viewMode === 'my' && (
+        <>
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Поиск курсов..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-auto">
+              <TabsList>
+                <TabsTrigger value="all">Все ({stats.total})</TabsTrigger>
+                <TabsTrigger value="in_progress">В процессе ({stats.inProgress})</TabsTrigger>
+                <TabsTrigger value="completed">Завершённые ({stats.completed})</TabsTrigger>
+                <TabsTrigger value="favorites">Избранное ({stats.favorites})</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Сортировка" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="updated">По дате обновления</SelectItem>
-            <SelectItem value="title">По названию</SelectItem>
-            <SelectItem value="progress">По прогрессу</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+          <div className="flex gap-4 mb-6">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[180px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Категория" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все категории</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-      {filteredCourses.length === 0 ? (
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Сортировка" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="updated">По дате обновления</SelectItem>
+                  <SelectItem value="title">По названию</SelectItem>
+                  <SelectItem value="progress">По прогрессу</SelectItem>
+                </SelectContent>
+              </Select>
+          </div>
+        </>
+      )}
+
+      {displayCourses.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-center">
           <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium">Курсы не найдены</h3>
           <p className="text-muted-foreground mb-4">
-            {searchQuery || statusFilter !== 'all' || categoryFilter !== 'all'
-              ? 'Попробуйте изменить фильтры поиска'
-              : 'Добавьте свой первый курс'}
+            {viewMode === 'catalog' 
+              ? 'Каталог курсов пока пуст'
+              : (searchQuery || statusFilter !== 'all' || categoryFilter !== 'all'
+                ? 'Попробуйте изменить фильтры поиска'
+                : 'Добавьте свой первый курс')}
           </p>
-          {!searchQuery && statusFilter === 'all' && categoryFilter === 'all' && (
+          {viewMode === 'my' && !searchQuery && statusFilter === 'all' && categoryFilter === 'all' && (
             <Button onClick={() => setIsModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Добавить курс
@@ -360,7 +390,7 @@ export function CoursesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCourses.map((course) => (
+          {displayCourses.map((course) => (
             <CourseCard
               key={course.id}
               course={course}
