@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["jq", "zip", "unzip", "imagemagick", "ffmpeg", "chromium", "mesa", "nss", "nspr", "dbus", "atk", "cups", "libdrm", "expat", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "pango", "cairo", "glib", "gtk3", "alsa-lib", "libuuid"]
+packages = ["jq", "zip", "unzip", "imagemagick", "ffmpeg", "chromium", "mesa", "nss", "nspr", "dbus", "atk", "cups", "libdrm", "expat", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "pango", "cairo", "glib", "gtk3", "alsa-lib", "libuuid", "pulseaudio"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -50,6 +50,10 @@ externalPort = 3000
 [[ports]]
 localPort = 42555
 externalPort = 3001
+
+[[ports]]
+localPort = 44829
+externalPort = 3003
 
 [userenv]
 

@@ -27,15 +27,20 @@ My EPA (Агрегатор Онлайн Обучения) is an educational plat
     - `GET /api/library/recording/yandex-disk/status` - Check Yandex.Disk quota
   - **System Dependencies**: ffmpeg, chromium, playwright, mesa, nss, libgbm, libxshmfence
   - **Environment Variables**: `YANDEX_DISK_TOKEN`, `YANDEX_DISK_FOLDER_ID`
-  - **Current Limitations** (v1.0):
+  - **v2.0 Streaming Implementation** (CURRENT):
+    - Real-time streaming: CDP frames piped directly to FFmpeg stdin (no memory buffering)
+    - Audio capture via PulseAudio virtual sink (recording_sink.monitor)
+    - Supports recordings of any duration with automatic 20-min chunk rotation
+    - Audio + Video muxing with libvpx-vp9 + libopus codecs
+  - **Technical Details**:
+    - `audioSetup.ts`: PulseAudio daemon bootstrap + virtual sink creation
+    - `streamingRecorder.ts`: Real-time frame streaming with backpressure handling
+    - Chromium flags for audio routing: --alsa-output-device=pulse, --autoplay-policy=no-user-gesture-required
+    - FFmpeg args: -f mjpeg -i pipe:0 -f pulse -i recording_sink.monitor
+    - Graceful chunk rotation via rotateChunk() method
+  - **Remaining Limitations**:
     - Headless-only capture (no Xvfb on Replit)
-    - Video-only recording (CDP screencast doesn't capture audio)
-    - Memory buffering - works for recordings up to ~10 minutes, longer may OOM
-    - Recommended: short lectures (5-10 min) or external recording for longer streams
-  - **Future Improvements** (v2.0):
-    - Stream frames directly to FFmpeg to avoid memory issues
-    - Audio capture via Chrome audio sink or WebRTC
-    - Real-time chunk rotation during recording
+    - Audio capture requires PulseAudio availability (may not work in all environments)
 
 - **UI Components**:
   - `RecordingModal.tsx`: Form for scheduling with validation, save target selection (Yandex.Disk default)

@@ -2,7 +2,7 @@ import { db } from '../../db';
 import { recordingTasks } from '@shared/schema';
 import { eq, and, lte, gte, or } from 'drizzle-orm';
 import { logger } from '../logger';
-import { recorderService } from './recorderService';
+import { streamingRecorderService } from './streamingRecorder';
 import { yandexDiskService } from '../yandexDiskService';
 import { playlistGenerator } from './playlistGenerator';
 import { RecordingTaskData, RecordingPart } from './types';
@@ -197,7 +197,10 @@ class RecordingTaskManager {
       await this.updateTaskStatus(taskId, 'recording', { startedAt: new Date() });
       logger.info(`🎬 Starting task execution: ${taskId}`);
 
-      await recorderService.navigateToStream(task.streamUrl, task.streamPassword);
+      const { audioAvailable } = await streamingRecorderService.initialize();
+      logger.info(`Recording initialized - audio capture: ${audioAvailable ? 'available' : 'not available'}`);
+      
+      await streamingRecorderService.navigateToStream(task.streamUrl, task.streamPassword);
 
       const parts: RecordingPart[] = [...task.parts];
 
@@ -212,22 +215,34 @@ class RecordingTaskManager {
         parts[i].status = 'recording';
         await this.updateTaskStatus(taskId, 'recording', { currentPart: i, parts });
 
-        logger.info(`📹 Recording part ${i + 1}/${task.totalParts}`);
+        logger.info(`📹 Recording part ${i + 1}/${task.totalParts} (streaming mode)`);
 
-        const { filePath, actualDuration } = await recorderService.startRecording(
+        const { outputPath } = await streamingRecorderService.startStreamingRecording(
           taskId,
           i + 1,
           partDurationMs
         );
 
-        parts[i].fileName = filePath.split('/').pop()!;
+        const result = await streamingRecorderService.waitForRecordingComplete(partDurationMs);
+
+        if (!result.success) {
+          parts[i].status = 'failed';
+          parts[i].error = result.error || 'Recording failed';
+          await this.updateTaskStatus(taskId, 'failed', { 
+            parts,
+            errorMessage: `Part ${i + 1} failed: ${result.error}` 
+          });
+          throw new Error(`Recording part ${i + 1} failed: ${result.error}`);
+        }
+
+        parts[i].fileName = result.filePath.split('/').pop()!;
         parts[i].endTime = new Date().toISOString();
-        parts[i].duration = actualDuration;
+        parts[i].duration = result.actualDuration;
         parts[i].status = 'uploading';
         await this.updateTaskStatus(taskId, 'uploading', { parts });
 
-        if (task.saveTarget === 'yandex_disk') {
-          const fileBuffer = fs.readFileSync(filePath);
+        if (task.saveTarget === 'yandex_disk' && result.filePath && fs.existsSync(result.filePath)) {
+          const fileBuffer = fs.readFileSync(result.filePath);
           const uploadResult = await yandexDiskService.uploadFile(
             parts[i].fileName,
             fileBuffer,
@@ -243,13 +258,16 @@ class RecordingTaskManager {
             }
             
             parts[i].status = 'completed';
-            fs.unlinkSync(filePath);
+            fs.unlinkSync(result.filePath);
           } else {
             parts[i].status = 'failed';
             parts[i].error = uploadResult.error;
           }
-        } else {
+        } else if (result.filePath && fs.existsSync(result.filePath)) {
           parts[i].status = 'completed';
+        } else {
+          parts[i].status = 'failed';
+          parts[i].error = 'Output file not created';
         }
 
         await this.updateTaskStatus(taskId, 'recording', { currentPart: i + 1, parts });
@@ -291,7 +309,7 @@ class RecordingTaskManager {
         errorMessage: error.message || 'Unknown error',
       });
     } finally {
-      await recorderService.stopBrowser();
+      await streamingRecorderService.stopBrowser();
       this.isProcessing = false;
       this.activeTask = null;
     }
