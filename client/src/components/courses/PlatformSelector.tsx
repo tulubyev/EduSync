@@ -144,43 +144,39 @@ export function PlatformSelector({
             />
           </div>
           
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex flex-nowrap gap-2 overflow-x-auto pb-2 scrollbar-thin">
             <Button
               variant={selectedCategory === 'all' ? 'default' : 'outline'}
               size="sm"
-              className="text-xs h-7 flex-shrink-0"
+              className="text-xs h-7 shrink-0"
               onClick={() => setSelectedCategory('all')}
             >
               Все ({allPlatforms.length})
             </Button>
-            {hasGlobal && (
-              <Button
-                variant={selectedCategory === 'global' ? 'default' : 'outline'}
-                size="sm"
-                className="text-xs h-7 whitespace-nowrap flex-shrink-0"
-                onClick={() => setSelectedCategory('global')}
-              >
-                <Globe className="h-3 w-3 mr-1" />
-                Глобальные
-              </Button>
-            )}
-            {hasRussian && (
-              <Button
-                variant={selectedCategory === 'russian' ? 'default' : 'outline'}
-                size="sm"
-                className="text-xs h-7 whitespace-nowrap flex-shrink-0"
-                onClick={() => setSelectedCategory('russian')}
-              >
-                <Globe className="h-3 w-3 mr-1" />
-                Русские
-              </Button>
-            )}
+            <Button
+              variant={selectedCategory === 'global' ? 'default' : 'outline'}
+              size="sm"
+              className="text-xs h-7 whitespace-nowrap shrink-0"
+              onClick={() => setSelectedCategory('global')}
+            >
+              <Globe className="h-3 w-3 mr-1" />
+              Глобальные
+            </Button>
+            <Button
+              variant={selectedCategory === 'russian' ? 'default' : 'outline'}
+              size="sm"
+              className="text-xs h-7 whitespace-nowrap shrink-0"
+              onClick={() => setSelectedCategory('russian')}
+            >
+              <Globe className="h-3 w-3 mr-1" />
+              Русские
+            </Button>
             {categories.map((cat) => (
               <Button
                 key={cat}
                 variant={selectedCategory === cat ? 'default' : 'outline'}
                 size="sm"
-                className="text-xs h-7 whitespace-nowrap flex-shrink-0"
+                className="text-xs h-7 whitespace-nowrap shrink-0"
                 onClick={() => setSelectedCategory(cat)}
               >
                 {cat}
