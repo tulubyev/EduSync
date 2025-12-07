@@ -36,10 +36,12 @@ import {
   Image as ImageIcon,
   ExternalLink,
   List,
-  Grid3x3
+  Grid3x3,
+  Radio
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { RecordingModal, type RecordingData } from './RecordingModal';
 
 interface Note {
   id: string;
@@ -77,14 +79,16 @@ export function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRecordingModalOpen, setIsRecordingModalOpen] = useState(false);
+  const [isRecordingLoading, setIsRecordingLoading] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNodeType, setSelectedNodeType] = useState<string>('');
-  const [leftWidth, setLeftWidth] = useState(224); // w-56 = 224px
-  const [rightWidth, setRightWidth] = useState(384); // w-96 = 384px
+  const [leftWidth, setLeftWidth] = useState(224);
+  const [rightWidth, setRightWidth] = useState(384);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   const fetchNotes = async () => {
@@ -174,14 +178,11 @@ export function LibraryPage() {
     if (!response.ok) throw new Error('Ошибка создания материала');
     
     await fetchNotes();
-    setIsModalOpen(false);
   };
 
-  const handleEditNote = async (data: any) => {
-    if (!editingNote) return;
-    
+  const handleEditNote = async (id: string, data: any) => {
     const token = localStorage.getItem('accessToken');
-    const response = await fetch(`/api/library/${editingNote.id}`, {
+    const response = await fetch(`/api/library/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -192,12 +193,10 @@ export function LibraryPage() {
     
     if (!response.ok) throw new Error('Ошибка обновления материала');
     
-    setEditingNote(null);
     await fetchNotes();
   };
 
   const handleDeleteNote = async (id: string) => {
-    if (!confirm('Удалить этот материал?')) return;
     
     const token = localStorage.getItem('accessToken');
     const response = await fetch(`/api/library/${id}`, {
@@ -233,9 +232,38 @@ export function LibraryPage() {
     navigator.clipboard.writeText(content);
   };
 
+  const handleRecordingSubmit = async (data: RecordingData) => {
+    try {
+      setIsRecordingLoading(true);
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/library/recording/schedule', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Ошибка планирования записи');
+      }
+      
+      setError(null);
+      await fetchNotes();
+      alert('Запись запланирована успешно!');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Ошибка при планировании записи';
+      console.error('Recording scheduling error:', err);
+      alert(message);
+    } finally {
+      setIsRecordingLoading(false);
+    }
+  };
+
   const filteredNotes = notes
     .filter(note => {
-      // Фильтр по выбранному узлу дерева
       if (selectedNodeId) {
         if (selectedNodeId === 'pinned') return note.isPinned;
         if (selectedNodeId.startsWith('material-')) return note.id === selectedNodeId.replace('material-', '');
@@ -362,7 +390,6 @@ export function LibraryPage() {
           <Button 
             variant={viewMode === 'list' ? 'default' : 'outline'} 
             size="icon"
-            onClick={() => setViewMode('list')}
             title="Список"
           >
             <List className="h-4 w-4" />
@@ -370,7 +397,6 @@ export function LibraryPage() {
           <Button 
             variant={viewMode === 'grid' ? 'default' : 'outline'} 
             size="icon"
-            onClick={() => setViewMode('grid')}
             title="Сетка"
           >
             <Grid3x3 className="h-4 w-4" />
@@ -378,6 +404,10 @@ export function LibraryPage() {
           <Button onClick={() => setIsModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Новый материал
+          </Button>
+          <Button onClick={() => setIsRecordingModalOpen(true)} variant="outline">
+            <Radio className="h-4 w-4 mr-2" />
+            Записать трансляцию
           </Button>
         </div>
       </div>
@@ -554,29 +584,47 @@ export function LibraryPage() {
           )}
         </div>
 
+        <ResizeHandle 
+          onResize={(delta) => {
+            setRightWidth(prev => Math.max(200, Math.min(600, prev - delta)));
+          }}
+        />
+
         {selectedNote && (
-          <>
-            <ResizeHandle 
-              onResize={(delta) => {
-                setRightWidth(prev => Math.max(250, Math.min(600, prev - delta)));
-              }}
-            />
-            <div className="hidden lg:block" style={{ width: rightWidth }}>
-              <Card className="sticky top-4">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>{selectedNote.title}</CardTitle>
-                  <div className="flex gap-1">
+          <div className="hidden lg:flex flex-col" style={{ width: rightWidth }}>
+            <Card className="flex-1 rounded-lg border-l">
+              <CardHeader className="border-b">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="line-clamp-2">{selectedNote.title}</CardTitle>
+                    {selectedNote.platform && (
+                      <Badge variant="secondary" className="mt-2">
+                        {selectedNote.platform.name}
+                      </Badge>
+                    )}
+                    {selectedNote.course && (
+                      <Badge variant="outline" className="mt-2 ml-2">
+                        {selectedNote.course.title}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleCopyContent(selectedNote.content)}
+                      className="h-8 w-8"
+                      onClick={() => handleTogglePin(selectedNote)}
                     >
-                      <Copy className="h-4 w-4" />
+                      {selectedNote.isPinned ? (
+                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                      ) : (
+                        <StarOff className="h-4 w-4" />
+                      )}
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8"
                       onClick={() => setEditingNote(selectedNote)}
                     >
                       <Edit className="h-4 w-4" />
@@ -584,6 +632,7 @@ export function LibraryPage() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8"
                       onClick={() => handleDeleteNote(selectedNote.id)}
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />
@@ -591,72 +640,64 @@ export function LibraryPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="prose prose-sm max-w-none">
-                  <p className="whitespace-pre-wrap">{selectedNote.content}</p>
-                </div>
-                
-                {selectedNote.resourceUrl && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-sm text-muted-foreground mb-2">Ресурс:</p>
-                    <div className="p-2 bg-gray-50 rounded">
-                      {renderResource(selectedNote.resourceUrl)}
-                    </div>
-                  </div>
-                )}
-                
-                {selectedNote.platform && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-sm text-muted-foreground">
-                      Платформа: {selectedNote.platform.name}
-                    </p>
-                  </div>
-                )}
-                
-                {selectedNote.course && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-sm text-muted-foreground">
-                      Курс: {selectedNote.course.title}
-                    </p>
-                  </div>
-                )}
-                
+              <CardContent className="flex flex-col gap-4 pt-4 overflow-y-auto">
                 {selectedNote.tags && selectedNote.tags.length > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <div className="flex flex-wrap gap-1">
-                      {selectedNote.tags.map((tag, index) => (
-                        <Badge key={index} variant="secondary">
-                          #{tag}
-                        </Badge>
-                      ))}
-                    </div>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedNote.tags.map((tag) => (
+                      <Badge key={tag} variant="outline" className="text-xs">
+                        #{tag}
+                      </Badge>
+                    ))}
                   </div>
                 )}
                 
-                <div className="mt-4 pt-4 border-t text-xs text-muted-foreground">
-                  <p>Создано: {format(new Date(selectedNote.createdAt), 'd MMMM yyyy, HH:mm', { locale: ru })}</p>
-                  <p>Обновлено: {format(new Date(selectedNote.updatedAt), 'd MMMM yyyy, HH:mm', { locale: ru })}</p>
+                {selectedNote.resourceUrl && renderResource(selectedNote.resourceUrl)}
+                
+                <div>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+                    {selectedNote.content}
+                  </p>
                 </div>
+                
+                <div className="pt-4 border-t text-xs text-muted-foreground">
+                  <p>Создано: {format(new Date(selectedNote.createdAt), 'dd MMMM yyyy, HH:mm', { locale: ru })}</p>
+                  <p>Обновлено: {format(new Date(selectedNote.updatedAt), 'dd MMMM yyyy, HH:mm', { locale: ru })}</p>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleCopyContent(selectedNote.content)}
+                  className="w-full"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Копировать текст
+                </Button>
               </CardContent>
             </Card>
-            </div>
-          </>
+          </div>
         )}
       </div>
 
       <MaterialModal
-        open={isModalOpen || !!editingNote}
+        open={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
           setEditingNote(null);
         }}
-        onSubmit={editingNote ? handleEditNote : handleAddNote}
-        initialData={editingNote || undefined}
+        onSubmit={editingNote ? (data) => handleEditNote(editingNote.id, data) : handleAddNote}
+        isEditing={!!editingNote}
+        initialData={editingNote}
         courses={courses}
         platforms={platforms}
-        isEditing={!!editingNote}
       />
 
+      <RecordingModal 
+        open={isRecordingModalOpen} 
+        onClose={() => setIsRecordingModalOpen(false)}
+        onSubmit={handleRecordingSubmit}
+        isLoading={isRecordingLoading}
+      />
     </div>
   );
 }
@@ -664,14 +705,14 @@ export function LibraryPage() {
 interface MaterialModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
-  initialData?: Note;
+  onSubmit: (data: any) => void | Promise<void>;
+  isEditing?: boolean;
+  initialData?: Note | null;
   courses: Course[];
   platforms: Platform[];
-  isEditing?: boolean;
 }
 
-function MaterialModal({ open, onClose, onSubmit, initialData, courses, platforms, isEditing }: MaterialModalProps) {
+function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData, courses, platforms }: MaterialModalProps) {
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     content: initialData?.content || '',
@@ -682,52 +723,44 @@ function MaterialModal({ open, onClose, onSubmit, initialData, courses, platform
     isPinned: initialData?.isPinned || false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState<string>('');
   const [isConverting, setIsConverting] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState('');
 
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        title: initialData.title,
-        content: initialData.content,
-        resourceUrl: initialData.resourceUrl || '',
-        platformId: initialData.platformId || '',
-        courseId: initialData.courseId || '',
-        tags: initialData.tags?.join(', ') || '',
-        isPinned: initialData.isPinned,
-      });
-      setUploadedFileName('');
-    }
-  }, [initialData]);
-
-  const compressImage = async (file: File): Promise<Blob> => {
-    return new Promise((resolve) => {
+  const compressImage = (file: File) => {
+    return new Promise<Blob>((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
         const img = new Image();
+        img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const maxSize = 1200;
+          const maxWidth = 1920;
+          const maxHeight = 1080;
           let width = img.width;
           let height = img.height;
-          
-          if (width > height && width > maxSize) {
-            height = Math.round((height * maxSize) / width);
-            width = maxSize;
-          } else if (height > maxSize) {
-            width = Math.round((width * maxSize) / height);
-            height = maxSize;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round(height * (maxWidth / width));
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round(width * (maxHeight / height));
+              height = maxHeight;
+            }
           }
-          
+
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', 0.8);
+          ctx!.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(resolve, 'image/jpeg', 0.85);
         };
-        img.src = e.target?.result as string;
+        img.onerror = reject;
       };
-      reader.readAsDataURL(file);
+      reader.onerror = reject;
     });
   };
 
