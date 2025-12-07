@@ -133,7 +133,7 @@ export function PlatformSelector({
           <DialogTitle>Выберите образовательную платформу</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-shrink-0 px-4 pb-3 border-b space-y-2">
+        <div className="flex-shrink-0 px-4 pb-3 border-b space-y-2 relative z-10 bg-white">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -189,7 +189,7 @@ export function PlatformSelector({
           </div>
         </div>
 
-        <ScrollArea className="flex-1 overflow-y-auto px-4">
+        <ScrollArea className="flex-1 overflow-y-auto px-4 relative z-0">
           <div className="space-y-4 pr-4">
             {/* Connected Platforms */}
             {filteredConnected.length > 0 && (
