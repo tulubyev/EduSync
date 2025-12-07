@@ -5,6 +5,9 @@ import { z } from "zod";
 import { yandexDiskService } from "../services/yandexDiskService";
 import { recordingTaskManager, recordingScheduler } from "../services/recording";
 import { logger } from "../services/logger";
+import { db } from "../db";
+import { recordingTasks } from "@shared/schema";
+import { eq, and, or } from "drizzle-orm";
 
 const router = Router();
 
@@ -195,6 +198,28 @@ router.get('/yandex-disk/files', authenticateToken as any, async (req: AuthReque
   } catch (error) {
     logger.error('Error listing Yandex.Disk files:', error);
     res.status(500).json({ message: 'Ошибка получения списка файлов' });
+  }
+});
+
+router.post('/tasks/clear-queue', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    await db.delete(recordingTasks)
+      .where(
+        and(
+          eq(recordingTasks.userId, userId),
+          or(
+            eq(recordingTasks.status, 'scheduled'),
+            eq(recordingTasks.status, 'failed')
+          )
+        )
+      );
+    
+    logger.info(`Cleared recording queue for user ${userId}`);
+    res.json({ success: true, message: 'Очередь записей очищена' });
+  } catch (error) {
+    logger.error('Error clearing recording queue:', error);
+    res.status(500).json({ message: 'Ошибка очистки очереди' });
   }
 });
 

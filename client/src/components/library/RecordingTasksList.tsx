@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, Clock, Play, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader } from 'lucide-react';
 
 interface RecordingPart {
   partNumber: number;
@@ -30,6 +30,7 @@ interface RecordingTask {
 export function RecordingTasksList() {
   const [tasks, setTasks] = useState<RecordingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClearing, setIsClearing] = useState(false);
 
   const fetchTasks = async () => {
     try {
@@ -109,6 +110,26 @@ export function RecordingTasksList() {
     }
   };
 
+  const handleClearQueue = async () => {
+    if (!confirm('Удалить все запланированные и неудачные записи?')) return;
+    try {
+      setIsClearing(true);
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/library/recording/tasks/clear-queue', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      
+      if (response.ok) {
+        await fetchTasks();
+      }
+    } catch (error) {
+      console.error('Error clearing queue:', error);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="text-center py-8 text-gray-500">Загрузка списка записей...</div>;
   }
@@ -117,8 +138,32 @@ export function RecordingTasksList() {
     return <div className="text-center py-8 text-gray-500">Нет запланированных или завершённых записей</div>;
   }
 
+  const hasScheduledOrFailed = tasks.some(t => t.status === 'scheduled' || t.status === 'failed');
+
   return (
     <div className="space-y-4">
+      {hasScheduledOrFailed && (
+        <div className="flex justify-end mb-3">
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={handleClearQueue}
+            disabled={isClearing}
+          >
+            {isClearing ? (
+              <>
+                <Loader className="h-4 w-4 mr-1 animate-spin" />
+                Очистка...
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4 mr-1" />
+                Очистить очередь
+              </>
+            )}
+          </Button>
+        </div>
+      )}
       {tasks.map((task) => (
         <div
           key={task.id}
