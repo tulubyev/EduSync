@@ -2,8 +2,8 @@ import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { authenticateToken } from "../middleware/auth";
 import { z } from "zod";
-import { v4 as uuidv4 } from 'uuid';
 import { yandexDiskService } from "../services/yandexDiskService";
+import { recordingTaskManager, recordingScheduler } from "../services/recording";
 import { logger } from "../services/logger";
 
 const router = Router();
@@ -18,49 +18,34 @@ const recordingSchema = z.object({
   streamUrl: z.string().url("Некорректная ссылка"),
   streamPassword: z.string().optional(),
   scheduledTime: z.string().datetime("Некорректное время"),
-  duration: z.number().int().min(1).max(1440).optional().default(60),
-  platform: z.enum(['yandex_disk', 'library']).default('library'),
+  duration: z.number().int().min(1).max(1440).default(60),
+  saveTarget: z.enum(['yandex_disk', 'library']).default('yandex_disk'),
 });
 
-type RecordingData = z.infer<typeof recordingSchema>;
-
-// Schedule recording
 router.post('/schedule', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    
-    // Validate request body
     const validData = recordingSchema.parse(req.body);
-    
-    // Create recording task ID
-    const taskId = uuidv4();
 
-    // Save to storage as a library note with recording metadata
-    const note = await storage.createNote({
-      title: `📹 ${validData.title}`,
-      content: `Запись трансляции\n\nСтруй: ${validData.streamUrl}\nВремя: ${validData.scheduledTime}\nДлительность: ${validData.duration} мин\nПлатформа: ${validData.platform === 'yandex_disk' ? 'Яндекс.Диск' : 'Библиотека'}\n\nОписание: ${validData.description || ''}`,
-      userId,
-      resourceUrl: undefined,
-      tags: ['recording', validData.platform],
-    });
-
-    // TODO: In production, this would trigger a background job to handle the actual recording
-    // For now, we'll just schedule it for later processing
-    console.log('[Recording Scheduler] Task scheduled:', {
-      taskId,
+    const taskId = await recordingTaskManager.createTask({
       userId,
       title: validData.title,
-      scheduledTime: validData.scheduledTime,
-      platform: validData.platform,
+      description: validData.description,
+      streamUrl: validData.streamUrl,
+      streamPassword: validData.streamPassword,
+      scheduledTime: new Date(validData.scheduledTime),
+      duration: validData.duration,
+      saveTarget: validData.saveTarget,
     });
+
+    logger.info(`Recording task created: ${taskId} for user ${userId}`);
 
     res.status(201).json({
       success: true,
       message: 'Запись запланирована успешно',
       taskId,
-      noteId: note.id,
       scheduledTime: validData.scheduledTime,
-      platform: validData.platform,
+      saveTarget: validData.saveTarget,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -68,32 +53,131 @@ router.post('/schedule', authenticateToken as any, async (req: AuthRequest, res:
       return res.status(400).json({ message });
     }
 
-    console.error('Error scheduling recording:', error);
+    logger.error('Error scheduling recording:', error);
     res.status(500).json({ message: 'Ошибка при планировании записи' });
   }
 });
 
-// Get recording status
-router.get('/status/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+router.get('/tasks', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const tasks = await recordingTaskManager.getUserTasks(userId);
+    res.json(tasks);
+  } catch (error) {
+    logger.error('Error fetching recording tasks:', error);
+    res.status(500).json({ message: 'Ошибка получения задач записи' });
+  }
+});
+
+router.get('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const { taskId } = req.params;
     const userId = req.user!.id;
 
-    // In production, fetch from database/cache
-    // For now, return placeholder status
-    res.json({
-      taskId,
-      status: 'scheduled',
-      scheduledTime: new Date(),
-      createdAt: new Date(),
-    });
+    const task = await recordingTaskManager.getTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ message: 'Задача не найдена' });
+    }
+
+    if (task.userId !== userId) {
+      return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    }
+
+    res.json(task);
   } catch (error) {
-    console.error('Error fetching recording status:', error);
-    res.status(500).json({ message: 'Ошибка получения статуса записи' });
+    logger.error('Error fetching recording task:', error);
+    res.status(500).json({ message: 'Ошибка получения задачи' });
   }
 });
 
-// Get Yandex.Disk connection status
+router.post('/tasks/:taskId/cancel', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+
+    const task = await recordingTaskManager.getTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ message: 'Задача не найдена' });
+    }
+
+    if (task.userId !== userId) {
+      return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    }
+
+    if (task.status !== 'scheduled') {
+      return res.status(400).json({ message: 'Можно отменить только запланированные задачи' });
+    }
+
+    await recordingTaskManager.cancelTask(taskId);
+    res.json({ success: true, message: 'Задача отменена' });
+  } catch (error) {
+    logger.error('Error cancelling recording task:', error);
+    res.status(500).json({ message: 'Ошибка отмены задачи' });
+  }
+});
+
+router.post('/tasks/:taskId/recover', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+
+    const task = await recordingTaskManager.getTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ message: 'Задача не найдена' });
+    }
+
+    if (task.userId !== userId) {
+      return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    }
+
+    await recordingTaskManager.recoverTask(taskId);
+    res.json({ success: true, message: 'Задача восстановлена и перезапланирована' });
+  } catch (error: any) {
+    logger.error('Error recovering recording task:', error);
+    res.status(500).json({ message: error.message || 'Ошибка восстановления задачи' });
+  }
+});
+
+router.post('/tasks/:taskId/execute', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+    const user = await storage.getUser(userId);
+
+    if (!user || (user.role !== 'admin' && user.adminRole !== 'super_admin')) {
+      return res.status(403).json({ message: 'Требуются права администратора' });
+    }
+
+    const task = await recordingTaskManager.getTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ message: 'Задача не найдена' });
+    }
+
+    recordingTaskManager.executeTask(taskId);
+    res.json({ success: true, message: 'Запись запущена' });
+  } catch (error) {
+    logger.error('Error executing recording task:', error);
+    res.status(500).json({ message: 'Ошибка запуска записи' });
+  }
+});
+
+router.get('/scheduler/status', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    res.json({
+      isActive: recordingScheduler.isActive(),
+      activeTask: recordingTaskManager.getActiveTask(),
+      isProcessing: recordingTaskManager.isTaskProcessing(),
+    });
+  } catch (error) {
+    logger.error('Error getting scheduler status:', error);
+    res.status(500).json({ message: 'Ошибка получения статуса планировщика' });
+  }
+});
+
 router.get('/yandex-disk/status', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const status = await yandexDiskService.getStatus();
@@ -104,7 +188,6 @@ router.get('/yandex-disk/status', authenticateToken as any, async (req: AuthRequ
   }
 });
 
-// List recordings from Yandex.Disk
 router.get('/yandex-disk/files', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const files = await yandexDiskService.listFiles();
@@ -113,6 +196,14 @@ router.get('/yandex-disk/files', authenticateToken as any, async (req: AuthReque
     logger.error('Error listing Yandex.Disk files:', error);
     res.status(500).json({ message: 'Ошибка получения списка файлов' });
   }
+});
+
+router.get('/health', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    schedulerActive: recordingScheduler.isActive(),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 export default router;

@@ -33,7 +33,7 @@ export interface RecordingData {
   streamPassword?: string;
   scheduledTime: string;
   duration?: number;
-  platform: 'yandex_disk' | 'library';
+  saveTarget: 'yandex_disk' | 'library';
 }
 
 export function RecordingModal({ open, onClose, onSubmit, isLoading }: RecordingModalProps) {
@@ -44,7 +44,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
     streamPassword: '',
     scheduledTime: '',
     duration: 60,
-    platform: 'library',
+    saveTarget: 'yandex_disk',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -92,7 +92,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
         streamPassword: '',
         scheduledTime: '',
         duration: 60,
-        platform: 'library',
+        saveTarget: 'yandex_disk',
       });
       setErrors({});
       onClose();
@@ -224,14 +224,14 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
 
           {/* Место сохранения */}
           <div className="space-y-2">
-            <Label htmlFor="platform">Где сохранить запись</Label>
-            <Select value={formData.platform} onValueChange={(value: any) => setFormData({ ...formData, platform: value })}>
-              <SelectTrigger id="platform">
+            <Label htmlFor="saveTarget">Где сохранить запись</Label>
+            <Select value={formData.saveTarget} onValueChange={(value: any) => setFormData({ ...formData, saveTarget: value })}>
+              <SelectTrigger id="saveTarget">
                 <SelectValue placeholder="Выберите место..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="library">В библиотеке материалов</SelectItem>
                 <SelectItem value="yandex_disk">На Яндекс.Диск</SelectItem>
+                <SelectItem value="library">В библиотеке материалов</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -239,7 +239,8 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
           {/* Информационное сообщение */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">
-              ℹ️ Запись начнётся в назначенное время. Убедитесь, что система имеет доступ к трансляции.
+              ℹ️ Запись начнётся автономно в назначенное время. Длинные записи автоматически разбиваются на части по 20 минут.
+              {formData.saveTarget === 'yandex_disk' && ' Файлы будут загружены на ваш Яндекс.Диск.'}
             </p>
           </div>
         </div>

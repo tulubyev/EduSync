@@ -6,6 +6,7 @@ import { logger } from "./services/logger";
 import { yookassaService } from "./services/yookassaService";
 import { PaymentFactory } from "./services/payments/paymentFactory";
 import { courseDiscoveryService } from "./services/courseDiscoveryService";
+import { recordingScheduler } from "./services/recording";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
@@ -148,4 +149,12 @@ app.use((req, res, next) => {
   };
   
   scheduleCourseDiscovery();
+
+  // Start recording scheduler - checks for scheduled recordings every minute
+  try {
+    recordingScheduler.start();
+    logger.info('🎬 Recording scheduler started (checking every minute for scheduled recordings)');
+  } catch (err) {
+    logger.error('Failed to start recording scheduler:', err);
+  }
 })();

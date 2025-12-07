@@ -366,6 +366,46 @@ export const payments = pgTable("payments", {
   statusIdx: index("payments_status_idx").on(table.status),
 }));
 
+// Recording Tasks table - Scheduled broadcast/lecture recordings
+export const recordingTasks = pgTable("recording_tasks", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  description: text("description"),
+  streamUrl: varchar("stream_url", { length: 1000 }).notNull(),
+  streamPassword: varchar("stream_password", { length: 255 }),
+  scheduledTime: timestamp("scheduled_time").notNull(),
+  duration: integer("duration").notNull(), // in minutes
+  maxPartDuration: integer("max_part_duration").default(20), // minutes per part (Replit limit)
+  status: varchar("status", { length: 20 }).default("scheduled"), // scheduled, recording, uploading, completed, failed, cancelled
+  saveTarget: varchar("save_target", { length: 20 }).default("yandex_disk"), // library, yandex_disk
+  currentPart: integer("current_part").default(0),
+  totalParts: integer("total_parts").default(1),
+  parts: jsonb("parts").$type<Array<{
+    partNumber: number;
+    fileName: string;
+    startTime: string;
+    endTime?: string;
+    duration?: number;
+    status: 'pending' | 'recording' | 'uploading' | 'completed' | 'failed';
+    yandexPath?: string;
+    publicUrl?: string;
+    error?: string;
+  }>>(),
+  playlistUrl: varchar("playlist_url", { length: 1000 }),
+  libraryNoteId: uuid("library_note_id").references(() => library.id),
+  errorMessage: text("error_message"),
+  metadata: jsonb("metadata"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("recording_tasks_user_idx").on(table.userId),
+  statusIdx: index("recording_tasks_status_idx").on(table.status),
+  scheduledTimeIdx: index("recording_tasks_scheduled_time_idx").on(table.scheduledTime),
+}));
+
 // Admin Logs table - Admin activity tracking
 export const adminLogs = pgTable("admin_logs", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -484,6 +524,11 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   subscription: one(subscriptions, { fields: [payments.subscriptionId], references: [subscriptions.id] }),
 }));
 
+export const recordingTasksRelations = relations(recordingTasks, ({ one }) => ({
+  user: one(users, { fields: [recordingTasks.userId], references: [users.id] }),
+  libraryNote: one(library, { fields: [recordingTasks.libraryNoteId], references: [library.id] }),
+}));
+
 // ===========================================
 // INSERT SCHEMAS (Zod validation)
 // ===========================================
@@ -573,6 +618,12 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
   createdAt: true,
 });
 
+export const insertRecordingTaskSchema = createInsertSchema(recordingTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // ===========================================
 // TYPE EXPORTS
 // ===========================================
@@ -621,3 +672,6 @@ export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+
+export type RecordingTask = typeof recordingTasks.$inferSelect;
+export type InsertRecordingTask = z.infer<typeof insertRecordingTaskSchema>;
