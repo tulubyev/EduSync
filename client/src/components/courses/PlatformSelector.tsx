@@ -133,8 +133,8 @@ export function PlatformSelector({
           <DialogTitle>Выберите образовательную платформу</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-shrink-0 px-4 pb-3 border-b">
-          <div className="relative mb-3">
+        <div className="flex-shrink-0 px-4 pb-3 border-b space-y-2">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Поиск платформы..."
@@ -144,7 +144,7 @@ export function PlatformSelector({
             />
           </div>
           
-          <div className="flex gap-2 overflow-x-auto pb-2 mb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2">
             <Button
               variant={selectedCategory === 'all' ? 'default' : 'outline'}
               size="sm"
@@ -175,22 +175,18 @@ export function PlatformSelector({
                 Русские
               </Button>
             )}
+            {categories.map((cat) => (
+              <Button
+                key={cat}
+                variant={selectedCategory === cat ? 'default' : 'outline'}
+                size="sm"
+                className="text-xs h-7 whitespace-nowrap flex-shrink-0"
+                onClick={() => setSelectedCategory(cat)}
+              >
+                {cat}
+              </Button>
+            ))}
           </div>
-          {categories.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {categories.map((cat) => (
-                <Button
-                  key={cat}
-                  variant={selectedCategory === cat ? 'default' : 'outline'}
-                  size="sm"
-                  className="text-xs h-7 whitespace-nowrap flex-shrink-0"
-                  onClick={() => setSelectedCategory(cat)}
-                >
-                  {cat}
-                </Button>
-              ))}
-            </div>
-          )}
         </div>
 
         <ScrollArea className="flex-1 overflow-y-auto px-4">
