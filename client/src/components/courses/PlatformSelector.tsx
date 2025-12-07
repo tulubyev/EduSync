@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { CheckCircle, Link as LinkIcon, Search, Globe } from 'lucide-react';
 
 interface Platform {
@@ -59,39 +58,36 @@ export function PlatformSelector({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [requestingConnect, setRequestingConnect] = useState<string | null>(null);
 
-  // Use provided platforms or fallback to globalPlatforms
   const allPlatforms = platforms || globalPlatforms;
   
-  // Extract unique categories from platforms
-  const categories = Array.from(new Set(allPlatforms.map(p => p.category).filter(Boolean))).sort();
-  
-  // Determine if showing global/russian filter (useful for large lists)
-  const hasGlobal = allPlatforms.some(p => (p as any).isGlobal === true);
-  const hasRussian = allPlatforms.some(p => (p as any).isGlobal === false);
+  const categories = Array.from(
+    new Set(allPlatforms.map(p => p.category).filter(c => c && c.trim() !== ''))
+  ).sort();
   
   const connected = allPlatforms.filter(p => connectedPlatforms.has(p.id));
   const available = allPlatforms.filter(p => !connectedPlatforms.has(p.id));
 
   const filterPlatforms = (platforms: Platform[]) => {
     return platforms.filter(p => {
-      // Filter by search query
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchesSearch = 
-          p.displayName.toLowerCase().includes(query) ||
-          p.description?.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query);
+          (p.displayName || '').toLowerCase().includes(query) ||
+          (p.name || '').toLowerCase().includes(query) ||
+          (p.description || '').toLowerCase().includes(query) ||
+          (p.category || '').toLowerCase().includes(query);
         if (!matchesSearch) return false;
       }
       
-      // Filter by category
-      if (selectedCategory !== 'all' && selectedCategory !== 'global' && selectedCategory !== 'russian') {
-        if (p.category !== selectedCategory) return false;
+      if (selectedCategory === 'global') {
+        return p.isGlobal === true;
       }
-      
-      // Filter by region type
-      if (selectedCategory === 'global' && (p as any).isGlobal !== true) return false;
-      if (selectedCategory === 'russian' && (p as any).isGlobal !== false) return false;
+      if (selectedCategory === 'russian') {
+        return p.isGlobal === false;
+      }
+      if (selectedCategory !== 'all') {
+        return p.category === selectedCategory;
+      }
       
       return true;
     });
@@ -128,13 +124,16 @@ export function PlatformSelector({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] h-[90vh] flex flex-col p-0">
-        <div className="px-6 pt-6 pb-3 border-b flex-shrink-0">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] !grid-rows-[auto_auto_1fr] !grid !p-0">
+        <div className="px-6 pt-6 pb-4">
           <DialogTitle>Выберите образовательную платформу</DialogTitle>
+          <DialogDescription className="sr-only">
+            Выберите платформу для добавления курса
+          </DialogDescription>
         </div>
 
-        <div className="px-4 py-3 border-b flex-shrink-0 space-y-2">
-          <div className="relative">
+        <div className="px-4 pb-3 border-b">
+          <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Поиск платформы..."
@@ -144,11 +143,14 @@ export function PlatformSelector({
             />
           </div>
           
-          <div className="flex flex-nowrap gap-2 overflow-x-auto pb-2 scrollbar-thin">
+          <div 
+            className="flex gap-2 pb-2"
+            style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
+          >
             <Button
               variant={selectedCategory === 'all' ? 'default' : 'outline'}
               size="sm"
-              className="text-xs h-7 shrink-0"
+              className="text-xs h-7"
               onClick={() => setSelectedCategory('all')}
             >
               Все ({allPlatforms.length})
@@ -156,7 +158,7 @@ export function PlatformSelector({
             <Button
               variant={selectedCategory === 'global' ? 'default' : 'outline'}
               size="sm"
-              className="text-xs h-7 whitespace-nowrap shrink-0"
+              className="text-xs h-7"
               onClick={() => setSelectedCategory('global')}
             >
               <Globe className="h-3 w-3 mr-1" />
@@ -165,7 +167,7 @@ export function PlatformSelector({
             <Button
               variant={selectedCategory === 'russian' ? 'default' : 'outline'}
               size="sm"
-              className="text-xs h-7 whitespace-nowrap shrink-0"
+              className="text-xs h-7"
               onClick={() => setSelectedCategory('russian')}
             >
               <Globe className="h-3 w-3 mr-1" />
@@ -176,7 +178,7 @@ export function PlatformSelector({
                 key={cat}
                 variant={selectedCategory === cat ? 'default' : 'outline'}
                 size="sm"
-                className="text-xs h-7 whitespace-nowrap shrink-0"
+                className="text-xs h-7"
                 onClick={() => setSelectedCategory(cat)}
               >
                 {cat}
@@ -185,9 +187,8 @@ export function PlatformSelector({
           </div>
         </div>
 
-        <ScrollArea className="flex-1 overflow-y-auto px-4">
-          <div className="space-y-4 pr-4">
-            {/* Connected Platforms */}
+        <div className="overflow-y-auto px-4 py-4">
+          <div className="space-y-4 pr-2">
             {filteredConnected.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
@@ -209,7 +210,7 @@ export function PlatformSelector({
                           <div className="font-medium text-green-900">{platform.displayName || platform.name}</div>
                           <div className="text-xs text-green-700">{platform.description}</div>
                         </div>
-                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
                       </div>
                     </button>
                   ))}
@@ -217,7 +218,6 @@ export function PlatformSelector({
               </div>
             )}
 
-            {/* Available Platforms */}
             {filteredAvailable.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
@@ -234,9 +234,11 @@ export function PlatformSelector({
                         <div className="flex-1">
                           <div className="font-medium">{platform.displayName || platform.name}</div>
                           <div className="text-xs text-muted-foreground">{platform.description}</div>
-                          <Badge variant="outline" className="mt-2 text-xs">
-                            {platform.category}
-                          </Badge>
+                          {platform.category && (
+                            <Badge variant="outline" className="mt-2 text-xs">
+                              {platform.category}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -272,7 +274,7 @@ export function PlatformSelector({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
