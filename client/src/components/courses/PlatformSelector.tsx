@@ -169,10 +169,7 @@ export function PlatformSelector({
             />
           </div>
           
-          <div 
-            className="flex gap-2 pb-2"
-            style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
-          >
+          <div className="flex flex-wrap gap-2 pb-2">
             <Button
               variant={selectedCategory === 'all' ? 'default' : 'outline'}
               size="sm"
