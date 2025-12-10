@@ -268,6 +268,32 @@ router.post('/tasks/clear-queue', authenticateToken as any, async (req: AuthRequ
   }
 });
 
+router.delete('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+
+    const task = await recordingTaskManager.getTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ message: 'Задача не найдена' });
+    }
+
+    if (task.userId !== userId) {
+      return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    }
+
+    // Delete the task from database
+    await db.delete(recordingTasks).where(eq(recordingTasks.id, taskId));
+
+    logger.info(`Deleted recording task: ${taskId} for user ${userId}`);
+    res.json({ success: true, message: 'Задача удалена' });
+  } catch (error) {
+    logger.error('Error deleting recording task:', error);
+    res.status(500).json({ message: 'Ошибка удаления задачи' });
+  }
+});
+
 router.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',

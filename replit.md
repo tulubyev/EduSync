@@ -1,7 +1,7 @@
 # Overview
 My EPA (Агрегатор Онлайн Обучения) is an educational platform aggregator for the Russian market. It consolidates online courses from various global and regional platforms into specialized categories. The platform offers user profile management, course aggregation, deadline tracking, progress analytics, and an extensive admin panel. It features a desktop-first design with mobile portability and uses a PostgreSQL database to integrate over 89 educational platforms. The project aims to provide a comprehensive learning hub and has integrated payment solutions for subscription management.
 
-# Recent Changes (December 07, 2025)
+# Recent Changes (December 10, 2025)
 - **Autonomous Stream/Lecture Recording System** (FULL IMPLEMENTATION):
   - **Recording Architecture**:
     - `RecorderService`: Headless Playwright + CDP screencast for video capture
@@ -41,6 +41,27 @@ My EPA (Агрегатор Онлайн Обучения) is an educational plat
   - **Remaining Limitations**:
     - Headless-only capture (no Xvfb on Replit)
     - Audio capture requires PulseAudio availability (may not work in all environments)
+
+- **Recording Tasks Management (December 10)**:
+  - **DELETE Endpoint**: `DELETE /api/library/recording/tasks/:taskId` - full deletion support
+  - **Scheduler Optimization**: Changed from 1-minute polling to **database-triggered alerts** system
+    - Checks database every 10 seconds instead of 60 seconds
+    - Queries only tasks scheduled within ±5 minute window (via `getScheduledTasks()`)
+    - Executes only when scheduled time arrives (±1 minute window)
+    - Prevents duplicate execution via `lastExecutedTaskIds` Set tracking
+    - More responsive and efficient for upcoming recordings
+  - **API Routes** (server/routes/recording.ts):
+    - `DELETE /api/library/recording/tasks/:taskId` - Delete any scheduled/failed/completed recording
+    - Ownership verification ensures users can only delete their own recordings
+    - Full CRUD support: POST schedule, GET list, PUT update, DELETE remove
+
+- **Responsive Design Plan** (adaptive.md):
+  - Created comprehensive analysis of mobile/tablet layout issues
+  - Identified 6 critical problems: Sidebar overlap, fixed-width panels, grid overflow, touch targets
+  - Phase 1 (Critical): Sidebar drawer, LibraryPage responsive, RecordingTasksList grid, AdminPanel styling
+  - Phase 2 (Important): Touch target standardization (44px minimum), modal scrolling, form responsiveness
+  - Phase 3 (Polish): Typography scaling, spacing consistency, hover state optimization
+  - Total estimated effort: 10 hours across 6 files
 
 - **UI Components**:
   - `RecordingModal.tsx`: Form for scheduling with validation, save target selection (Yandex.Disk default)
