@@ -55,13 +55,19 @@ My EPA (Агрегатор Онлайн Обучения) is an educational plat
     - Ownership verification ensures users can only delete their own recordings
     - Full CRUD support: POST schedule, GET list, PUT update, DELETE remove
 
-- **Phase 1 Responsive Implementation COMPLETED** (December 10, 2025):
-  - **App.tsx**: Mobile Sheet drawer for sidebar (lg breakpoint), MobileSidebarContent component with full navigation, explicit ml-0 for mobile content
-  - **LibraryPage.tsx**: Converted fixed widths to responsive (w-56, w-96), responsive bottom panel (left-0 lg:left-16 xl:left-64), min-h-11 touch targets, flex-wrap headers
-  - **RecordingTasksList.tsx**: Responsive grid (grid-cols-1 sm:grid-cols-3), min-h-11 touch targets, flex-wrap buttons, modal overflow-y-auto
-  - **AdminPanel.tsx**: Full Tailwind migration from inline styles, responsive grids (grid-cols-2 sm:grid-cols-3 lg:grid-cols-4), min-h-11 touch targets
-  - Key patterns: Mobile-first breakpoints (sm:/lg:/xl:), 44px touch targets (min-h-11), stackable layouts (flex-col sm:flex-row)
-  - Phase 2/3 (remaining): Typography scaling, spacing consistency, hover optimization - documented in adaptive.md
+- **Phase 1 & 2 Responsive Implementation COMPLETED** (December 10, 2025):
+  - **Phase 1 - Critical Layout Fixes**:
+    - App.tsx: Mobile Sheet drawer, MobileSidebarContent, explicit ml-0 for mobile
+    - LibraryPage.tsx: Responsive widths (w-full lg:w-56/96), bottom panel positioning
+    - RecordingTasksList.tsx: Responsive grid (grid-cols-1 sm:grid-cols-3)
+    - AdminPanel.tsx: Full Tailwind migration, responsive buttons (grid-cols-2 sm:grid-cols-3 lg:grid-cols-4)
+  - **Phase 2 - Touch Targets & Modal Scrolling**:
+    - All buttons/controls ≥ 44px (min-h-11, min-w-11)
+    - Modal scroll containers: RecordingModal, AddCourseModal, UserEditModal (max-h-[90vh] overflow-y-auto)
+    - UserEditModal: Converted inline styles to Tailwind, responsive form fields
+    - Form responsiveness: flex-col sm:flex-row for multi-column layouts
+  - Key patterns: Mobile-first (sm:/md:/lg:/xl:), 44px touch targets, sticky headers/footers
+  - Phase 3 (remaining): Typography scaling, spacing consistency - documented in adaptive.md
 
 - **UI Components**:
   - `RecordingModal.tsx`: Form for scheduling with validation, save target selection (Yandex.Disk default)

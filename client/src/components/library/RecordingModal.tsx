@@ -108,12 +108,12 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Записать трансляцию</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Название */}
           <div className="space-y-2">
             <Label htmlFor="title">Название трансляции</Label>

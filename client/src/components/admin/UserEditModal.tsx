@@ -74,252 +74,143 @@ export function UserEditModal({ user, isOpen, onClose, onSave, onDelete }: UserE
   const canDelete = !user.isEmailVerified && !user.isPhoneVerified;
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        maxWidth: '500px',
-        width: '90%',
-        maxHeight: '80vh',
-        overflow: 'auto',
-        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
-      }}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-xl">
         {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '20px',
-          borderBottom: '1px solid #e9ecef'
-        }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
+        <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
             Редактирование пользователя
           </h2>
           <button
             onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px'
-            }}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors min-h-11 min-w-11 flex items-center justify-center"
           >
             <X size={20} />
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ padding: '20px' }}>
+        <div className="p-4 sm:p-6">
           {error && (
-            <div style={{
-              padding: '12px',
-              marginBottom: '16px',
-              backgroundColor: '#fee',
-              color: '#c33',
-              borderRadius: '6px',
-              fontSize: '14px'
-            }}>
+            <div className="p-3 mb-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">
               ❌ {error}
             </div>
           )}
 
           {/* Profile Photo */}
           {user.profileImageUrl && (
-            <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+            <div className="mb-6 text-center">
               <img
                 src={user.profileImageUrl}
                 alt="Profile"
-                style={{
-                  width: '100px',
-                  height: '100px',
-                  borderRadius: '8px',
-                  objectFit: 'cover'
-                }}
+                className="w-24 h-24 rounded-lg object-cover mx-auto"
               />
             </div>
           )}
 
           {/* Form Fields */}
-          <div style={{ display: 'grid', gap: '12px' }}>
+          <div className="space-y-4">
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Имя
               </label>
               <input
                 type="text"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #e9ecef',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-10"
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Фамилия
               </label>
               <input
                 type="text"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #e9ecef',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-10"
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #e9ecef',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-10"
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Телефон
               </label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #e9ecef',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-10"
               />
             </div>
 
             {/* Verification Checkboxes */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            <div className="grid grid-cols-2 gap-3 mt-6">
+              <label className="flex items-center gap-2 cursor-pointer min-h-11">
                 <input
                   type="checkbox"
                   checked={formData.isEmailVerified}
                   onChange={(e) => setFormData({ ...formData, isEmailVerified: e.target.checked })}
-                  style={{ cursor: 'pointer' }}
+                  className="w-4 h-4 cursor-pointer"
                 />
-                <span style={{ fontSize: '14px' }}>Email подтвержден</span>
+                <span className="text-sm">Email ✓</span>
               </label>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <label className="flex items-center gap-2 cursor-pointer min-h-11">
                 <input
                   type="checkbox"
                   checked={formData.isPhoneVerified}
                   onChange={(e) => setFormData({ ...formData, isPhoneVerified: e.target.checked })}
-                  style={{ cursor: 'pointer' }}
+                  className="w-4 h-4 cursor-pointer"
                 />
-                <span style={{ fontSize: '14px' }}>Телефон подтвержден</span>
+                <span className="text-sm">Телефон ✓</span>
               </label>
             </div>
 
             {/* Info */}
-            <div style={{
-              marginTop: '16px',
-              padding: '12px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '6px',
-              fontSize: '13px',
-              color: '#666'
-            }}>
-              <div>ID: {user.id}</div>
-              <div>Присоединился: {new Date(user.createdAt).toLocaleDateString('ru-RU')}</div>
-              <div>План: {user.planType}</div>
+            <div className="mt-6 p-3 bg-gray-50 rounded-lg text-xs text-gray-600 space-y-1 border border-gray-200">
+              <div><strong>ID:</strong> {user.id}</div>
+              <div><strong>Присоединился:</strong> {new Date(user.createdAt).toLocaleDateString('ru-RU')}</div>
+              <div><strong>План:</strong> {user.planType}</div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{
-          display: 'flex',
-          gap: '10px',
-          padding: '16px',
-          borderTop: '1px solid #e9ecef',
-          justifyContent: 'flex-end'
-        }}>
+        <div className="flex flex-col sm:flex-row gap-2 p-4 sm:p-6 border-t border-gray-200 bg-gray-50 sticky bottom-0 justify-end">
           {onDelete && canDelete && (
             <button
               onClick={handleDelete}
               disabled={deleting}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: deleting ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                opacity: deleting ? 0.6 : 1
-              }}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50 cursor-pointer min-h-11 transition-colors"
             >
               {deleting ? 'Удаление...' : '🗑️ Удалить'}
             </button>
           )}
           <button
             onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#e9ecef',
-              color: '#333',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
+            className="px-4 py-2 bg-gray-500 text-white rounded-lg text-sm font-medium hover:bg-gray-600 min-h-11 transition-colors"
           >
             Отмена
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              opacity: saving ? 0.6 : 1
-            }}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 disabled:opacity-50 cursor-pointer min-h-11 transition-colors"
           >
             {saving ? 'Сохранение...' : '✓ Сохранить'}
           </button>
