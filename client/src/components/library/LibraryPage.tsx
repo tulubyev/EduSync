@@ -387,21 +387,23 @@ export function LibraryPage() {
 
   return (
     <div className="container mx-auto py-6 px-4">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FileText className="h-6 w-6" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
             Библиотека
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm">
             {notes.length} материалов
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button 
             variant={viewMode === 'list' ? 'default' : 'outline'} 
             size="icon"
             title="Список"
+            className="min-h-11 min-w-11"
+            onClick={() => setViewMode('list')}
           >
             <List className="h-4 w-4" />
           </Button>
@@ -409,33 +411,35 @@ export function LibraryPage() {
             variant={viewMode === 'grid' ? 'default' : 'outline'} 
             size="icon"
             title="Сетка"
+            className="min-h-11 min-w-11"
+            onClick={() => setViewMode('grid')}
           >
             <Grid3x3 className="h-4 w-4" />
           </Button>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Новый материал
+          <Button onClick={() => setIsModalOpen(true)} className="min-h-11">
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Новый материал</span>
           </Button>
-          <Button onClick={() => setIsRecordingModalOpen(true)} variant="outline">
-            <Radio className="h-4 w-4 mr-2" />
-            Записать трансляцию
+          <Button onClick={() => setIsRecordingModalOpen(true)} variant="outline" className="min-h-11">
+            <Radio className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Записать трансляцию</span>
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Поиск материалов..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 min-h-11"
           />
         </div>
         
         <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px] min-h-11">
             <SelectValue placeholder="Фильтр по курсу" />
           </SelectTrigger>
           <SelectContent>
@@ -448,8 +452,8 @@ export function LibraryPage() {
         </Select>
       </div>
 
-      <div className="flex h-[calc(100vh-200px)]">
-        <div className="hidden lg:block" style={{ width: leftWidth }}>
+      <div className="flex flex-col lg:flex-row h-[calc(100vh-200px)] lg:h-[calc(100vh-200px)]">
+        <div className="hidden lg:block w-56 flex-shrink-0">
           <LibraryTreeNav 
             notes={notes} 
             selectedNodeId={selectedNodeId}
@@ -464,11 +468,13 @@ export function LibraryPage() {
           />
         </div>
         
-        <ResizeHandle 
-          onResize={(delta) => {
-            setLeftWidth(prev => Math.max(150, Math.min(400, prev + delta)));
-          }}
-        />
+        <div className="hidden lg:block">
+          <ResizeHandle 
+            onResize={(delta) => {
+              setLeftWidth(prev => Math.max(150, Math.min(400, prev + delta)));
+            }}
+          />
+        </div>
         
         <div className="flex-1 overflow-x-hidden">
           {filteredNotes.length === 0 ? (
@@ -595,14 +601,16 @@ export function LibraryPage() {
           )}
         </div>
 
-        <ResizeHandle 
-          onResize={(delta) => {
-            setRightWidth(prev => Math.max(200, Math.min(600, prev - delta)));
-          }}
-        />
+        <div className="hidden lg:block">
+          <ResizeHandle 
+            onResize={(delta) => {
+              setRightWidth(prev => Math.max(200, Math.min(600, prev - delta)));
+            }}
+          />
+        </div>
 
         {selectedNote && (
-          <div className="hidden lg:flex flex-col" style={{ width: rightWidth }}>
+          <div className="hidden lg:flex flex-col w-96 flex-shrink-0">
             <Card className="flex-1 rounded-lg border-l">
               <CardHeader className="border-b">
                 <div className="flex items-start justify-between gap-2">
@@ -710,8 +718,8 @@ export function LibraryPage() {
         isLoading={isRecordingLoading}
       />
 
-      <div className="fixed bottom-0 right-0 left-64 max-h-96 border-t bg-white shadow-lg overflow-y-auto">
-        <div className="p-4">
+      <div className="fixed bottom-0 right-0 left-0 lg:left-16 xl:left-64 max-h-96 border-t bg-white shadow-lg overflow-y-auto z-30">
+        <div className="p-3 sm:p-4">
           <h3 className="font-semibold mb-3 text-sm">📹 Запланированные и завершённые записи</h3>
           <RecordingTasksList />
         </div>

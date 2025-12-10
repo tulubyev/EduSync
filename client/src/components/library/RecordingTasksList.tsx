@@ -214,16 +214,17 @@ export function RecordingTasksList() {
             variant="destructive"
             onClick={handleClearQueue}
             disabled={isClearing}
+            className="min-h-11"
           >
             {isClearing ? (
               <>
                 <Loader className="h-4 w-4 mr-1 animate-spin" />
-                Очистка...
+                <span className="hidden sm:inline">Очистка...</span>
               </>
             ) : (
               <>
-                <Trash2 className="h-4 w-4 mr-1" />
-                Очистить очередь
+                <Trash2 className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Очистить очередь</span>
               </>
             )}
           </Button>
@@ -247,16 +248,16 @@ export function RecordingTasksList() {
             <div className="ml-4">{getStatusBadge(task.status)}</div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-3 text-sm">
-            <div className="bg-gray-50 p-2 rounded">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-3 text-sm">
+            <div className="bg-gray-50 p-2 sm:p-3 rounded flex justify-between sm:block">
               <span className="text-gray-600">Длительность</span>
               <p className="font-semibold">{formatDuration(task.duration)} мин</p>
             </div>
-            <div className="bg-gray-50 p-2 rounded">
+            <div className="bg-gray-50 p-2 sm:p-3 rounded flex justify-between sm:block">
               <span className="text-gray-600">Размер</span>
               <p className="font-semibold">{getTotalFileSize(task.parts)}</p>
             </div>
-            <div className="bg-gray-50 p-2 rounded">
+            <div className="bg-gray-50 p-2 sm:p-3 rounded flex justify-between sm:block">
               <span className="text-gray-600">Части</span>
               <p className="font-semibold">{task.parts.filter(p => p.status === 'completed').length}/{task.parts.length}</p>
             </div>
@@ -268,12 +269,13 @@ export function RecordingTasksList() {
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {task.status === 'completed' && task.playlistUrl && (
-              <Button size="sm" variant="outline" asChild>
+              <Button size="sm" variant="outline" className="min-h-11 flex-1 sm:flex-none" asChild>
                 <a href={task.playlistUrl} target="_blank" rel="noopener noreferrer">
                   <Play className="h-4 w-4 mr-1" />
-                  Воспроизвести
+                  <span className="hidden sm:inline">Воспроизвести</span>
+                  <span className="sm:hidden">Играть</span>
                 </a>
               </Button>
             )}
@@ -282,9 +284,10 @@ export function RecordingTasksList() {
                 size="sm"
                 variant="outline"
                 onClick={() => handleEditStart(task)}
+                className="min-h-11 flex-1 sm:flex-none"
               >
-                <Edit2 className="h-4 w-4 mr-1" />
-                Редактировать
+                <Edit2 className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Редактировать</span>
               </Button>
             )}
             {task.status !== 'recording' && (
@@ -292,10 +295,10 @@ export function RecordingTasksList() {
                 size="sm"
                 variant="outline"
                 onClick={() => handleDelete(task.id)}
-                className="text-red-600 hover:text-red-700"
+                className="text-red-600 hover:text-red-700 min-h-11 flex-1 sm:flex-none"
               >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Удалить
+                <Trash2 className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Удалить</span>
               </Button>
             )}
           </div>
@@ -304,7 +307,7 @@ export function RecordingTasksList() {
 
       {editingTask && (
         <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Редактировать запись</DialogTitle>
             </DialogHeader>

@@ -46,197 +46,106 @@ function AdminPanel({ user, onBack }: any) {
   const userRole = user.adminRole || 'super_admin';
 
   return (
-    <div style={{ padding: '20px', backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+    <div className="p-3 sm:p-5 bg-gray-50 min-h-screen">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 style={{ margin: '0 0 10px 0', color: '#333' }}>📚 My EPA - Админ-панель</h1>
-          <p style={{ color: '#666', margin: 0 }}>
-            Агрегатор образовательных программ | Роль: <span style={{ 
-              backgroundColor: '#667eea', 
-              color: 'white', 
-              padding: '4px 8px', 
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}>
+          <h1 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">📚 My EPA - Админ-панель</h1>
+          <p className="text-gray-600 text-sm">
+            Агрегатор образовательных программ | Роль: <span className="bg-indigo-500 text-white px-2 py-1 rounded text-xs font-medium">
               {adminRoles[userRole]}
             </span>
           </p>
         </div>
         <button 
           onClick={onBack}
-          style={{ 
-            padding: '10px 20px', 
-            backgroundColor: '#6c757d', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '500'
-          }}
+          className="px-4 py-3 bg-gray-600 text-white border-none rounded-lg cursor-pointer text-sm font-medium min-h-11 hover:bg-gray-700 transition-colors"
         >
-          ← Пользовательский дашборд
+          ← Вернуться
         </button>
       </div>
 
       {/* Доступные функции и Быстрые действия */}
-      <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e9ecef', marginBottom: '20px' }}>
-        <h2 style={{ margin: '0 0 15px 0', color: '#333' }}>Доступные функции для вашей роли</h2>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 mb-5">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Доступные функции для вашей роли</h2>
+        <div className="flex flex-wrap gap-2 mb-5">
           {adminPermissions[userRole].map((permission, idx) => (
-            <span key={idx} style={{
-              backgroundColor: '#007bff',
-              color: 'white',
-              padding: '6px 12px',
-              borderRadius: '20px',
-              fontSize: '14px'
-            }}>
+            <span key={idx} className="bg-blue-500 text-white px-3 py-1.5 rounded-full text-sm">
               {permission}
             </span>
           ))}
         </div>
 
-        <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>Быстрые действия</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+        <h3 className="text-base font-semibold text-gray-800 mb-4">Быстрые действия</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
             <button 
               onClick={() => setShowUsersSection(!showUsersSection)}
-              style={{ 
-                padding: '15px 20px', 
-                backgroundColor: showUsersSection ? '#667eea' : '#667eea', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px'
-              }}
+              className="p-3 sm:p-4 bg-indigo-500 text-white border-none rounded-lg cursor-pointer text-sm font-medium flex flex-col items-center gap-1 min-h-11 hover:bg-indigo-600 transition-colors"
             >
-              <span>👥 {showUsersSection ? 'Скрыть пользователей' : 'Пользователи'}</span>
-              <span style={{ fontSize: '11px', opacity: 0.8 }}>—</span>
+              <span className="text-xs sm:text-sm">👥 {showUsersSection ? 'Скрыть' : 'Пользователи'}</span>
+              <span className="text-xs opacity-80">—</span>
             </button>
           )}
           
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
             <button 
               onClick={() => setShowCoursesManagement(!showCoursesManagement)}
-              style={{ 
-                padding: '15px 20px', 
-                backgroundColor: showCoursesManagement ? '#667eea' : '#764ba2', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px'
-              }}
+              className={`p-3 sm:p-4 ${showCoursesManagement ? 'bg-indigo-500' : 'bg-purple-600'} text-white border-none rounded-lg cursor-pointer text-sm font-medium flex flex-col items-center gap-1 min-h-11 hover:opacity-90 transition-colors`}
             >
-              <span>📖 {showCoursesManagement ? 'Скрыть курсы' : 'Курсы'}</span>
-              <span style={{ fontSize: '11px', opacity: 0.8 }}>111</span>
+              <span className="text-xs sm:text-sm">📖 {showCoursesManagement ? 'Скрыть' : 'Курсы'}</span>
+              <span className="text-xs opacity-80">111</span>
             </button>
           )}
           
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
             <button 
               onClick={() => setShowPlatformsManagement(!showPlatformsManagement)}
-              style={{ 
-                padding: '15px 20px', 
-                backgroundColor: showPlatformsManagement ? '#667eea' : '#1abc9c', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px'
-              }}
+              className={`p-3 sm:p-4 ${showPlatformsManagement ? 'bg-indigo-500' : 'bg-teal-500'} text-white border-none rounded-lg cursor-pointer text-sm font-medium flex flex-col items-center gap-1 min-h-11 hover:opacity-90 transition-colors`}
             >
-              <span>🌐 {showPlatformsManagement ? 'Скрыть платформы' : 'Платформы'}</span>
-              <span style={{ fontSize: '11px', opacity: 0.8 }}>8+</span>
+              <span className="text-xs sm:text-sm">🌐 {showPlatformsManagement ? 'Скрыть' : 'Платформы'}</span>
+              <span className="text-xs opacity-80">8+</span>
             </button>
           )}
 
           {(userRole === 'super_admin' || userRole === 'analytics_admin') && (
             <button 
               onClick={() => setShowAnalytics(!showAnalytics)}
-              style={{ 
-                padding: '15px 20px', 
-                backgroundColor: showAnalytics ? '#667eea' : '#f39c12', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px'
-              }}
+              className={`p-3 sm:p-4 ${showAnalytics ? 'bg-indigo-500' : 'bg-orange-500'} text-white border-none rounded-lg cursor-pointer text-sm font-medium flex flex-col items-center gap-1 min-h-11 hover:opacity-90 transition-colors`}
             >
-              <span>📊 {showAnalytics ? 'Скрыть аналитику' : 'Аналитика'}</span>
-              <span style={{ fontSize: '11px', opacity: 0.8 }}>4</span>
+              <span className="text-xs sm:text-sm">📊 {showAnalytics ? 'Скрыть' : 'Аналитика'}</span>
+              <span className="text-xs opacity-80">—</span>
+            </button>
+          )}
+
+          {(userRole === 'super_admin' || userRole === 'api_admin') && (
+            <button 
+              onClick={() => setShowApiManagement(!showApiManagement)}
+              className={`p-3 sm:p-4 ${showApiManagement ? 'bg-indigo-500' : 'bg-cyan-500'} text-white border-none rounded-lg cursor-pointer text-sm font-medium flex flex-col items-center gap-1 min-h-11 hover:opacity-90 transition-colors`}
+            >
+              <span className="text-xs sm:text-sm">🔗 {showApiManagement ? 'Скрыть' : 'API'}</span>
+              <span className="text-xs opacity-80">—</span>
             </button>
           )}
 
           {(userRole === 'super_admin' || userRole === 'finance_admin') && (
             <button 
               onClick={() => setShowSubscriptionPlans(!showSubscriptionPlans)}
-              style={{ 
-                padding: '15px 20px', 
-                backgroundColor: showSubscriptionPlans ? '#667eea' : '#9b59b6', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px'
-              }}
+              className={`p-3 sm:p-4 ${showSubscriptionPlans ? 'bg-indigo-500' : 'bg-green-500'} text-white border-none rounded-lg cursor-pointer text-sm font-medium flex flex-col items-center gap-1 min-h-11 hover:opacity-90 transition-colors`}
             >
-              <span>💳 {showSubscriptionPlans ? 'Скрыть подписки' : 'Подписки'}</span>
-              <span style={{ fontSize: '11px', opacity: 0.8 }}>3</span>
+              <span className="text-xs sm:text-sm">💳 {showSubscriptionPlans ? 'Скрыть' : 'Подписки'}</span>
+              <span className="text-xs opacity-80">—</span>
             </button>
           )}
 
           {(userRole === 'super_admin' || userRole === 'finance_admin') && (
             <button 
               onClick={() => setShowPaymentSystems(!showPaymentSystems)}
-              style={{ 
-                padding: '15px 20px', 
-                backgroundColor: showPaymentSystems ? '#667eea' : '#27ae60', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px'
-              }}
+              className={`p-3 sm:p-4 ${showPaymentSystems ? 'bg-indigo-500' : 'bg-pink-500'} text-white border-none rounded-lg cursor-pointer text-sm font-medium flex flex-col items-center gap-1 min-h-11 hover:opacity-90 transition-colors`}
             >
-              <span>🏦 {showPaymentSystems ? 'Скрыть платежи' : 'Платежные системы'}</span>
-              <span style={{ fontSize: '11px', opacity: 0.8 }}>2</span>
+              <span className="text-xs sm:text-sm">💰 {showPaymentSystems ? 'Скрыть' : 'Платежи'}</span>
+              <span className="text-xs opacity-80">—</span>
             </button>
           )}
-          
         </div>
       </div>
 
@@ -288,20 +197,20 @@ function AdminPanel({ user, onBack }: any) {
       <WebhooksModal isOpen={showWebhooksModal} onClose={() => setShowWebhooksModal(false)} />
       <SecurityModal isOpen={showSecurityModal} onClose={() => setShowSecurityModal(false)} />
 
-      <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e9ecef' }}>
-        <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>Системная информация</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
-          <div style={{ padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-            <strong>Версия системы:</strong><br />
-            <span style={{ color: '#666' }}>v2.1.3 (Стабильная)</span>
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+        <h3 className="text-base font-semibold text-gray-800 mb-4">Системная информация</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <strong className="text-sm">Версия системы:</strong><br />
+            <span className="text-gray-600 text-sm">v2.1.3 (Стабильная)</span>
           </div>
-          <div style={{ padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-            <strong>Время работы:</strong><br />
-            <span style={{ color: '#666' }}>47 дней, 12 часов</span>
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <strong className="text-sm">Время работы:</strong><br />
+            <span className="text-gray-600 text-sm">47 дней, 12 часов</span>
           </div>
-          <div style={{ padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-            <strong>Последнее обновление:</strong><br />
-            <span style={{ color: '#666' }}>28.12.2024 14:30</span>
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <strong className="text-sm">Последнее обновление:</strong><br />
+            <span className="text-gray-600 text-sm">28.12.2024 14:30</span>
           </div>
         </div>
       </div>

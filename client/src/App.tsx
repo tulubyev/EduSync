@@ -11,6 +11,7 @@ import { AnalyticsPage } from './components/analytics/AnalyticsPage';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { SubscriptionPage } from './components/settings/SubscriptionPage';
 import { OAuthCallbackHandler } from './components/OAuthCallbackHandler';
+import { Sheet, SheetContent, SheetTrigger } from './components/ui/sheet';
 import { 
   BookOpen, 
   Calendar, 
@@ -153,14 +154,43 @@ function App() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar 
-        user={currentUser} 
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-        onAdminClick={() => setShowAdminPanel(true)}
-        onLogout={handleLogout}
-      />
-      <main className={`flex-1 overflow-auto transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:block">
+        <Sidebar 
+          user={currentUser} 
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          onAdminClick={() => setShowAdminPanel(true)}
+          onLogout={handleLogout}
+        />
+      </div>
+      
+      {/* Mobile Header with Sheet Drawer */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <Sheet>
+          <SheetTrigger asChild>
+            <button className="p-2 hover:bg-gray-100 rounded-lg min-h-11 min-w-11 flex items-center justify-center">
+              <Menu className="w-5 h-5" />
+            </button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <MobileSidebarContent 
+              user={currentUser}
+              onAdminClick={() => setShowAdminPanel(true)}
+              onLogout={handleLogout}
+            />
+          </SheetContent>
+        </Sheet>
+        <Link href="/">
+          <div className="flex items-center gap-2 cursor-pointer">
+            <img src="/myepa-logo-clean.png" alt="My EPA" className="w-8 h-8 object-contain" />
+            <span className="font-bold text-gray-800">My EPA</span>
+          </div>
+        </Link>
+        <div className="w-11" />
+      </div>
+      
+      <main className={`flex-1 overflow-auto transition-all duration-300 pt-16 lg:pt-0 ml-0 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
         <Switch>
           <Route path="/" component={() => <Dashboard user={currentUser} />} />
           <Route path="/home" component={() => <Dashboard user={currentUser} />} />
@@ -285,6 +315,96 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
               <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface MobileSidebarContentProps {
+  user: any;
+  onAdminClick: () => void;
+  onLogout: () => void;
+}
+
+function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarContentProps) {
+  const [location] = useLocation();
+
+  const navItems = [
+    { path: '/home', icon: Home, label: 'Главная' },
+    { path: '/courses', icon: BookOpen, label: 'Курсы' },
+    { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
+    { path: '/library', icon: FileText, label: 'Библиотека' },
+    { path: '/platforms', icon: Globe, label: 'Платформы' },
+    { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
+    { path: '/subscription', icon: CreditCard, label: 'Подписка' },
+    { path: '/settings', icon: Settings, label: 'Настройки' },
+  ];
+
+  return (
+    <div className="h-full bg-white flex flex-col">
+      <div className="p-4 border-b border-gray-200">
+        <Link href="/">
+          <div className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
+            <img src="/myepa-logo-clean.png" alt="My EPA Logo" className="w-10 h-10 object-contain" />
+            <div>
+              <h1 className="font-bold text-gray-800 text-lg">My EPA</h1>
+              <p className="text-xs text-gray-500">Агрегатор курсов</p>
+            </div>
+          </div>
+        </Link>
+      </div>
+
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+        {navItems.map((item) => {
+          const isActive = location === item.path || (location === '/' && item.path === '/home');
+          const Icon = item.icon;
+          
+          return (
+            <Link key={item.path} href={item.path}>
+              <div className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors cursor-pointer min-h-11 ${
+                isActive 
+                  ? 'bg-purple-50 text-purple-700 font-medium' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}>
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                <span>{item.label}</span>
+              </div>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="p-2 border-t border-gray-200">
+        {user.adminRole && (
+          <button
+            onClick={onAdminClick}
+            className="flex items-center gap-3 px-3 py-3 rounded-lg w-full text-left text-purple-600 hover:bg-purple-50 transition-colors mb-1 min-h-11"
+          >
+            <Settings className="w-5 h-5 flex-shrink-0" />
+            <span>Админ-панель</span>
+          </button>
+        )}
+        <button
+          onClick={onLogout}
+          className="flex items-center gap-3 px-3 py-3 rounded-lg w-full text-left text-red-600 hover:bg-red-50 transition-colors mb-2 min-h-11"
+        >
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          <span>Выход</span>
+        </button>
+
+        <div className="flex items-center gap-3 px-3 py-3 bg-gray-50 rounded-lg">
+          {user.profileImageAvatar ? (
+            <img src={user.profileImageAvatar} alt="Avatar" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+              {user.firstName?.[0]}{user.lastName?.[0]}
+            </div>
+          )}
+          <div className="overflow-hidden">
+            <p className="font-medium text-sm text-gray-800 truncate">{user.firstName} {user.lastName}</p>
+            <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
+          </div>
         </div>
       </div>
     </div>
