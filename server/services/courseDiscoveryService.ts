@@ -521,18 +521,6 @@ export const PLATFORM_COURSE_DATA: Record<string, CourseData[]> = {
     { title: "Mathématiques Supérieures", description: "Advanced mathematics in French", courseUrl: "https://franceplatform.fr/maths", category: "Mathematics", language: "fr", cost: 49, difficulty: "advanced", duration: 3000, externalCourseId: "france-maths" },
     { title: "Philosophie et Éthique", description: "Philosophy and ethics course", courseUrl: "https://franceplatform.fr/philosophy", category: "Philosophy", language: "fr", cost: 49, difficulty: "intermediate", duration: 2400, externalCourseId: "france-phil" }
   ],
-  "harvard-online": [
-    { title: "Harvard's CS50", description: "Harvard's intro to computer science online", courseUrl: "https://online.harvard.edu/cs50", category: "Computer Science", language: "en", cost: 0, difficulty: "beginner", duration: 4000, externalCourseId: "harvard-cs50" },
-    { title: "Health, Medicine and Society", description: "Medical humanities from Harvard", courseUrl: "https://online.harvard.edu/health-medicine", category: "Healthcare", language: "en", cost: 0, difficulty: "intermediate", duration: 2400, externalCourseId: "harvard-health" }
-  ],
-  "stanford-online": [
-    { title: "Machine Learning Specialization", description: "Andrew Ng's ML course from Stanford", courseUrl: "https://online.stanford.edu/courses/soe-ymlsmgmt-machine-learning", category: "Machine Learning", language: "en", cost: 0, difficulty: "intermediate", duration: 3600, externalCourseId: "stanford-ml" },
-    { title: "Solar Cells, Fuels, and Materials", description: "Clean energy from Stanford", courseUrl: "https://online.stanford.edu/courses/cee-355-solar-cells", category: "Energy", language: "en", cost: 0, difficulty: "advanced", duration: 3000, externalCourseId: "stanford-solar" }
-  ],
-  "open-univ": [
-    { title: "Introduction to Science", description: "UK Open University science course", courseUrl: "https://open.ac.uk/courses/science", category: "Science", language: "en", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "ou-science" },
-    { title: "Business and Management Basics", description: "Business fundamentals", courseUrl: "https://open.ac.uk/courses/business", category: "Business", language: "en", cost: 0, difficulty: "beginner", duration: 2000, externalCourseId: "ou-business" }
-  ],
   "coursera-eu": [
     { title: "European Business and Culture", description: "Understanding European markets", courseUrl: "https://coursera.org/learn/european-business", category: "Business", language: "en", cost: 0, difficulty: "intermediate", duration: 2000, externalCourseId: "coursera-eu-bus" },
     { title: "European History and Society", description: "European studies course", courseUrl: "https://coursera.org/learn/european-history", category: "History", language: "en", cost: 0, difficulty: "beginner", duration: 1800, externalCourseId: "coursera-eu-hist" }
@@ -562,28 +550,12 @@ export const PLATFORM_COURSE_DATA: Record<string, CourseData[]> = {
     { title: "Neural Networks Fundamentals", description: "Understanding neural networks", courseUrl: "https://khanacademy.org/computing/neural-networks", category: "AI", language: "en", cost: 0, difficulty: "advanced", duration: 2400, externalCourseId: "khan-nn" }
   ],
   "coursera-plus": [
-    { title: "Unlimited Course Access", description: "Subscription to thousands of Coursera courses", courseUrl: "https://coursera.org/coursera-plus", category: "Meta", language: "en", cost: 399, difficulty: null, duration: null, externalCourseId: "coursera-plus-sub" },
-    { title: "Professional Certificates Bundle", description: "All professional certificates included", courseUrl: "https://coursera.org/plus-certificates", category: "Meta", language: "en", cost: 399, difficulty: null, duration: null, externalCourseId: "coursera-plus-cert" }
+    { title: "Unlimited Course Access", description: "Subscription to thousands of Coursera courses", courseUrl: "https://coursera.org/coursera-plus", category: "Meta", language: "en", cost: 399, externalCourseId: "coursera-plus-sub" },
+    { title: "Professional Certificates Bundle", description: "All professional certificates included", courseUrl: "https://coursera.org/plus-certificates", category: "Meta", language: "en", cost: 399, externalCourseId: "coursera-plus-cert" }
   ],
   "linkedin-ads": [
     { title: "LinkedIn Ads Masterclass", description: "Mastering LinkedIn advertising platform", courseUrl: "https://linkedin.com/learning/linkedin-ads", category: "Digital Marketing", language: "en", cost: 39.99, difficulty: "intermediate", duration: 1800, externalCourseId: "linkedin-ads-course" },
     { title: "Social Media Advertising Strategy", description: "Strategic social media marketing", courseUrl: "https://linkedin.com/learning/social-ads", category: "Digital Marketing", language: "en", cost: 39.99, difficulty: "intermediate", duration: 1500, externalCourseId: "linkedin-social-ads" }
-  ],
-  "google-career-certs": [
-    { title: "Google IT Support Professional", description: "Entry-level IT support certification", courseUrl: "https://coursera.org/professional-certificates/google-it-support", category: "IT", language: "en", cost: 0, difficulty: "beginner", duration: 4800, externalCourseId: "google-it-support" },
-    { title: "Google Cloud Skills Boost", description: "Cloud computing fundamentals", courseUrl: "https://coursera.org/professional-certificates/google-cloud", category: "Cloud Computing", language: "en", cost: 0, difficulty: "intermediate", duration: 4000, externalCourseId: "google-cloud-skills" }
-  ],
-  "amazon-skill-builder": [
-    { title: "AWS Fundamentals", description: "AWS cloud services introduction", courseUrl: "https://skillbuilder.aws.com/learning/path/aws-fundamentals", category: "Cloud Computing", language: "en", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "amazon-aws-fund" },
-    { title: "Advanced AWS Solutions", description: "Advanced AWS architecture and design", courseUrl: "https://skillbuilder.aws.com/learning/path/advanced-aws", category: "Cloud Computing", language: "en", cost: 0, difficulty: "advanced", duration: 3600, externalCourseId: "amazon-aws-adv" }
-  ],
-  "microsoft-learn": [
-    { title: "Azure Fundamentals", description: "Microsoft Azure cloud basics", courseUrl: "https://learn.microsoft.com/azure/fundamentals", category: "Cloud Computing", language: "en", cost: 0, difficulty: "beginner", duration: 2400, externalCourseId: "microsoft-azure-fund" },
-    { title: "Advanced C# Programming", description: "Advanced C# concepts and practices", courseUrl: "https://learn.microsoft.com/csharp/advanced", category: "Programming", language: "en", cost: 0, difficulty: "advanced", duration: 3000, externalCourseId: "microsoft-csharp-adv" }
-  ],
-  "preply": [
-    { title: "Online English Tutoring", description: "Live English lessons with native speakers", courseUrl: "https://preply.com/en/learn/english", category: "Languages", language: "en", cost: 5, difficulty: "beginner", duration: 60, externalCourseId: "preply-english" },
-    { title: "Spanish Conversation Practice", description: "Live Spanish conversation sessions", courseUrl: "https://preply.com/en/learn/spanish", category: "Languages", language: "en", cost: 5, difficulty: "intermediate", duration: 60, externalCourseId: "preply-spanish" }
   ]
 };
 
