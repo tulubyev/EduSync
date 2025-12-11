@@ -194,13 +194,23 @@ class RecordingTaskManager {
     this.activeTask = taskId;
 
     try {
+      // Ensure clean browser state before starting
+      await streamingRecorderService.stopBrowser();
+      
       await this.updateTaskStatus(taskId, 'recording', { startedAt: new Date() });
       logger.info(`🎬 Starting task execution: ${taskId}`);
 
       const { audioAvailable } = await streamingRecorderService.initialize();
       logger.info(`Recording initialized - audio capture: ${audioAvailable ? 'available' : 'not available'}`);
       
-      await streamingRecorderService.navigateToStream(task.streamUrl, task.streamPassword);
+      // Navigate with error handling - ensure cleanup on failure
+      try {
+        await streamingRecorderService.navigateToStream(task.streamUrl, task.streamPassword);
+      } catch (navError) {
+        logger.error(`Failed to navigate to stream: ${navError}`);
+        await streamingRecorderService.stopBrowser();
+        throw new Error(`Navigation failed: ${navError}`);
+      }
 
       const parts: RecordingPart[] = [...task.parts];
 

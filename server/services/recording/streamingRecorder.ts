@@ -58,8 +58,11 @@ class StreamingRecorderService {
 
   async startBrowser(): Promise<void> {
     if (this.browser) {
-      logger.warn('Browser already running');
-      return;
+      logger.warn('Browser already running, closing first');
+      try {
+        await this.browser.close().catch(() => {});
+      } catch (e) {}
+      this.browser = null;
     }
 
     try {
@@ -83,6 +86,7 @@ class StreamingRecorderService {
       logger.info('✅ Browser started with audio support');
     } catch (error) {
       logger.error('Failed to start browser:', error);
+      this.browser = null;
       throw error;
     }
   }
@@ -103,14 +107,22 @@ class StreamingRecorderService {
   }
 
   async navigateToStream(url: string, password?: string): Promise<void> {
+    // Clean up old page if exists
+    if (this.page) {
+      try {
+        await this.page.close().catch(() => {});
+      } catch (e) {}
+      this.page = null;
+    }
+
     if (!this.browser) {
       await this.startBrowser();
     }
 
-    this.page = await this.browser!.newPage();
-    await this.page.setViewportSize(this.config.viewport);
-
     try {
+      this.page = await this.browser!.newPage();
+      await this.page.setViewportSize(this.config.viewport);
+
       await this.page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
       logger.info(`📺 Navigated to stream: ${url}`);
 
@@ -121,6 +133,13 @@ class StreamingRecorderService {
       await this.page.waitForTimeout(5000);
     } catch (error) {
       logger.error('Failed to navigate to stream:', error);
+      // Clean up on navigation failure
+      if (this.page) {
+        try {
+          await this.page.close().catch(() => {});
+        } catch (e) {}
+        this.page = null;
+      }
       throw error;
     }
   }
