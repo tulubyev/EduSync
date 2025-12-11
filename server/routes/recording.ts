@@ -3,7 +3,7 @@ import { storage } from "../storage";
 import { authenticateToken } from "../middleware/auth";
 import { z } from "zod";
 import { yandexDiskService } from "../services/yandexDiskService";
-import { recordingTaskManager, recordingScheduler } from "../services/recording";
+import { recordingTaskManager, recordingScheduler, recordingLogger } from "../services/recording";
 import { logger } from "../services/logger";
 import { db } from "../db";
 import { recordingTasks } from "@shared/schema";
@@ -291,6 +291,75 @@ router.delete('/tasks/:taskId', authenticateToken as any, async (req: AuthReques
   } catch (error) {
     logger.error('Error deleting recording task:', error);
     res.status(500).json({ message: 'Ошибка удаления задачи' });
+  }
+});
+
+router.get('/tasks/:taskId/logs', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+
+    const task = await recordingTaskManager.getTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ message: 'Задача не найдена' });
+    }
+
+    if (task.userId !== userId) {
+      return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    }
+
+    const logs = await recordingLogger.getTaskLogs(taskId);
+    res.json({
+      taskId,
+      title: task.title,
+      status: task.status,
+      logsCount: logs.length,
+      logs: logs.map((log: any) => ({
+        id: log.id,
+        timestamp: log.createdAt,
+        event: log.eventType,
+        part: log.partNumber,
+        message: log.message,
+        error: log.errorDetails,
+        fileSize: log.fileSize,
+        duration: log.duration,
+      }))
+    });
+  } catch (error) {
+    logger.error('Error fetching recording logs:', error);
+    res.status(500).json({ message: 'Ошибка получения логов' });
+  }
+});
+
+router.get('/logs/timeline/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+
+    const task = await recordingTaskManager.getTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ message: 'Задача не найдена' });
+    }
+
+    if (task.userId !== userId) {
+      return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    }
+
+    const timeline = await recordingLogger.getTaskEventTimeline(taskId);
+    res.json({
+      taskId,
+      title: task.title,
+      status: task.status,
+      scheduledTime: task.scheduledTime,
+      startedAt: task.startedAt,
+      completedAt: task.completedAt,
+      timeline
+    });
+  } catch (error) {
+    logger.error('Error fetching timeline:', error);
+    res.status(500).json({ message: 'Ошибка получения timeline' });
   }
 });
 

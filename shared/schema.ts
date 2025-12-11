@@ -406,6 +406,26 @@ export const recordingTasks = pgTable("recording_tasks", {
   scheduledTimeIdx: index("recording_tasks_scheduled_time_idx").on(table.scheduledTime),
 }));
 
+// Recording Logs table - Detailed event logs for recording tasks
+export const recordingLogs = pgTable("recording_logs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  taskId: uuid("task_id").references(() => recordingTasks.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  eventType: varchar("event_type", { length: 50 }).notNull(), // task_created, task_started, recording_started, recording_completed, upload_started, upload_completed, upload_failed, browser_error, task_failed, task_cancelled
+  partNumber: integer("part_number"), // which part if applicable
+  message: text("message").notNull(), // detailed event message
+  errorDetails: text("error_details"), // error stack trace or details
+  fileSize: integer("file_size"), // bytes uploaded
+  duration: integer("duration"), // actual recording duration in ms
+  metadata: jsonb("metadata"), // additional event data
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  taskIdx: index("recording_logs_task_idx").on(table.taskId),
+  userIdx: index("recording_logs_user_idx").on(table.userId),
+  eventTypeIdx: index("recording_logs_event_type_idx").on(table.eventType),
+  createdAtIdx: index("recording_logs_created_at_idx").on(table.createdAt),
+}));
+
 // Admin Logs table - Admin activity tracking
 export const adminLogs = pgTable("admin_logs", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),

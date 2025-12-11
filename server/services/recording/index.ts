@@ -5,3 +5,4 @@ export { recordingTaskManager } from './taskManager';
 export { playlistGenerator } from './playlistGenerator';
 export { recordingScheduler } from './scheduler';
 export { audioSetup } from './audioSetup';
+export { recordingLogger } from './logger';

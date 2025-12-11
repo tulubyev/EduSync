@@ -6,6 +6,7 @@ import { streamingRecorderService } from './streamingRecorder';
 import { yandexDiskService } from '../yandexDiskService';
 import { playlistGenerator } from './playlistGenerator';
 import { RecordingTaskData, RecordingPart } from './types';
+import { recordingLogger } from './logger';
 import * as fs from 'fs';
 
 const MAX_PART_DURATION_MIN = 20;
@@ -195,6 +196,14 @@ class RecordingTaskManager {
 
     try {
       // Ensure clean browser state before starting
+      await recordingLogger.logEvent({
+        taskId,
+        userId: task.userId,
+        eventType: 'task_started',
+        message: `Recording task started for: ${task.title}`,
+        metadata: { url: task.streamUrl, duration: task.duration, totalParts: task.totalParts }
+      });
+      
       await streamingRecorderService.stopBrowser();
       
       await this.updateTaskStatus(taskId, 'recording', { startedAt: new Date() });
@@ -207,6 +216,13 @@ class RecordingTaskManager {
       try {
         await streamingRecorderService.navigateToStream(task.streamUrl, task.streamPassword);
       } catch (navError) {
+        await recordingLogger.logEvent({
+          taskId,
+          userId: task.userId,
+          eventType: 'navigation_error',
+          message: `Failed to navigate to stream: ${task.streamUrl}`,
+          errorDetails: String(navError)
+        });
         logger.error(`Failed to navigate to stream: ${navError}`);
         await streamingRecorderService.stopBrowser();
         throw new Error(`Navigation failed: ${navError}`);
@@ -225,6 +241,15 @@ class RecordingTaskManager {
         parts[i].status = 'recording';
         await this.updateTaskStatus(taskId, 'recording', { currentPart: i, parts });
 
+        await recordingLogger.logEvent({
+          taskId,
+          userId: task.userId,
+          eventType: 'recording_started',
+          message: `Recording started for part ${i + 1}/${task.totalParts}`,
+          partNumber: i + 1,
+          duration: partDurationMs
+        });
+
         logger.info(`📹 Recording part ${i + 1}/${task.totalParts} (streaming mode)`);
 
         const { outputPath } = await streamingRecorderService.startStreamingRecording(
@@ -238,12 +263,33 @@ class RecordingTaskManager {
         if (!result.success) {
           parts[i].status = 'failed';
           parts[i].error = result.error || 'Recording failed';
+          
+          await recordingLogger.logEvent({
+            taskId,
+            userId: task.userId,
+            eventType: 'recording_completed',
+            message: `Recording part ${i + 1} completed with error`,
+            partNumber: i + 1,
+            duration: result.actualDuration,
+            errorDetails: result.error
+          });
+          
           await this.updateTaskStatus(taskId, 'failed', { 
             parts,
             errorMessage: `Part ${i + 1} failed: ${result.error}` 
           });
           throw new Error(`Recording part ${i + 1} failed: ${result.error}`);
         }
+        
+        await recordingLogger.logEvent({
+          taskId,
+          userId: task.userId,
+          eventType: 'recording_completed',
+          message: `Recording part ${i + 1} completed successfully`,
+          partNumber: i + 1,
+          duration: result.actualDuration,
+          metadata: { frameCount: result.frameCount }
+        });
 
         parts[i].fileName = result.filePath.split('/').pop()!;
         parts[i].endTime = new Date().toISOString();
@@ -253,6 +299,17 @@ class RecordingTaskManager {
 
         if (task.saveTarget === 'yandex_disk' && result.filePath && fs.existsSync(result.filePath)) {
           const fileBuffer = fs.readFileSync(result.filePath);
+          const fileSize = fileBuffer.length;
+          
+          await recordingLogger.logEvent({
+            taskId,
+            userId: task.userId,
+            eventType: 'upload_started',
+            message: `Upload to Yandex.Disk started for part ${i + 1}`,
+            partNumber: i + 1,
+            fileSize
+          });
+          
           const uploadResult = await yandexDiskService.uploadFile(
             parts[i].fileName,
             fileBuffer,
@@ -269,15 +326,52 @@ class RecordingTaskManager {
             
             parts[i].status = 'completed';
             fs.unlinkSync(result.filePath);
+            
+            await recordingLogger.logEvent({
+              taskId,
+              userId: task.userId,
+              eventType: 'upload_completed',
+              message: `Upload to Yandex.Disk completed for part ${i + 1}`,
+              partNumber: i + 1,
+              fileSize,
+              metadata: { publicUrl: linkResult.success ? linkResult.link : null }
+            });
           } else {
             parts[i].status = 'failed';
             parts[i].error = uploadResult.error;
+            
+            await recordingLogger.logEvent({
+              taskId,
+              userId: task.userId,
+              eventType: 'upload_failed',
+              message: `Upload to Yandex.Disk failed for part ${i + 1}`,
+              partNumber: i + 1,
+              errorDetails: uploadResult.error
+            });
           }
         } else if (result.filePath && fs.existsSync(result.filePath)) {
           parts[i].status = 'completed';
+          
+          await recordingLogger.logEvent({
+            taskId,
+            userId: task.userId,
+            eventType: 'upload_completed',
+            message: `Part ${i + 1} saved to library`,
+            partNumber: i + 1,
+            fileSize: fs.statSync(result.filePath).size
+          });
         } else {
           parts[i].status = 'failed';
           parts[i].error = 'Output file not created';
+          
+          await recordingLogger.logEvent({
+            taskId,
+            userId: task.userId,
+            eventType: 'upload_failed',
+            message: `Output file not created for part ${i + 1}`,
+            partNumber: i + 1,
+            errorDetails: 'Recording file not found on disk'
+          });
         }
 
         await this.updateTaskStatus(taskId, 'recording', { currentPart: i + 1, parts });
@@ -312,13 +406,37 @@ class RecordingTaskManager {
         playlistUrl,
       });
 
+      await recordingLogger.logEvent({
+        taskId,
+        userId: task.userId,
+        eventType: 'task_created',
+        message: `Recording task completed successfully`,
+        metadata: { totalParts: task.totalParts, playlistUrl }
+      });
+
       logger.info(`✅ Task completed: ${taskId}`);
     } catch (error: any) {
       logger.error(`Task execution failed: ${taskId}`, error);
+      
+      await recordingLogger.logEvent({
+        taskId,
+        userId: task.userId,
+        eventType: 'task_failed',
+        message: `Recording task failed`,
+        errorDetails: error.message || error.toString()
+      });
+      
       await this.updateTaskStatus(taskId, 'failed', {
         errorMessage: error.message || 'Unknown error',
       });
     } finally {
+      await recordingLogger.logEvent({
+        taskId,
+        userId: task.userId,
+        eventType: 'browser_cleanup',
+        message: `Browser cleanup completed`
+      });
+      
       await streamingRecorderService.stopBrowser();
       this.isProcessing = false;
       this.activeTask = null;
