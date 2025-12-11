@@ -309,14 +309,6 @@ export const config: AppConfig = {
       timeout: getEnvNumber('SESSION_TIMEOUT', 30 * 60 * 1000), // 30 минут
       maxLoginAttempts: getEnvNumber('MAX_LOGIN_ATTEMPTS', 5),
       lockoutDuration: getEnvNumber('ACCOUNT_LOCKOUT_DURATION', 15 * 60 * 1000), // 15 минут
-      // Issue #10 FIX: Strong password requirements
-      passwordRequirements: {
-        minLength: getEnvNumber('PASSWORD_MIN_LENGTH', 12),
-        requireUppercase: getEnvBoolean('PASSWORD_REQUIRE_UPPERCASE', true),
-        requireLowercase: getEnvBoolean('PASSWORD_REQUIRE_LOWERCASE', true),
-        requireNumbers: getEnvBoolean('PASSWORD_REQUIRE_NUMBERS', true),
-        requireSpecialChars: getEnvBoolean('PASSWORD_REQUIRE_SPECIAL', true)
-      }
     }
   },
   
@@ -359,9 +351,6 @@ export const config: AppConfig = {
   cache: {
     defaultTTL: getEnvNumber('CACHE_DEFAULT_TTL', 300000), // 5 минут
     dashboardTTL: getEnvNumber('CACHE_DASHBOARD_TTL', 5 * 60), // 5 минут
-    configTTL: getEnvNumber('CACHE_CONFIG_TTL', 30 * 60), // 30 минут
-    banksTTL: getEnvNumber('CACHE_BANKS_TTL', 60), // 1 минута
-    accountsTTL: getEnvNumber('CACHE_ACCOUNTS_TTL', 2 * 60), // 2 минуты
   },
   
   // Session Configuration
