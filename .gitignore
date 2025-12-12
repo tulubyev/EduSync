@@ -1,6 +1,20 @@
 node_modules
 dist
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gzpublic/uploads/
+.env
+
+# Deployment optimization - exclude from build
+attached_assets/
+saveddata/
+docs/
+mobile/
+scripts/
+server/uploads/
+public/uploads/
+.config/
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.md
+!README.md

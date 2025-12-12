@@ -1,0 +1,17 @@
+
+attached_assets/
+saveddata/
+docs/
+mobile/
+scripts/
+server/uploads/
+public/uploads/
+.config/npm/
+.config/pulse/
+*.md
+!README.md
+*.zip
+audit.md
+replit.md
+adaptive.md
+audio-video-record.md
