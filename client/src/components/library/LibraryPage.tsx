@@ -101,9 +101,9 @@ export function LibraryPage() {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (!response.ok) throw new Error('Ошибка загрузки материалов');
-      
+
       const data = await response.json();
       setNotes(data);
     } catch (err) {
@@ -121,9 +121,9 @@ export function LibraryPage() {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (!response.ok) throw new Error('Ошибка загрузки курсов');
-      
+
       const data = await response.json();
       setCourses(data);
     } catch (err) {
@@ -139,12 +139,12 @@ export function LibraryPage() {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (!response.ok) throw new Error('Ошибка загрузки платформ');
-      
+
       const data = await response.json();
       const allPlatforms: Platform[] = [];
-      
+
       Object.values(data).forEach((regionPlatforms: any) => {
         if (Array.isArray(regionPlatforms)) {
           regionPlatforms.forEach((p: any) => {
@@ -152,7 +152,7 @@ export function LibraryPage() {
           });
         }
       });
-      
+
       setPlatforms(allPlatforms);
     } catch (err) {
       console.error('Error fetching platforms:', err);
@@ -175,9 +175,9 @@ export function LibraryPage() {
       },
       body: JSON.stringify(data),
     });
-    
+
     if (!response.ok) throw new Error('Ошибка создания материала');
-    
+
     await fetchNotes();
   };
 
@@ -191,14 +191,14 @@ export function LibraryPage() {
       },
       body: JSON.stringify(data),
     });
-    
+
     if (!response.ok) throw new Error('Ошибка обновления материала');
-    
+
     await fetchNotes();
   };
 
   const handleDeleteNote = async (id: string) => {
-    
+
     const token = localStorage.getItem('accessToken');
     const response = await fetch(`/api/library/${id}`, {
       method: 'DELETE',
@@ -206,9 +206,9 @@ export function LibraryPage() {
         'Authorization': `Bearer ${token}`,
       },
     });
-    
+
     if (!response.ok) throw new Error('Ошибка удаления');
-    
+
     if (selectedNote?.id === id) setSelectedNote(null);
     await fetchNotes();
   };
@@ -223,9 +223,9 @@ export function LibraryPage() {
       },
       body: JSON.stringify({ isPinned: !note.isPinned }),
     });
-    
+
     if (!response.ok) throw new Error('Ошибка обновления');
-    
+
     await fetchNotes();
   };
 
@@ -237,16 +237,16 @@ export function LibraryPage() {
     try {
       setIsRecordingLoading(true);
       const token = localStorage.getItem('accessToken');
-      
+
       // Преобразовать datetime-local в ISO 8601 формат
       const scheduledDateTime = new Date(data.scheduledTime);
       const isoTime = scheduledDateTime.toISOString();
-      
+
       const body = {
         ...data,
         scheduledTime: isoTime,
       };
-      
+
       const response = await fetch('/api/library/recording/schedule', {
         method: 'POST',
         headers: {
@@ -255,12 +255,12 @@ export function LibraryPage() {
         },
         body: JSON.stringify(body),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Ошибка планирования записи');
       }
-      
+
       setError(null);
       await fetchNotes();
       alert('Запись запланирована успешно!');
@@ -437,7 +437,7 @@ export function LibraryPage() {
             className="pl-10 min-h-11"
           />
         </div>
-        
+
         <Select value={selectedCourse} onValueChange={setSelectedCourse}>
           <SelectTrigger className="w-full sm:w-[200px] min-h-11">
             <SelectValue placeholder="Фильтр по курсу" />
@@ -467,7 +467,7 @@ export function LibraryPage() {
             }}
           />
         </div>
-        
+
         <div className="hidden lg:block">
           <ResizeHandle 
             onResize={(delta) => {
@@ -475,7 +475,7 @@ export function LibraryPage() {
             }}
           />
         </div>
-        
+
         <div className="flex-1 overflow-x-hidden">
           {filteredNotes.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
@@ -669,15 +669,15 @@ export function LibraryPage() {
                     ))}
                   </div>
                 )}
-                
+
                 {selectedNote.resourceUrl && renderResource(selectedNote.resourceUrl)}
-                
+
                 <div>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
                     {selectedNote.content}
                   </p>
                 </div>
-                
+
                 <div className="pt-4 border-t text-xs text-muted-foreground">
                   <p>Создано: {format(new Date(selectedNote.createdAt), 'dd MMMM yyyy, HH:mm', { locale: ru })}</p>
                   <p>Обновлено: {format(new Date(selectedNote.updatedAt), 'dd MMMM yyyy, HH:mm', { locale: ru })}</p>
@@ -807,7 +807,7 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
 
     setIsConverting(true);
     setUploadedFileName(file.name);
-    
+
     try {
       let processedFile = file;
       if (file.type.startsWith('image/')) {
@@ -831,7 +831,7 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
 
   const handleSubmit = async () => {
     if (!formData.title || !formData.content) return;
-    
+
     setIsSubmitting(true);
     try {
       await onSubmit({
@@ -863,7 +863,7 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
             {isEditing ? 'Редактировать материал' : 'Новый материал'}
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
             <Label>Заголовок *</Label>
