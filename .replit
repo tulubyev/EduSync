@@ -8,8 +8,8 @@ packages = ["jq", "zip", "unzip", "imagemagick", "ffmpeg", "chromium", "mesa", "
 
 [deployment]
 deploymentTarget = "autoscale"
-build = ["bash", "-c", "npm install && npm run build"]
-run = ["node", "dist/index.js"]
+build = ["npm", "run", "build"]
+run = ["npm", "start"]
 
 [env]
 PORT = "5000"
