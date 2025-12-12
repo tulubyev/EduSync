@@ -83,78 +83,81 @@ app.use((req, res, next) => {
     log(`serving on port ${config.port}`);
   });
 
-  // Start auto payment processing - runs once per day at 00:00 (midnight)
-  const scheduleAutoPaymentProcessor = () => {
-    const now = new Date();
-    const nextRun = new Date(now);
-    nextRun.setDate(nextRun.getDate() + 1);
-    nextRun.setHours(0, 0, 0, 0);
-    
-    const timeUntilNextRun = nextRun.getTime() - now.getTime();
-    
-    const runProcessor = async () => {
-      logger.info('Running daily auto payment processor for all providers...');
+  // Start background schedulers asynchronously (non-blocking)
+  setImmediate(() => {
+    // Start auto payment processing - runs once per day at 00:00 (midnight)
+    const scheduleAutoPaymentProcessor = () => {
+      const now = new Date();
+      const nextRun = new Date(now);
+      nextRun.setDate(nextRun.getDate() + 1);
+      nextRun.setHours(0, 0, 0, 0);
       
-      const gateways = PaymentFactory.getReadyGateways();
-      for (const gateway of gateways) {
-        try {
-          logger.info(`Processing auto payments for ${gateway.providerName}...`);
-          await gateway.processAutoPayments();
-        } catch (err) {
-          logger.error(`Error in auto payment processor for ${gateway.providerName}:`, err);
-        }
-      }
+      const timeUntilNextRun = nextRun.getTime() - now.getTime();
       
-      logger.info('Daily auto payment processor completed for all providers');
-      setTimeout(runProcessor, 24 * 60 * 60 * 1000);
-    };
-    
-    setTimeout(runProcessor, timeUntilNextRun);
-    logger.info(`Auto payment processor scheduled to run daily at 00:00 (next run in ${Math.round(timeUntilNextRun / 1000 / 60)} minutes)`);
-  };
-  
-  scheduleAutoPaymentProcessor();
-
-  // Start course discovery scheduler - runs every Sunday at 02:00
-  const scheduleCourseDiscovery = () => {
-    const now = new Date();
-    let nextRun = new Date(now);
-    
-    // Calculate next Sunday at 02:00
-    const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
-    nextRun.setDate(nextRun.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
-    nextRun.setHours(2, 0, 0, 0);
-    
-    const timeUntilNextRun = nextRun.getTime() - now.getTime();
-    
-    const runDiscovery = async () => {
-      try {
-        logger.info('Running weekly course discovery...');
-        const result = await courseDiscoveryService.discoverCourses(5);
-        logger.info(`Course discovery completed: ${result.totalSaved} courses saved from ${result.platformsWithCourses} platforms`);
+      const runProcessor = async () => {
+        logger.info('Running daily auto payment processor for all providers...');
         
-        if (result.errors.length > 0) {
-          logger.warn(`Course discovery errors: ${JSON.stringify(result.errors)}`);
+        const gateways = PaymentFactory.getReadyGateways();
+        for (const gateway of gateways) {
+          try {
+            logger.info(`Processing auto payments for ${gateway.providerName}...`);
+            await gateway.processAutoPayments();
+          } catch (err) {
+            logger.error(`Error in auto payment processor for ${gateway.providerName}:`, err);
+          }
         }
-      } catch (err) {
-        logger.error('Error in course discovery scheduler:', err);
-      }
+        
+        logger.info('Daily auto payment processor completed for all providers');
+        setTimeout(runProcessor, 24 * 60 * 60 * 1000);
+      };
       
-      // Schedule next run in 7 days
-      setTimeout(runDiscovery, 7 * 24 * 60 * 60 * 1000);
+      setTimeout(runProcessor, timeUntilNextRun);
+      logger.info(`Auto payment processor scheduled to run daily at 00:00 (next run in ${Math.round(timeUntilNextRun / 1000 / 60)} minutes)`);
     };
     
-    setTimeout(runDiscovery, timeUntilNextRun);
-    logger.info(`Course discovery scheduler scheduled to run weekly on Sunday at 02:00 (next run in ${Math.round(timeUntilNextRun / 1000 / 60)} minutes)`);
-  };
-  
-  scheduleCourseDiscovery();
+    scheduleAutoPaymentProcessor();
 
-  // Start recording scheduler - checks for scheduled recordings every minute
-  try {
-    recordingScheduler.start();
-    logger.info('🎬 Recording scheduler started (checking every minute for scheduled recordings)');
-  } catch (err) {
-    logger.error('Failed to start recording scheduler:', err);
-  }
+    // Start course discovery scheduler - runs every Sunday at 02:00
+    const scheduleCourseDiscovery = () => {
+      const now = new Date();
+      let nextRun = new Date(now);
+      
+      // Calculate next Sunday at 02:00
+      const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
+      nextRun.setDate(nextRun.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
+      nextRun.setHours(2, 0, 0, 0);
+      
+      const timeUntilNextRun = nextRun.getTime() - now.getTime();
+      
+      const runDiscovery = async () => {
+        try {
+          logger.info('Running weekly course discovery...');
+          const result = await courseDiscoveryService.discoverCourses(5);
+          logger.info(`Course discovery completed: ${result.totalSaved} courses saved from ${result.platformsWithCourses} platforms`);
+          
+          if (result.errors.length > 0) {
+            logger.warn(`Course discovery errors: ${JSON.stringify(result.errors)}`);
+          }
+        } catch (err) {
+          logger.error('Error in course discovery scheduler:', err);
+        }
+        
+        // Schedule next run in 7 days
+        setTimeout(runDiscovery, 7 * 24 * 60 * 60 * 1000);
+      };
+      
+      setTimeout(runDiscovery, timeUntilNextRun);
+      logger.info(`Course discovery scheduler scheduled to run weekly on Sunday at 02:00 (next run in ${Math.round(timeUntilNextRun / 1000 / 60)} minutes)`);
+    };
+    
+    scheduleCourseDiscovery();
+
+    // Start recording scheduler - checks for scheduled recordings every minute
+    try {
+      recordingScheduler.start();
+      logger.info('🎬 Recording scheduler started (checking every minute for scheduled recordings)');
+    } catch (err) {
+      logger.error('Failed to start recording scheduler:', err);
+    }
+  });
 })();
