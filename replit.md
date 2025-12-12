@@ -1,6 +1,25 @@
 # Overview
 My EPA (Агрегатор Онлайн Обучения) is an educational platform aggregator for the Russian market. It consolidates online courses from various global and regional platforms into specialized categories. The platform offers user profile management, course aggregation, deadline tracking, progress analytics, and an extensive admin panel. It features a desktop-first design with mobile portability and uses a PostgreSQL database to integrate over 89 educational platforms. The project aims to provide a comprehensive learning hub and has integrated payment solutions for subscription management.
 
+# Recent Changes (December 12, 2025)
+- **Recording Event Logging System** (COMPLETED):
+  - New database table `recording_logs` tracks every recording event with timestamps
+  - Event types: task_started, recording_started, recording_completed, upload_started, upload_completed, upload_failed, navigation_error, browser_error, task_failed, browser_cleanup
+  - Service: `RecordingLogger` in `server/services/recording/logger.ts`
+  - API Endpoints:
+    - `GET /api/library/recording/tasks/:taskId/logs` - View all events for a recording
+    - `GET /api/library/recording/logs/timeline/:taskId` - Chronological event timeline
+  - Each log entry includes: event type, part number, file size, duration, error details, metadata
+  - Fully integrated with recording task manager - logs all stages of recording pipeline
+
+- **Deployment Configuration Fixed** (COMPLETED):
+  - **Build Dependencies Issue**: vite, esbuild, tailwindcss, postcss, @vitejs/plugin-react, @tailwindcss/vite, drizzle-kit, typescript moved from devDependencies to dependencies
+  - **Why**: Cloud Run (Autoscale) doesn't install devDependencies during build, causing build failures
+  - **Solution**: npm install --save for all build-time packages
+  - **Build Process**: `npm run build` creates dist/index.js (676.9kb) - verified working
+  - **Deployment Command**: `npm run build` -> `npm start` (NODE_ENV=production)
+  - Application fully ready for publishing on Replit
+
 # Recent Changes (December 10, 2025)
 - **Autonomous Stream/Lecture Recording System** (FULL IMPLEMENTATION):
   - **Recording Architecture**:
