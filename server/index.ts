@@ -84,7 +84,10 @@ app.use((req, res, next) => {
   });
 
   // Start background schedulers asynchronously (non-blocking)
-  setImmediate(() => {
+  // Defer initialization by 30 seconds to allow server to start and pass health checks
+  setTimeout(() => {
+    logger.info('🚀 Starting background services...');
+    
     // Start auto payment processing - runs once per day at 00:00 (midnight)
     const scheduleAutoPaymentProcessor = () => {
       const now = new Date();
@@ -153,11 +156,16 @@ app.use((req, res, next) => {
     scheduleCourseDiscovery();
 
     // Start recording scheduler - checks for scheduled recordings every minute
-    try {
-      recordingScheduler.start();
-      logger.info('🎬 Recording scheduler started (checking every minute for scheduled recordings)');
-    } catch (err) {
-      logger.error('Failed to start recording scheduler:', err);
+    // Only start if not in initial deployment phase
+    if (process.env.SKIP_RECORDING !== 'true') {
+      try {
+        recordingScheduler.start();
+        logger.info('🎬 Recording scheduler started (checking every minute for scheduled recordings)');
+      } catch (err) {
+        logger.error('Failed to start recording scheduler:', err);
+      }
+    } else {
+      logger.info('⏭️ Recording scheduler skipped (SKIP_RECORDING=true)');
     }
-  });
+  }, 30000); // Wait 30 seconds before starting background services
 })();

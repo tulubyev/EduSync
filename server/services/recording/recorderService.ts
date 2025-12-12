@@ -15,6 +15,7 @@ class RecorderService {
   private ffmpegProcess: ChildProcess | null = null;
   private isRecording = false;
   private currentOutputPath: string | null = null;
+  private initialized = false;
 
   private config: RecordingConfig = {
     maxPartDurationMs: MAX_PART_DURATION_MS,
@@ -28,7 +29,14 @@ class RecorderService {
     if (!fs.existsSync(RECORDINGS_DIR)) {
       fs.mkdirSync(RECORDINGS_DIR, { recursive: true });
     }
-    logger.info('🎬 RecorderService initialized');
+    // Lazy initialization - don't load Playwright until actually needed
+    logger.info('🎬 RecorderService created (lazy init)');
+  }
+
+  private async ensureInitialized() {
+    if (this.initialized) return;
+    this.initialized = true;
+    logger.info('🎬 RecorderService initializing Playwright...');
   }
 
   async startBrowser(): Promise<void> {
@@ -36,6 +44,8 @@ class RecorderService {
       logger.warn('Browser already running');
       return;
     }
+
+    await this.ensureInitialized();
 
     try {
       this.browser = await chromium.launch({
@@ -151,6 +161,8 @@ class RecorderService {
       throw new Error('No page available for recording');
     }
 
+    await this.ensureInitialized();
+
     const fileName = `recording_${taskId}_part${partNumber}_${Date.now()}.webm`;
     const outputPath = path.join(RECORDINGS_DIR, fileName);
     this.currentOutputPath = outputPath;
@@ -176,7 +188,7 @@ class RecorderService {
 
       this.cdpSession.on('Page.screencastFrame', async (params) => {
         if (!this.isRecording) return;
-        
+
         try {
           const frameData = Buffer.from(params.data, 'base64');
           frames.push(frameData);
@@ -189,7 +201,7 @@ class RecorderService {
       await new Promise<void>((resolve) => {
         setTimeout(async () => {
           this.isRecording = false;
-          
+
           try {
             await this.cdpSession?.send('Page.stopScreencast');
           } catch (e) {
@@ -199,7 +211,7 @@ class RecorderService {
           if (frames.length > 0) {
             await this.convertFramesToVideo(frames, outputPath);
           }
-          
+
           resolve();
         }, actualDuration);
       });
@@ -242,7 +254,7 @@ class RecorderService {
 
       ffmpeg.on('close', (code) => {
         fs.rmSync(framesDir, { recursive: true, force: true });
-        
+
         if (code === 0) {
           resolve();
         } else {
@@ -259,7 +271,7 @@ class RecorderService {
 
   async stopRecording(): Promise<void> {
     this.isRecording = false;
-    
+
     if (this.cdpSession) {
       try {
         await this.cdpSession.send('Page.stopScreencast');
@@ -292,7 +304,7 @@ class RecorderService {
       const filePath = path.join(RECORDINGS_DIR, file);
       const stats = fs.statSync(filePath);
       const ageMs = Date.now() - stats.mtimeMs;
-      
+
       if (ageMs > 24 * 60 * 60 * 1000) {
         fs.unlinkSync(filePath);
         logger.info(`Cleaned up old recording: ${file}`);
