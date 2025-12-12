@@ -4,15 +4,16 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["jq", "zip", "unzip", "imagemagick", "ffmpeg", "chromium", "mesa", "nss", "nspr", "dbus", "atk", "cups", "libdrm", "expat", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "pango", "cairo", "glib", "gtk3", "alsa-lib", "libuuid", "pulseaudio"]
+packages = ["jq", "zip", "unzip", "imagemagick", "ffmpeg", "chromium", "mesa", "nss", "nspr", "dbus", "atk", "cups", "libdrm", "expat", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "pango", "cairo", "glib", "gtk3", "alsa-lib", "libuuid"]
 
 [deployment]
 deploymentTarget = "autoscale"
-build = ["sh", "-c", "npm install && npm run build"]
-run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
+build = ["sh", "-c", "npm ci --production=false && npm run build"]
+run = ["sh", "-c", "NODE_ENV=production SKIP_RECORDING=true node dist/index.js"]
 
 [env]
 PORT = "5000"
+SKIP_RECORDING = "false"
 
 [workflows]
 runButton = "Project"
