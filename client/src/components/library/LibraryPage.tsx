@@ -751,6 +751,16 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState('');
+  const [platformSearch, setPlatformSearch] = useState('');
+  const [courseSearch, setCourseSearch] = useState('');
+
+  const filteredPlatforms = platforms.filter(p => 
+    p.name.toLowerCase().includes(platformSearch.toLowerCase())
+  );
+  
+  const filteredCourses = courses.filter(c =>
+    c.title.toLowerCase().includes(courseSearch.toLowerCase())
+  );
 
   const compressImage = (file: File) => {
     return new Promise<Blob>((resolve, reject) => {
@@ -889,16 +899,30 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
               <Label>Платформа (опционально)</Label>
               <Select 
                 value={formData.platformId} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, platformId: value }))}
+                onValueChange={(value) => { setFormData(prev => ({ ...prev, platformId: value })); setPlatformSearch(''); }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите платформу" />
                 </SelectTrigger>
                 <SelectContent>
+                  <div className="p-2 border-b">
+                    <Input
+                      placeholder="🔍 Поиск платформы..."
+                      value={platformSearch}
+                      onChange={(e) => setPlatformSearch(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-8"
+                    />
+                  </div>
                   <SelectItem value="none">Не выбрана</SelectItem>
-                  {platforms.map((platform) => (
+                  {filteredPlatforms.map((platform) => (
                     <SelectItem key={platform.id} value={platform.id}>{platform.name}</SelectItem>
                   ))}
+                  {filteredPlatforms.length === 0 && platformSearch && (
+                    <div className="p-2 text-xs text-muted-foreground text-center">
+                      Платформ не найдено
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -907,16 +931,30 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
               <Label>Курс (опционально)</Label>
               <Select 
                 value={formData.courseId} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, courseId: value }))}
+                onValueChange={(value) => { setFormData(prev => ({ ...prev, courseId: value })); setCourseSearch(''); }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите курс" />
                 </SelectTrigger>
                 <SelectContent>
+                  <div className="p-2 border-b">
+                    <Input
+                      placeholder="🔍 Поиск курса..."
+                      value={courseSearch}
+                      onChange={(e) => setCourseSearch(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-8"
+                    />
+                  </div>
                   <SelectItem value="none">Не выбран</SelectItem>
-                  {courses.map((course) => (
+                  {filteredCourses.map((course) => (
                     <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>
                   ))}
+                  {filteredCourses.length === 0 && courseSearch && (
+                    <div className="p-2 text-xs text-muted-foreground text-center">
+                      Курсов не найдено
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
