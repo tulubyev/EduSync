@@ -60,3 +60,4 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 - ✅ **Updated task statuses**: `scheduled` → `ready`, `recording` → `in_progress`, added `begetUrl` field
 - ✅ **Fixed frontend API paths**: Updated from `/api/library/recording/*` to `/api/recording/*`
 - ✅ **Fixed saveTarget validation**: Added 'beget' option to Zod schema validation (was causing recording schedule to fail silently)
+- ✅ **Fixed Playwright error on recording creation**: Removed @replit/vite-plugin-runtime-error-modal from vite.config.ts - this plugin was trying to use Playwright which is not available in EPA main project
