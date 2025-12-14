@@ -207,10 +207,14 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
               type="number"
               min="1"
               max="1440"
-              value={formData.duration}
+              value={formData.duration || ''}
               onChange={(e) => {
-                setFormData({ ...formData, duration: parseInt(e.target.value) || 60 });
-                if (errors.duration) setErrors({ ...errors, duration: '' });
+                const val = e.target.value;
+                const num = val === '' ? 60 : parseInt(val, 10);
+                if (!isNaN(num)) {
+                  setFormData({ ...formData, duration: num });
+                  if (errors.duration) setErrors({ ...errors, duration: '' });
+                }
               }}
               className={errors.duration ? 'border-red-500' : ''}
             />
