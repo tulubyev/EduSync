@@ -50,3 +50,7 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 - ✅ Implemented hybrid Recording Worker architecture (separate Replit project)
 - ✅ Updated RecordingTasksList UI: Added status badges (ready, in_progress, uploading, completed, failed, cancelled), beget_url support, video playback
 - ✅ Updated RecordingModal: Added Beget S3 as default storage target
+- ✅ Created `recording_worker_status` table for worker monitoring
+- ✅ Added monitoring API endpoints: dashboard, worker-status, sync-check, recent-logs, worker-heartbeat, worker-task-complete
+- ✅ Created new RecordingSchedulePage (`/recordings`) with tabs for tasks and worker monitoring
+- ✅ Added "Записи" navigation item to sidebar (desktop and mobile)
