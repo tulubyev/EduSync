@@ -22,7 +22,7 @@ const recordingSchema = z.object({
   streamPassword: z.string().optional(),
   scheduledTime: z.string().datetime("Некорректное время"),
   duration: z.number().int().min(1).max(1440).default(60),
-  saveTarget: z.enum(['yandex_disk', 'library']).default('library'),
+  saveTarget: z.enum(['yandex_disk', 'library', 'beget']).default('beget'),
 });
 
 router.post('/schedule', authenticateToken as any, async (req: AuthRequest, res: Response) => {

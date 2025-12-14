@@ -16,7 +16,7 @@ class RecordingTaskManager {
     streamPassword?: string;
     scheduledTime: Date;
     duration: number;
-    saveTarget: 'library' | 'yandex_disk';
+    saveTarget: 'library' | 'yandex_disk' | 'beget';
   }): Promise<string> {
     const totalParts = Math.ceil(data.duration / MAX_PART_DURATION_MIN);
     

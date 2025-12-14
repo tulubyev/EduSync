@@ -21,7 +21,7 @@ export interface RecordingTaskData {
   duration: number;
   maxPartDuration: number;
   status: 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
-  saveTarget: 'library' | 'yandex_disk';
+  saveTarget: 'library' | 'yandex_disk' | 'beget';
   currentPart: number;
   totalParts: number;
   parts: RecordingPart[];

@@ -59,3 +59,4 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 - ✅ **Simplified taskManager.ts**: Now contains only CRUD operations (createTask, getTask, getUserTasks, updateTaskStatus, cancelTask, recoverTask)
 - ✅ **Updated task statuses**: `scheduled` → `ready`, `recording` → `in_progress`, added `begetUrl` field
 - ✅ **Fixed frontend API paths**: Updated from `/api/library/recording/*` to `/api/recording/*`
+- ✅ **Fixed saveTarget validation**: Added 'beget' option to Zod schema validation (was causing recording schedule to fail silently)
