@@ -40,7 +40,11 @@ interface RecordingTask {
   completedAt?: string;
 }
 
-export function RecordingTasksList() {
+interface RecordingTasksListProps {
+  statusFilter?: string | null;
+}
+
+export function RecordingTasksList({ statusFilter }: RecordingTasksListProps) {
   const [tasks, setTasks] = useState<RecordingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
@@ -210,7 +214,12 @@ export function RecordingTasksList() {
     return <div className="text-center py-8 text-gray-500">Нет запланированных или завершённых записей</div>;
   }
 
-  const hasScheduledOrFailed = tasks.some(t => t.status === 'ready' || t.status === 'failed');
+  const filteredTasks = statusFilter ? tasks.filter(t => t.status === statusFilter) : tasks;
+  const hasScheduledOrFailed = filteredTasks.some(t => t.status === 'ready' || t.status === 'failed');
+
+  if (filteredTasks.length === 0 && statusFilter) {
+    return <div className="text-center py-8 text-gray-500">Нет записей с этим статусом</div>;
+  }
 
   return (
     <div className="space-y-4">
@@ -237,7 +246,7 @@ export function RecordingTasksList() {
           </Button>
         </div>
       )}
-      {tasks.map((task) => (
+      {filteredTasks.map((task) => (
         <div
           key={task.id}
           className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"

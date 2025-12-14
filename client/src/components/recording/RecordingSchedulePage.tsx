@@ -61,6 +61,7 @@ export function RecordingSchedulePage() {
   const [syncIssues, setSyncIssues] = useState<SyncIssue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string | null>(null);
 
   const fetchMonitoringData = async () => {
     try {
@@ -141,6 +142,17 @@ export function RecordingSchedulePage() {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      ready: 'Ожидают',
+      in_progress: 'Запись',
+      uploading: 'Загрузка',
+      completed: 'Завершено',
+      failed: 'Ошибки',
+    };
+    return labels[status] || status;
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -190,12 +202,56 @@ export function RecordingSchedulePage() {
           <TabsContent value="tasks" className="space-y-4">
             {stats && (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                <StatCard title="Ожидают" value={stats.ready} icon={Clock} color="blue" />
-                <StatCard title="Запись" value={stats.in_progress} icon={Activity} color="yellow" />
-                <StatCard title="Загрузка" value={stats.uploading} icon={HardDrive} color="purple" />
-                <StatCard title="Завершено" value={stats.completed} icon={CheckCircle} color="green" />
-                <StatCard title="Ошибки" value={stats.failed} icon={AlertTriangle} color="red" />
-                <StatCard title="Всего" value={stats.total} icon={Video} color="gray" />
+                <div 
+                  onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'ready' ? null : 'ready')}
+                  className={`cursor-pointer transition-all ${selectedStatusFilter === 'ready' ? 'ring-2 ring-blue-500' : ''}`}
+                >
+                  <StatCard title="Ожидают" value={stats.ready} icon={Clock} color="blue" />
+                </div>
+                <div 
+                  onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'in_progress' ? null : 'in_progress')}
+                  className={`cursor-pointer transition-all ${selectedStatusFilter === 'in_progress' ? 'ring-2 ring-yellow-500' : ''}`}
+                >
+                  <StatCard title="Запись" value={stats.in_progress} icon={Activity} color="yellow" />
+                </div>
+                <div 
+                  onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'uploading' ? null : 'uploading')}
+                  className={`cursor-pointer transition-all ${selectedStatusFilter === 'uploading' ? 'ring-2 ring-purple-500' : ''}`}
+                >
+                  <StatCard title="Загрузка" value={stats.uploading} icon={HardDrive} color="purple" />
+                </div>
+                <div 
+                  onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'completed' ? null : 'completed')}
+                  className={`cursor-pointer transition-all ${selectedStatusFilter === 'completed' ? 'ring-2 ring-green-500' : ''}`}
+                >
+                  <StatCard title="Завершено" value={stats.completed} icon={CheckCircle} color="green" />
+                </div>
+                <div 
+                  onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'failed' ? null : 'failed')}
+                  className={`cursor-pointer transition-all ${selectedStatusFilter === 'failed' ? 'ring-2 ring-red-500' : ''}`}
+                >
+                  <StatCard title="Ошибки" value={stats.failed} icon={AlertTriangle} color="red" />
+                </div>
+                <div 
+                  onClick={() => setSelectedStatusFilter(null)}
+                  className={`cursor-pointer transition-all ${selectedStatusFilter === null ? 'ring-2 ring-gray-500' : ''}`}
+                >
+                  <StatCard title="Всего" value={stats.total} icon={Video} color="gray" />
+                </div>
+              </div>
+            )}
+            
+            {selectedStatusFilter && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-700">
+                  Фильтр: Показываются записи со статусом "{getStatusLabel(selectedStatusFilter)}"
+                  <button 
+                    onClick={() => setSelectedStatusFilter(null)}
+                    className="ml-2 text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Очистить
+                  </button>
+                </p>
               </div>
             )}
 
@@ -204,7 +260,7 @@ export function RecordingSchedulePage() {
                 <CardTitle className="text-lg">Список записей</CardTitle>
               </CardHeader>
               <CardContent>
-                <RecordingTasksList />
+                <RecordingTasksList statusFilter={selectedStatusFilter} />
               </CardContent>
             </Card>
           </TabsContent>
