@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { authenticateToken } from "../middleware/auth";
 import { z } from "zod";
+import recordingRouter from "./recording.js";
 
 const router = Router();
 
@@ -209,5 +210,8 @@ router.delete('/:id', authenticateToken as any, async (req: AuthRequest, res: Re
     res.status(500).json({ message: 'Ошибка удаления заметки' });
   }
 });
+
+// Подключаем recording маршруты как подмножество library
+router.use('/recording', recordingRouter);
 
 export default router;
