@@ -431,6 +431,28 @@ export const recordingLogs = pgTable("recording_logs", {
   createdAtIdx: index("recording_logs_created_at_idx").on(table.createdAt),
 }));
 
+// Recording Worker Status table - Monitor external Recording Worker health
+export const recordingWorkerStatus = pgTable("recording_worker_status", {
+  workerId: varchar("worker_id", { length: 255 }).primaryKey(),
+  isActive: boolean("is_active").default(true),
+  dbConnected: boolean("db_connected").default(false),
+  s3Connected: boolean("s3_connected").default(false),
+  activeTaskId: uuid("active_task_id").references(() => recordingTasks.id),
+  currentTaskTitle: varchar("current_task_title", { length: 500 }),
+  tasksProcessed: integer("tasks_processed").default(0),
+  tasksSuccessful: integer("tasks_successful").default(0),
+  tasksFailed: integer("tasks_failed").default(0),
+  lastError: text("last_error"),
+  lastErrorAt: timestamp("last_error_at"),
+  lastSeenAt: timestamp("last_seen_at").defaultNow(),
+  startedAt: timestamp("started_at").defaultNow(),
+  buildVersion: varchar("build_version", { length: 100 }),
+  metadata: jsonb("metadata"),
+}, (table) => ({
+  lastSeenIdx: index("recording_worker_status_last_seen_idx").on(table.lastSeenAt),
+  isActiveIdx: index("recording_worker_status_is_active_idx").on(table.isActive),
+}));
+
 // Admin Logs table - Admin activity tracking
 export const adminLogs = pgTable("admin_logs", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
