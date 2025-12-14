@@ -3,7 +3,6 @@ import { logger } from "../services/logger";
 import { authenticateToken } from '../middleware/auth.js';
 import { storage } from '../storage';
 import multer from 'multer';
-import sharp from 'sharp';
 import path from 'path';
 import { promises as fs } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -89,24 +88,16 @@ router.post('/upload-image',
     // Ensure uploads directory exists
     await fs.mkdir(uploadsDir, { recursive: true });
 
-    // Process image with Sharp - resize and crop to square
-    await sharp(req.file.buffer)
-      .resize(400, 400, {
-        fit: 'cover',
-        position: 'center'
-      })
-      .jpeg({
-        quality: 85,
-        progressive: true
-      })
-      .toFile(filePath);
+    // Save image directly (base64 encoding for browser compatibility)
+    const base64Image = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype || 'image/jpeg';
 
-    // Generate image URL
-    const imageUrl = `/uploads/profile-images/${fileName}`;
+    // Store as base64 data URI
+    const imageDataUri = `data:${mimeType};base64,${base64Image}`;
 
-    // Update user profile with new image URL
+    // Update user profile with base64 image
     const updatedUser = await storage.updateUser(userId, {
-      profileImageUrl: imageUrl
+      profileImage: base64Image
     });
 
     if (!updatedUser) {
@@ -114,7 +105,7 @@ router.post('/upload-image',
     }
 
     res.json({ 
-      imageUrl,
+      imageDataUri,
       message: 'Изображение профиля успешно загружено'
     });
   } catch (error) {
