@@ -7,7 +7,10 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config/environment';
-import type { AuthenticatedRequest } from '../middleware/types.js';
+
+interface AuthRequest extends Request {
+  user?: { id: string; role?: string | null };
+}
 
 const router = Router();
 
@@ -41,7 +44,7 @@ const upload = multer({
  */
 
 // Update user profile
-router.put('/update', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/update', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const { firstName, lastName, email, phone } = req.body;
     const userId = req.user!.id;
@@ -72,9 +75,9 @@ router.put('/update', authenticateToken, async (req: AuthenticatedRequest, res: 
 
 // Upload and process profile image
 router.post('/upload-image', 
-  authenticateToken, 
+  authenticateToken as any, 
   upload.single('profileImage'), 
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'Файл не загружен' });
