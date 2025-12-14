@@ -20,7 +20,7 @@ export interface RecordingTaskData {
   scheduledTime: Date;
   duration: number;
   maxPartDuration: number;
-  status: 'scheduled' | 'recording' | 'uploading' | 'completed' | 'failed' | 'cancelled';
+  status: 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
   saveTarget: 'library' | 'yandex_disk';
   currentPart: number;
   totalParts: number;
@@ -28,6 +28,7 @@ export interface RecordingTaskData {
   playlistUrl?: string;
   libraryNoteId?: string;
   errorMessage?: string;
+  begetUrl?: string;
   startedAt?: Date;
   completedAt?: Date;
 }

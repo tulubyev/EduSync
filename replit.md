@@ -54,4 +54,8 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 - ✅ Added monitoring API endpoints: dashboard, worker-status, sync-check, recent-logs, worker-heartbeat, worker-task-complete
 - ✅ Created new RecordingSchedulePage (`/recordings`) with tabs for tasks and worker monitoring
 - ✅ Added "Записи" navigation item to sidebar (desktop and mobile)
-- ✅ **FIXED ARCHITECTURE**: Moved recording routes from `server/routes/library.ts` to main router (`/api/recording/*`) for proper separation of concerns (recording management is independent from library management)
+- ✅ **FIXED ARCHITECTURE**: Moved recording routes from `server/routes/library.ts` to main router (`/api/recording/*`) for proper separation of concerns
+- ✅ **CLEANED UP recording service**: Removed worker-only files (streamingRecorder.ts, audioSetup.ts, playlistGenerator.ts, recorderService.ts, scheduler.ts, stub.ts)
+- ✅ **Simplified taskManager.ts**: Now contains only CRUD operations (createTask, getTask, getUserTasks, updateTaskStatus, cancelTask, recoverTask)
+- ✅ **Updated task statuses**: `scheduled` → `ready`, `recording` → `in_progress`, added `begetUrl` field
+- ✅ **Fixed frontend API paths**: Updated from `/api/library/recording/*` to `/api/recording/*`

@@ -3,7 +3,7 @@ import { storage } from "../storage";
 import { authenticateToken } from "../middleware/auth";
 import { z } from "zod";
 import { yandexDiskService } from "../services/yandexDiskService";
-import { recordingTaskManager, recordingScheduler, recordingLogger } from "../services/recording";
+import { recordingTaskManager, recordingLogger } from "../services/recording";
 import { logger } from "../services/logger";
 import { db } from "../db";
 import { recordingTasks, recordingWorkerStatus, recordingLogs } from "@shared/schema";
@@ -109,8 +109,8 @@ router.post('/tasks/:taskId/cancel', authenticateToken as any, async (req: AuthR
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
     }
 
-    if (task.status !== 'scheduled') {
-      return res.status(400).json({ message: 'Можно отменить только запланированные задачи' });
+    if (task.status !== 'ready') {
+      return res.status(400).json({ message: 'Можно отменить только ожидающие задачи' });
     }
 
     await recordingTaskManager.cancelTask(taskId);
@@ -160,8 +160,8 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
     }
 
-    if (task.status !== 'scheduled') {
-      return res.status(400).json({ message: 'Можно редактировать только запланированные задачи' });
+    if (task.status !== 'ready') {
+      return res.status(400).json({ message: 'Можно редактировать только ожидающие задачи' });
     }
 
     // Validate input
@@ -189,42 +189,6 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
   }
 });
 
-router.post('/tasks/:taskId/execute', authenticateToken as any, async (req: AuthRequest, res: Response) => {
-  try {
-    const { taskId } = req.params;
-    const userId = req.user!.id;
-    const user = await storage.getUser(userId);
-
-    if (!user || (user.role !== 'admin' && user.adminRole !== 'super_admin')) {
-      return res.status(403).json({ message: 'Требуются права администратора' });
-    }
-
-    const task = await recordingTaskManager.getTask(taskId);
-    
-    if (!task) {
-      return res.status(404).json({ message: 'Задача не найдена' });
-    }
-
-    recordingTaskManager.executeTask(taskId);
-    res.json({ success: true, message: 'Запись запущена' });
-  } catch (error) {
-    logger.error('Error executing recording task:', error);
-    res.status(500).json({ message: 'Ошибка запуска записи' });
-  }
-});
-
-router.get('/scheduler/status', authenticateToken as any, async (req: AuthRequest, res: Response) => {
-  try {
-    res.json({
-      isActive: recordingScheduler.isActive(),
-      activeTask: recordingTaskManager.getActiveTask(),
-      isProcessing: recordingTaskManager.isTaskProcessing(),
-    });
-  } catch (error) {
-    logger.error('Error getting scheduler status:', error);
-    res.status(500).json({ message: 'Ошибка получения статуса планировщика' });
-  }
-});
 
 router.get('/yandex-disk/status', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
@@ -254,7 +218,7 @@ router.post('/tasks/clear-queue', authenticateToken as any, async (req: AuthRequ
         and(
           eq(recordingTasks.userId, userId),
           or(
-            eq(recordingTasks.status, 'scheduled'),
+            eq(recordingTasks.status, 'ready'),
             eq(recordingTasks.status, 'failed')
           )
         )
@@ -366,7 +330,6 @@ router.get('/logs/timeline/:taskId', authenticateToken as any, async (req: AuthR
 router.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
-    schedulerActive: recordingScheduler.isActive(),
     timestamp: new Date().toISOString(),
   });
 });
