@@ -7,12 +7,6 @@ import { yookassaService } from "./services/yookassaService";
 import { PaymentFactory } from "./services/payments/paymentFactory";
 import { courseDiscoveryService } from "./services/courseDiscoveryService";
 
-// Conditional import for recording - only load if not skipped
-let recordingScheduler: any = null;
-if (process.env.SKIP_RECORDING !== 'true') {
-  recordingScheduler = require('./services/recording').recordingScheduler;
-}
-
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
 app.use(express.json({ limit: '20mb' }));
@@ -160,13 +154,5 @@ app.use((req, res, next) => {
 
     scheduleCourseDiscovery();
 
-    // Start recording scheduler - checks for scheduled recordings every minute
-    // Only start if not in initial deployment phase
-    if (config.features.recording && recordingScheduler) {
-      recordingScheduler.start();
-      logger.info('🎬 Recording scheduler started');
-    } else {
-      logger.info('⏭️ Recording scheduler skipped (SKIP_RECORDING=true)');
-    }
   }, 30000); // Wait 30 seconds before starting background services
 })();

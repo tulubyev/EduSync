@@ -9,11 +9,10 @@ packages = ["jq", "zip", "unzip", "imagemagick"]
 [deployment]
 deploymentTarget = "autoscale"
 build = ["sh", "-c", "npm ci --production=false && npm run build"]
-run = ["sh", "-c", "NODE_ENV=production SKIP_RECORDING=true node dist/index.js"]
+run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
 
 [env]
 PORT = "5000"
-SKIP_RECORDING = "false"
 
 [workflows]
 runButton = "Project"
