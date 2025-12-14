@@ -33,7 +33,7 @@ export interface RecordingData {
   streamPassword?: string;
   scheduledTime: string;
   duration?: number;
-  saveTarget: 'yandex_disk' | 'library';
+  saveTarget: 'yandex_disk' | 'library' | 'beget';
 }
 
 export function RecordingModal({ open, onClose, onSubmit, isLoading }: RecordingModalProps) {
@@ -44,7 +44,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
     streamPassword: '',
     scheduledTime: '',
     duration: 60,
-    saveTarget: 'yandex_disk',
+    saveTarget: 'beget',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -92,7 +92,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
         streamPassword: '',
         scheduledTime: '',
         duration: 60,
-        saveTarget: 'yandex_disk',
+        saveTarget: 'beget',
       });
       setErrors({});
       onClose();
@@ -230,6 +230,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
                 <SelectValue placeholder="Выберите место..." />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="beget">На Beget S3 (рекомендуется)</SelectItem>
                 <SelectItem value="yandex_disk">На Яндекс.Диск</SelectItem>
                 <SelectItem value="library">В библиотеке материалов</SelectItem>
               </SelectContent>
@@ -240,6 +241,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">
               ℹ️ Запись начнётся автономно в назначенное время. Длинные записи автоматически разбиваются на части по 20 минут.
+              {formData.saveTarget === 'beget' && ' Видео будет загружено на Beget S3 хранилище.'}
               {formData.saveTarget === 'yandex_disk' && ' Файлы будут загружены на ваш Яндекс.Диск.'}
             </p>
           </div>

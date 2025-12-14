@@ -15,7 +15,10 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 - **Admin Panel**: Provides role-based access for managing users, courses, platforms, payments, and analytics with real-time data.
 - **Platform Integration**: Manages over 89 educational platforms, categorized by region and subject, with dynamic loading and filtering.
 - **Library (Materials Management)**: Supports web resource URLs and local file uploads (images, videos, audio, PDF, documents) with base64 encoding and optimized image compression. Features platform/course linking, category tags, material pinning, and hierarchical tree-based navigation.
-- **Autonomous Recording System**: Utilizes headless Playwright and FFmpeg with CDP screencasting for scheduled video and audio recording of online lectures. Recordings are chunked (20-min) to avoid timeouts, streamed directly, and uploaded to Yandex.Disk with HLS playlist generation. Includes a robust logging system for all recording events.
+- **Autonomous Recording System (Hybrid Architecture)**: 
+  - **EPA Main**: Displays recording task statuses and links to completed videos (beget_url)
+  - **Recording Worker (Separate Project)**: Headless Playwright + FFmpeg with CDP screencasting. Polls PostgreSQL for new tasks, records streams, uploads to Beget S3, updates task status/beget_url via DB. Includes robust logging.
+  - Recordings chunked (20-min) to avoid timeouts, streamed directly, with HLS playlist generation and heartbeat monitoring.
 - **Course Discovery System**: Automates course population from all integrated educational platforms with duplicate prevention.
 - **Security**: Implements AES-256-GCM encryption for sensitive data, Scrypt key derivation, rate limiting, and Helmet middleware.
 - **API-first Architecture**: All communication between frontend and backend is via REST API.
@@ -35,6 +38,15 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 - **YooKassa**: Payment gateway for subscriptions.
 - **Alfabank API**: Payment gateway for subscriptions.
 - **Stepik API**: External learning platform API for course and deadline synchronization.
-- **Yandex.Disk API**: Cloud storage for recorded video chunks.
-- **FFmpeg**: For video and audio processing, encoding, and muxing within the recording system.
-- **Playwright**: Headless browser automation for the recording system.
+- **Beget S3 Storage**: Primary storage for recorded video chunks (in Recording Worker project)
+- **Yandex.Disk API**: Alternative storage option for recorded video chunks
+- **FFmpeg**: For video and audio processing, encoding, and muxing (in Recording Worker project)
+- **Playwright**: Headless browser automation for recording (in Recording Worker project)
+
+# Recent Changes (2025-12-14)
+- ✅ Updated `recording_tasks` schema with: `status`, `beget_url`, `error_message`, `worker_id`, `attempt_count`, `last_heartbeat`
+- ✅ Removed Playwright/FFmpeg from EPA main package.json dependencies 
+- ✅ Updated .replit to exclude unnecessary packages from main EPA
+- ✅ Implemented hybrid Recording Worker architecture (separate Replit project)
+- ✅ Updated RecordingTasksList UI: Added status badges (ready, in_progress, uploading, completed, failed, cancelled), beget_url support, video playback
+- ✅ Updated RecordingModal: Added Beget S3 as default storage target

@@ -29,10 +29,13 @@ interface RecordingTask {
   streamUrl: string;
   scheduledTime: string;
   duration: number;
-  status: 'scheduled' | 'recording' | 'completed' | 'failed';
+  status: 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
   parts: RecordingPart[];
   playlistUrl?: string;
+  begetUrl?: string;
   errorMessage?: string;
+  workerId?: string;
+  lastHeartbeat?: string;
   startedAt?: string;
   completedAt?: string;
 }
@@ -93,23 +96,27 @@ export function RecordingTasksList() {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      scheduled: 'bg-blue-100 text-blue-800',
-      recording: 'bg-yellow-100 text-yellow-800',
+      ready: 'bg-blue-100 text-blue-800',
+      in_progress: 'bg-yellow-100 text-yellow-800',
+      uploading: 'bg-purple-100 text-purple-800',
       completed: 'bg-green-100 text-green-800',
       failed: 'bg-red-100 text-red-800',
+      cancelled: 'bg-gray-100 text-gray-800',
     };
 
     const labels: Record<string, string> = {
-      scheduled: 'Запланирована',
-      recording: 'Идёт запись',
+      ready: 'Готова к записи',
+      in_progress: 'Идёт запись',
+      uploading: 'Загрузка видео',
       completed: 'Завершена',
       failed: 'Ошибка',
+      cancelled: 'Отменена',
     };
 
     return (
       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${styles[status]}`}>
         {status === 'completed' && <CheckCircle className="h-4 w-4" />}
-        {status === 'recording' && <Clock className="h-4 w-4 animate-spin" />}
+        {(status === 'in_progress' || status === 'uploading') && <Clock className="h-4 w-4 animate-spin" />}
         {status === 'failed' && <AlertCircle className="h-4 w-4" />}
         {labels[status]}
       </span>
@@ -203,7 +210,7 @@ export function RecordingTasksList() {
     return <div className="text-center py-8 text-gray-500">Нет запланированных или завершённых записей</div>;
   }
 
-  const hasScheduledOrFailed = tasks.some(t => t.status === 'scheduled' || t.status === 'failed');
+  const hasScheduledOrFailed = tasks.some(t => t.status === 'ready' || t.status === 'failed');
 
   return (
     <div className="space-y-4">
@@ -270,16 +277,16 @@ export function RecordingTasksList() {
           )}
 
           <div className="flex flex-wrap gap-2">
-            {task.status === 'completed' && task.playlistUrl && (
+            {task.status === 'completed' && (task.begetUrl || task.playlistUrl) && (
               <Button size="sm" variant="outline" className="min-h-11 flex-1 sm:flex-none" asChild>
-                <a href={task.playlistUrl} target="_blank" rel="noopener noreferrer">
+                <a href={task.begetUrl || task.playlistUrl} target="_blank" rel="noopener noreferrer">
                   <Play className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Воспроизвести</span>
-                  <span className="sm:hidden">Играть</span>
+                  <span className="hidden sm:inline">Смотреть видео</span>
+                  <span className="sm:hidden">Видео</span>
                 </a>
               </Button>
             )}
-            {task.status === 'scheduled' && (
+            {task.status === 'ready' && (
               <Button
                 size="sm"
                 variant="outline"
@@ -290,7 +297,7 @@ export function RecordingTasksList() {
                 <span className="hidden sm:inline">Редактировать</span>
               </Button>
             )}
-            {task.status !== 'recording' && (
+            {task.status !== 'in_progress' && task.status !== 'uploading' && (
               <Button
                 size="sm"
                 variant="outline"
