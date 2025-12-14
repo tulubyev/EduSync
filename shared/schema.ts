@@ -377,8 +377,8 @@ export const recordingTasks = pgTable("recording_tasks", {
   scheduledTime: timestamp("scheduled_time").notNull(),
   duration: integer("duration").notNull(), // in minutes
   maxPartDuration: integer("max_part_duration").default(20), // minutes per part (Replit limit)
-  status: varchar("status", { length: 20 }).default("scheduled"), // scheduled, recording, uploading, completed, failed, cancelled
-  saveTarget: varchar("save_target", { length: 20 }).default("yandex_disk"), // library, yandex_disk
+  status: varchar("status", { length: 20 }).default("ready"), // ready, in_progress, uploading, completed, failed, cancelled
+  saveTarget: varchar("save_target", { length: 20 }).default("yandex_disk"), // library, yandex_disk, beget
   currentPart: integer("current_part").default(0),
   totalParts: integer("total_parts").default(1),
   parts: jsonb("parts").$type<Array<{
@@ -395,6 +395,10 @@ export const recordingTasks = pgTable("recording_tasks", {
   playlistUrl: varchar("playlist_url", { length: 1000 }),
   libraryNoteId: uuid("library_note_id").references(() => library.id),
   errorMessage: text("error_message"),
+  begetUrl: varchar("beget_url", { length: 1000 }), // URL of video in Beget S3 storage
+  workerId: varchar("worker_id", { length: 255 }), // ID of Recording Worker that processes this task
+  attemptCount: integer("attempt_count").default(0), // Number of retry attempts
+  lastHeartbeat: timestamp("last_heartbeat"), // Last heartbeat from worker (for timeout detection)
   metadata: jsonb("metadata"),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
@@ -404,6 +408,7 @@ export const recordingTasks = pgTable("recording_tasks", {
   userIdx: index("recording_tasks_user_idx").on(table.userId),
   statusIdx: index("recording_tasks_status_idx").on(table.status),
   scheduledTimeIdx: index("recording_tasks_scheduled_time_idx").on(table.scheduledTime),
+  workerIdx: index("recording_tasks_worker_idx").on(table.workerId),
 }));
 
 // Recording Logs table - Detailed event logs for recording tasks
