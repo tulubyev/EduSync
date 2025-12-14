@@ -6,7 +6,12 @@ import { logger } from "./services/logger";
 import { yookassaService } from "./services/yookassaService";
 import { PaymentFactory } from "./services/payments/paymentFactory";
 import { courseDiscoveryService } from "./services/courseDiscoveryService";
-import { recordingScheduler } from "./services/recording";
+
+// Conditional import for recording - only load if not skipped
+let recordingScheduler: any = null;
+if (process.env.SKIP_RECORDING !== 'true') {
+  recordingScheduler = require('./services/recording').recordingScheduler;
+}
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
@@ -51,7 +56,7 @@ app.use((req, res, next) => {
     logger.error('🚨 Ошибка валидации конфигурации:', error);
     process.exit(1);
   }
-  
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -87,19 +92,19 @@ app.use((req, res, next) => {
   // Defer initialization by 30 seconds to allow server to start and pass health checks
   setTimeout(() => {
     logger.info('🚀 Starting background services...');
-    
+
     // Start auto payment processing - runs once per day at 00:00 (midnight)
     const scheduleAutoPaymentProcessor = () => {
       const now = new Date();
       const nextRun = new Date(now);
       nextRun.setDate(nextRun.getDate() + 1);
       nextRun.setHours(0, 0, 0, 0);
-      
+
       const timeUntilNextRun = nextRun.getTime() - now.getTime();
-      
+
       const runProcessor = async () => {
         logger.info('Running daily auto payment processor for all providers...');
-        
+
         const gateways = PaymentFactory.getReadyGateways();
         for (const gateway of gateways) {
           try {
@@ -109,61 +114,57 @@ app.use((req, res, next) => {
             logger.error(`Error in auto payment processor for ${gateway.providerName}:`, err);
           }
         }
-        
+
         logger.info('Daily auto payment processor completed for all providers');
         setTimeout(runProcessor, 24 * 60 * 60 * 1000);
       };
-      
+
       setTimeout(runProcessor, timeUntilNextRun);
       logger.info(`Auto payment processor scheduled to run daily at 00:00 (next run in ${Math.round(timeUntilNextRun / 1000 / 60)} minutes)`);
     };
-    
+
     scheduleAutoPaymentProcessor();
 
     // Start course discovery scheduler - runs every Sunday at 02:00
     const scheduleCourseDiscovery = () => {
       const now = new Date();
       let nextRun = new Date(now);
-      
+
       // Calculate next Sunday at 02:00
       const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
       nextRun.setDate(nextRun.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
       nextRun.setHours(2, 0, 0, 0);
-      
+
       const timeUntilNextRun = nextRun.getTime() - now.getTime();
-      
+
       const runDiscovery = async () => {
         try {
           logger.info('Running weekly course discovery...');
           const result = await courseDiscoveryService.discoverCourses(5);
           logger.info(`Course discovery completed: ${result.totalSaved} courses saved from ${result.platformsWithCourses} platforms`);
-          
+
           if (result.errors.length > 0) {
             logger.warn(`Course discovery errors: ${JSON.stringify(result.errors)}`);
           }
         } catch (err) {
           logger.error('Error in course discovery scheduler:', err);
         }
-        
+
         // Schedule next run in 7 days
         setTimeout(runDiscovery, 7 * 24 * 60 * 60 * 1000);
       };
-      
+
       setTimeout(runDiscovery, timeUntilNextRun);
       logger.info(`Course discovery scheduler scheduled to run weekly on Sunday at 02:00 (next run in ${Math.round(timeUntilNextRun / 1000 / 60)} minutes)`);
     };
-    
+
     scheduleCourseDiscovery();
 
     // Start recording scheduler - checks for scheduled recordings every minute
     // Only start if not in initial deployment phase
-    if (process.env.SKIP_RECORDING !== 'true') {
-      try {
-        recordingScheduler.start();
-        logger.info('🎬 Recording scheduler started (checking every minute for scheduled recordings)');
-      } catch (err) {
-        logger.error('Failed to start recording scheduler:', err);
-      }
+    if (config.features.recording && recordingScheduler) {
+      recordingScheduler.start();
+      logger.info('🎬 Recording scheduler started');
     } else {
       logger.info('⏭️ Recording scheduler skipped (SKIP_RECORDING=true)');
     }

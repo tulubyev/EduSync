@@ -12,7 +12,11 @@ import usersRouter from "./users.js";
 import adminRouter from "./admin.js";
 import subscriptionsRouter from "./subscriptions.js";
 import stepikRouter from "./stepik.js";
-import recordingRouter from "./recording.js";
+// Conditional recording routes import
+let recordingRouter: any = null;
+if (process.env.SKIP_RECORDING !== 'true') {
+  recordingRouter = require('./recording').default;
+}
 
 const mainRouter = Router();
 
@@ -29,7 +33,9 @@ mainRouter.use('/users', rateLimiters.general, usersRouter);
 mainRouter.use('/courses', rateLimiters.general, coursesRouter);
 mainRouter.use('/deadlines', rateLimiters.general, deadlinesRouter);
 mainRouter.use('/library', rateLimiters.general, libraryRouter);
-mainRouter.use('/library/recording', rateLimiters.general, recordingRouter);
+if (recordingRouter) {
+    mainRouter.use('/library/recording', recordingRouter);
+  }
 mainRouter.use('/platforms', rateLimiters.general, platformsRouter);
 
 mainRouter.use('/admin', rateLimiters.general, adminRouter);
