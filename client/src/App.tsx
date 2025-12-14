@@ -227,10 +227,10 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
   const navItems = [
     { path: '/home', icon: Home, label: 'Главная' },
     { path: '/courses', icon: BookOpen, label: 'Курсы' },
+    { path: '/platforms', icon: Globe, label: 'Платформы' },
     { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
     { path: '/library', icon: FileText, label: 'Библиотека' },
     { path: '/recordings', icon: Video, label: 'Записи' },
-    { path: '/platforms', icon: Globe, label: 'Платформы' },
     { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
     { path: '/subscription', icon: CreditCard, label: 'Подписка' },
     { path: '/settings', icon: Settings, label: 'Настройки' },
@@ -337,10 +337,10 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
   const navItems = [
     { path: '/home', icon: Home, label: 'Главная' },
     { path: '/courses', icon: BookOpen, label: 'Курсы' },
+    { path: '/platforms', icon: Globe, label: 'Платформы' },
     { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
     { path: '/library', icon: FileText, label: 'Библиотека' },
     { path: '/recordings', icon: Video, label: 'Записи' },
-    { path: '/platforms', icon: Globe, label: 'Платформы' },
     { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
     { path: '/subscription', icon: CreditCard, label: 'Подписка' },
     { path: '/settings', icon: Settings, label: 'Настройки' },
