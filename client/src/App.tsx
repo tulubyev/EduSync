@@ -10,6 +10,7 @@ import { PlatformsPage } from './components/platforms/PlatformsPage';
 import { AnalyticsPage } from './components/analytics/AnalyticsPage';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { SubscriptionPage } from './components/settings/SubscriptionPage';
+import { RecordingSchedulePage } from './components/recording/RecordingSchedulePage';
 import { OAuthCallbackHandler } from './components/OAuthCallbackHandler';
 import { Sheet, SheetContent, SheetTrigger } from './components/ui/sheet';
 import { 
@@ -24,7 +25,8 @@ import {
   Menu,
   X,
   CreditCard,
-  CheckCircle
+  CheckCircle,
+  Video
 } from 'lucide-react';
 
 function SubscriptionSuccessPage() {
@@ -199,6 +201,7 @@ function App() {
           <Route path="/library" component={LibraryPage} />
           <Route path="/platforms" component={PlatformsPage} />
           <Route path="/analytics" component={AnalyticsPage} />
+          <Route path="/recordings" component={RecordingSchedulePage} />
           <Route path="/settings" component={SettingsPage} />
           <Route path="/subscription" component={SubscriptionPage} />
           <Route path="/subscription/success" component={SubscriptionSuccessPage} />
@@ -226,6 +229,7 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
     { path: '/courses', icon: BookOpen, label: 'Курсы' },
     { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
     { path: '/library', icon: FileText, label: 'Библиотека' },
+    { path: '/recordings', icon: Video, label: 'Записи' },
     { path: '/platforms', icon: Globe, label: 'Платформы' },
     { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
     { path: '/subscription', icon: CreditCard, label: 'Подписка' },
@@ -335,6 +339,7 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
     { path: '/courses', icon: BookOpen, label: 'Курсы' },
     { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
     { path: '/library', icon: FileText, label: 'Библиотека' },
+    { path: '/recordings', icon: Video, label: 'Записи' },
     { path: '/platforms', icon: Globe, label: 'Платформы' },
     { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
     { path: '/subscription', icon: CreditCard, label: 'Подписка' },
