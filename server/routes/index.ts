@@ -12,7 +12,6 @@ import usersRouter from "./users.js";
 import adminRouter from "./admin.js";
 import subscriptionsRouter from "./subscriptions.js";
 import stepikRouter from "./stepik.js";
-import recordingRouter from "./recording.js";
 
 const mainRouter = Router();
 
@@ -29,7 +28,6 @@ mainRouter.use('/users', rateLimiters.general, usersRouter);
 mainRouter.use('/courses', rateLimiters.general, coursesRouter);
 mainRouter.use('/deadlines', rateLimiters.general, deadlinesRouter);
 mainRouter.use('/library', rateLimiters.general, libraryRouter);
-mainRouter.use('/recording', rateLimiters.general, recordingRouter);
 mainRouter.use('/platforms', rateLimiters.general, platformsRouter);
 
 mainRouter.use('/admin', rateLimiters.general, adminRouter);
