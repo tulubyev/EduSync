@@ -19,6 +19,8 @@ interface RecordingTask {
   createdAt: string;
   errorMessage?: string;
   workerId?: string;
+  saveTarget?: 'yandex_disk' | 'library' | 'beget';
+  fileSize?: number;
 }
 
 export function RecordingsManagement({ isVisible, userRole }: RecordingsManagementProps) {
@@ -109,6 +111,23 @@ export function RecordingsManagement({ isVisible, userRole }: RecordingsManageme
     return `${mins}:${secs.toString().padStart(2, '0')} мин`;
   };
 
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '—';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
+
+  const getStorageTarget = (target?: string) => {
+    const targets: Record<string, { label: string; color: string }> = {
+      'beget': { label: 'S3 Beget', color: '#ff6b6b' },
+      'yandex_disk': { label: 'Yandex.Disk', color: '#4d96ff' },
+      'library': { label: 'Библиотека', color: '#51cf66' }
+    };
+    return targets[target || 'beget'] || targets['beget'];
+  };
+
   return (
     <div className="mt-6 bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
       <div className="flex items-center justify-between mb-4">
@@ -177,6 +196,8 @@ export function RecordingsManagement({ isVisible, userRole }: RecordingsManageme
                 <th className="text-left p-3 font-semibold text-gray-700">Статус</th>
                 <th className="text-left p-3 font-semibold text-gray-700">Планируемое время</th>
                 <th className="text-left p-3 font-semibold text-gray-700">Длительность</th>
+                <th className="text-left p-3 font-semibold text-gray-700">Размер</th>
+                <th className="text-left p-3 font-semibold text-gray-700">Хранилище</th>
                 <th className="text-left p-3 font-semibold text-gray-700">Воркер</th>
                 <th className="text-left p-3 font-semibold text-gray-700">Действия</th>
               </tr>
@@ -205,6 +226,20 @@ export function RecordingsManagement({ isVisible, userRole }: RecordingsManageme
                       {format(new Date(recording.scheduledTime), 'dd.MM.yyyy HH:mm', { locale: ru })}
                     </td>
                     <td className="p-3 text-gray-600">{formatDuration(recording.duration)}</td>
+                    <td className="p-3 text-gray-600 text-sm">{formatFileSize(recording.fileSize)}</td>
+                    <td className="p-3">
+                      {(() => {
+                        const storage = getStorageTarget(recording.saveTarget);
+                        return (
+                          <span 
+                            className="text-xs font-medium px-2 py-1 rounded text-white"
+                            style={{ backgroundColor: storage.color }}
+                          >
+                            {storage.label}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="p-3 text-gray-600">
                       {recording.workerId ? (
                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">

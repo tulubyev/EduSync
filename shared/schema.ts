@@ -396,6 +396,7 @@ export const recordingTasks = pgTable("recording_tasks", {
   libraryNoteId: uuid("library_note_id").references(() => library.id),
   errorMessage: text("error_message"),
   begetUrl: varchar("beget_url", { length: 1000 }), // URL of video in Beget S3 storage
+  fileSize: integer("file_size"), // Size of the recorded file in bytes
   workerId: varchar("worker_id", { length: 255 }), // ID of Recording Worker that processes this task
   attemptCount: integer("attempt_count").default(0), // Number of retry attempts
   lastHeartbeat: timestamp("last_heartbeat"), // Last heartbeat from worker (for timeout detection)
