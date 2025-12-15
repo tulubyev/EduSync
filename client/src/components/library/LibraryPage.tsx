@@ -36,10 +36,13 @@ import {
   Image as ImageIcon,
   ExternalLink,
   List,
-  Grid3x3
+  Grid3x3,
+  Radio
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { RecordingModal, type RecordingData } from './RecordingModal';
+import { RecordingTasksList } from './RecordingTasksList';
 
 interface Note {
   id: string;
@@ -77,6 +80,8 @@ export function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRecordingModalOpen, setIsRecordingModalOpen] = useState(false);
+  const [isRecordingLoading, setIsRecordingLoading] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
@@ -228,6 +233,46 @@ export function LibraryPage() {
     navigator.clipboard.writeText(content);
   };
 
+  const handleRecordingSubmit = async (data: RecordingData) => {
+    try {
+      setIsRecordingLoading(true);
+      const token = localStorage.getItem('accessToken');
+
+      // Преобразовать datetime-local в ISO 8601 формат
+      const scheduledDateTime = new Date(data.scheduledTime);
+      const isoTime = scheduledDateTime.toISOString();
+
+      const body = {
+        ...data,
+        scheduledTime: isoTime,
+      };
+
+      const response = await fetch('/api/library/recording/schedule', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Ошибка планирования записи');
+      }
+
+      setError(null);
+      await fetchNotes();
+      alert('Запись запланирована успешно!');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Ошибка при планировании записи';
+      console.error('Recording scheduling error:', err);
+      alert(message);
+    } finally {
+      setIsRecordingLoading(false);
+    }
+  };
+
   const filteredNotes = notes
     .filter(note => {
       if (selectedNodeId) {
@@ -374,6 +419,10 @@ export function LibraryPage() {
           <Button onClick={() => setIsModalOpen(true)} className="min-h-11">
             <Plus className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Новый материал</span>
+          </Button>
+          <Button onClick={() => setIsRecordingModalOpen(true)} variant="outline" className="min-h-11">
+            <Radio className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Записать трансляцию</span>
           </Button>
         </div>
       </div>
@@ -662,6 +711,19 @@ export function LibraryPage() {
         platforms={platforms}
       />
 
+      <RecordingModal 
+        open={isRecordingModalOpen} 
+        onClose={() => setIsRecordingModalOpen(false)}
+        onSubmit={handleRecordingSubmit}
+        isLoading={isRecordingLoading}
+      />
+
+      <div className="fixed bottom-0 right-0 left-0 lg:left-16 xl:left-64 max-h-96 border-t bg-white shadow-lg overflow-y-auto z-30">
+        <div className="p-3 sm:p-4">
+          <h3 className="font-semibold mb-3 text-sm">📹 Запланированные и завершённые записи</h3>
+          <RecordingTasksList />
+        </div>
+      </div>
     </div>
   );
 }
@@ -695,7 +757,7 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
   const filteredPlatforms = platforms.filter(p => 
     p.name.toLowerCase().includes(platformSearch.toLowerCase())
   );
-
+  
   const filteredCourses = courses.filter(c =>
     c.title.toLowerCase().includes(courseSearch.toLowerCase())
   );

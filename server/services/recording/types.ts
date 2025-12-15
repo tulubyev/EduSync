@@ -20,15 +20,14 @@ export interface RecordingTaskData {
   scheduledTime: Date;
   duration: number;
   maxPartDuration: number;
-  status: 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
-  saveTarget: 'library' | 'yandex_disk' | 'beget';
+  status: 'scheduled' | 'recording' | 'uploading' | 'completed' | 'failed' | 'cancelled';
+  saveTarget: 'library' | 'yandex_disk';
   currentPart: number;
   totalParts: number;
   parts: RecordingPart[];
   playlistUrl?: string;
   libraryNoteId?: string;
   errorMessage?: string;
-  begetUrl?: string;
   startedAt?: Date;
   completedAt?: Date;
 }
