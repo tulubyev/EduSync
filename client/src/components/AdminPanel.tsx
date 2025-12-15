@@ -45,7 +45,7 @@ function AdminPanel({ user, onBack }: any) {
     security_admin: ['Мониторинг безопасности', 'Логи', 'Анализ']
   };
 
-  const userRole = user.adminRole || 'super_admin';
+  const userRole = (user.adminRole || 'super_admin') as keyof typeof adminRoles;
 
   return (
     <div className="p-3 sm:p-5 bg-gray-50 min-h-screen">
@@ -70,7 +70,7 @@ function AdminPanel({ user, onBack }: any) {
       <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 mb-5">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Доступные функции для вашей роли</h2>
         <div className="flex flex-wrap gap-2 mb-5">
-          {adminPermissions[userRole].map((permission, idx) => (
+          {adminPermissions[userRole].map((permission: string, idx: number) => (
             <span key={idx} className="bg-blue-500 text-white px-3 py-1.5 rounded-full text-sm">
               {permission}
             </span>
@@ -165,6 +165,7 @@ function AdminPanel({ user, onBack }: any) {
         <UsersSection 
           isVisible={true}
           userRole={userRole}
+          isLoading={false}
         />
       )}
 

@@ -35,8 +35,6 @@ export function RecordingsManagement({ isVisible, userRole }: RecordingsManageme
     storageUsed: 0
   });
 
-  if (!isVisible) return null;
-
   const fetchRecordings = async () => {
     setIsLoading(true);
     try {
@@ -70,8 +68,12 @@ export function RecordingsManagement({ isVisible, userRole }: RecordingsManageme
   };
 
   useEffect(() => {
-    fetchRecordings();
+    if (isVisible) {
+      fetchRecordings();
+    }
   }, [isVisible]);
+
+  if (!isVisible) return null;
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, { bg: string; text: string; label: string }> = {
