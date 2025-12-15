@@ -132,14 +132,16 @@ export function RecordingTasksList({ statusFilter }: RecordingTasksListProps) {
   };
 
   const handleDelete = async (taskId: string) => {
-    if (!confirm('Отменить эту запись?')) return;
+    if (!confirm('Удалить эту запись?')) return;
     try {
       const token = localStorage.getItem('accessToken');
-      await fetch(`/api/recording/tasks/${taskId}/cancel`, {
-        method: 'POST',
+      const response = await fetch(`/api/recording/tasks/${taskId}`, {
+        method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      await fetchTasks();
+      if (response.ok) {
+        await fetchTasks();
+      }
     } catch (error) {
       console.error('Error deleting task:', error);
     }
