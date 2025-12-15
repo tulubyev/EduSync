@@ -40,7 +40,11 @@ interface RecordingTask {
   completedAt?: string;
 }
 
-export function RecordingTasksList() {
+interface RecordingTasksListProps {
+  statusFilter?: string | null;
+}
+
+export function RecordingTasksList({ statusFilter }: RecordingTasksListProps) {
   const [tasks, setTasks] = useState<RecordingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
@@ -54,6 +58,10 @@ export function RecordingTasksList() {
     duration: 60,
   });
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const filteredTasks = statusFilter 
+    ? tasks.filter(task => task.status === statusFilter)
+    : tasks;
 
   const fetchTasks = async () => {
     try {
@@ -210,11 +218,15 @@ export function RecordingTasksList() {
     return <div className="text-center py-8 text-gray-500">Нет запланированных или завершённых записей</div>;
   }
 
+  if (filteredTasks.length === 0) {
+    return <div className="text-center py-8 text-gray-500">Нет записей с выбранным статусом</div>;
+  }
+
   const hasScheduledOrFailed = tasks.some(t => t.status === 'ready' || t.status === 'failed');
 
   return (
     <div className="space-y-4">
-      {hasScheduledOrFailed && (
+      {hasScheduledOrFailed && !statusFilter && (
         <div className="flex justify-end mb-3">
           <Button
             size="sm"
@@ -237,7 +249,7 @@ export function RecordingTasksList() {
           </Button>
         </div>
       )}
-      {tasks.map((task) => (
+      {filteredTasks.map((task) => (
         <div
           key={task.id}
           className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"

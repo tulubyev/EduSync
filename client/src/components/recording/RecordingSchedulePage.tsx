@@ -61,6 +61,7 @@ export function RecordingSchedulePage() {
   const [syncIssues, setSyncIssues] = useState<SyncIssue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
 
   const fetchMonitoringData = async () => {
     try {
@@ -190,21 +191,80 @@ export function RecordingSchedulePage() {
           <TabsContent value="tasks" className="space-y-4">
             {stats && (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                <StatCard title="Ожидают" value={stats.ready} icon={Clock} color="blue" />
-                <StatCard title="Запись" value={stats.in_progress} icon={Activity} color="yellow" />
-                <StatCard title="Загрузка" value={stats.uploading} icon={HardDrive} color="purple" />
-                <StatCard title="Завершено" value={stats.completed} icon={CheckCircle} color="green" />
-                <StatCard title="Ошибки" value={stats.failed} icon={AlertTriangle} color="red" />
-                <StatCard title="Всего" value={stats.total} icon={Video} color="gray" />
+                <StatCard 
+                  title="Ожидают" 
+                  value={stats.ready} 
+                  icon={Clock} 
+                  color="blue" 
+                  active={selectedFilter === 'ready'}
+                  onClick={() => setSelectedFilter(selectedFilter === 'ready' ? null : 'ready')}
+                />
+                <StatCard 
+                  title="Запись" 
+                  value={stats.in_progress} 
+                  icon={Activity} 
+                  color="yellow"
+                  active={selectedFilter === 'in_progress'}
+                  onClick={() => setSelectedFilter(selectedFilter === 'in_progress' ? null : 'in_progress')}
+                />
+                <StatCard 
+                  title="Загрузка" 
+                  value={stats.uploading} 
+                  icon={HardDrive} 
+                  color="purple"
+                  active={selectedFilter === 'uploading'}
+                  onClick={() => setSelectedFilter(selectedFilter === 'uploading' ? null : 'uploading')}
+                />
+                <StatCard 
+                  title="Завершено" 
+                  value={stats.completed} 
+                  icon={CheckCircle} 
+                  color="green"
+                  active={selectedFilter === 'completed'}
+                  onClick={() => setSelectedFilter(selectedFilter === 'completed' ? null : 'completed')}
+                />
+                <StatCard 
+                  title="Ошибки" 
+                  value={stats.failed} 
+                  icon={AlertTriangle} 
+                  color="red"
+                  active={selectedFilter === 'failed'}
+                  onClick={() => setSelectedFilter(selectedFilter === 'failed' ? null : 'failed')}
+                />
+                <StatCard 
+                  title="Всего" 
+                  value={stats.total} 
+                  icon={Video} 
+                  color="gray"
+                  active={selectedFilter === null}
+                  onClick={() => setSelectedFilter(null)}
+                />
               </div>
             )}
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Список записей</CardTitle>
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>Список записей</span>
+                  {selectedFilter && (
+                    <Badge variant="outline" className="ml-2">
+                      Фильтр: {selectedFilter === 'ready' ? 'Ожидают' : 
+                               selectedFilter === 'in_progress' ? 'Запись' :
+                               selectedFilter === 'uploading' ? 'Загрузка' :
+                               selectedFilter === 'completed' ? 'Завершено' :
+                               selectedFilter === 'failed' ? 'Ошибки' : selectedFilter}
+                      <button 
+                        onClick={() => setSelectedFilter(null)}
+                        className="ml-1 hover:text-red-500"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <RecordingTasksList />
+                <RecordingTasksList statusFilter={selectedFilter} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -365,24 +425,40 @@ function StatCard({
   title, 
   value, 
   icon: Icon, 
-  color 
+  color,
+  active,
+  onClick
 }: { 
   title: string; 
   value: number; 
   icon: any; 
   color: 'blue' | 'yellow' | 'purple' | 'green' | 'red' | 'gray';
+  active?: boolean;
+  onClick?: () => void;
 }) {
   const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600 border-blue-200',
-    yellow: 'bg-yellow-50 text-yellow-600 border-yellow-200',
-    purple: 'bg-purple-50 text-purple-600 border-purple-200',
-    green: 'bg-green-50 text-green-600 border-green-200',
-    red: 'bg-red-50 text-red-600 border-red-200',
-    gray: 'bg-gray-50 text-gray-600 border-gray-200',
+    blue: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100',
+    yellow: 'bg-yellow-50 text-yellow-600 border-yellow-200 hover:bg-yellow-100',
+    purple: 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100',
+    green: 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100',
+    red: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100',
+    gray: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100',
+  };
+
+  const activeClasses = {
+    blue: 'ring-2 ring-blue-500 bg-blue-100',
+    yellow: 'ring-2 ring-yellow-500 bg-yellow-100',
+    purple: 'ring-2 ring-purple-500 bg-purple-100',
+    green: 'ring-2 ring-green-500 bg-green-100',
+    red: 'ring-2 ring-red-500 bg-red-100',
+    gray: 'ring-2 ring-gray-500 bg-gray-100',
   };
 
   return (
-    <div className={`p-3 rounded-lg border ${colorClasses[color]}`}>
+    <div 
+      className={`p-3 rounded-lg border cursor-pointer transition-all ${colorClasses[color]} ${active ? activeClasses[color] : ''}`}
+      onClick={onClick}
+    >
       <div className="flex items-center justify-between">
         <Icon className="h-5 w-5" />
         <span className="text-2xl font-bold">{value}</span>
