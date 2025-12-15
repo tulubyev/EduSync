@@ -66,7 +66,7 @@ export function RecordingTasksList({ statusFilter }: RecordingTasksListProps) {
   const fetchTasks = async () => {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/library/recording/tasks', {
+      const response = await fetch('/api/recording/tasks', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -135,7 +135,7 @@ export function RecordingTasksList({ statusFilter }: RecordingTasksListProps) {
     if (!confirm('Отменить эту запись?')) return;
     try {
       const token = localStorage.getItem('accessToken');
-      await fetch(`/api/library/recording/tasks/${taskId}/cancel`, {
+      await fetch(`/api/recording/tasks/${taskId}/cancel`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -150,7 +150,7 @@ export function RecordingTasksList({ statusFilter }: RecordingTasksListProps) {
     try {
       setIsClearing(true);
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/library/recording/tasks/clear-queue', {
+      const response = await fetch('/api/recording/tasks/clear-queue', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -183,7 +183,7 @@ export function RecordingTasksList({ statusFilter }: RecordingTasksListProps) {
     try {
       setIsUpdating(true);
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/library/recording/tasks/${editingTask.id}`, {
+      const response = await fetch(`/api/recording/tasks/${editingTask.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

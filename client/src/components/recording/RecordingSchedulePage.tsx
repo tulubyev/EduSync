@@ -69,9 +69,9 @@ export function RecordingSchedulePage() {
       const headers = { 'Authorization': `Bearer ${token}` };
 
       const [dashboardRes, workersRes, syncRes] = await Promise.all([
-        fetch('/api/library/recording/monitor/dashboard', { headers }),
-        fetch('/api/library/recording/monitor/worker-status', { headers }),
-        fetch('/api/library/recording/monitor/sync-check', { headers }),
+        fetch('/api/recording/monitor/dashboard', { headers }),
+        fetch('/api/recording/monitor/worker-status', { headers }),
+        fetch('/api/recording/monitor/sync-check', { headers }),
       ]);
 
       if (dashboardRes.ok) {
@@ -111,7 +111,7 @@ export function RecordingSchedulePage() {
     try {
       setIsScheduling(true);
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/library/recording/schedule', {
+      const response = await fetch('/api/recording/schedule', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

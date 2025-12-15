@@ -247,7 +247,7 @@ export function LibraryPage() {
         scheduledTime: isoTime,
       };
 
-      const response = await fetch('/api/library/recording/schedule', {
+      const response = await fetch('/api/recording/schedule', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
