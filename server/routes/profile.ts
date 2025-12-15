@@ -3,12 +3,14 @@ import { logger } from "../services/logger";
 import { authenticateToken } from '../middleware/auth.js';
 import { storage } from '../storage';
 import multer from 'multer';
-import sharp from 'sharp';
 import path from 'path';
 import { promises as fs } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config/environment';
-import type { AuthenticatedRequest } from '../middleware/types.js';
+
+interface AuthRequest extends Request {
+  user?: { id: string; role?: string | null };
+}
 
 const router = Router();
 
@@ -42,7 +44,7 @@ const upload = multer({
  */
 
 // Update user profile
-router.put('/update', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/update', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const { firstName, lastName, email, phone } = req.body;
     const userId = req.user!.id;
@@ -73,40 +75,23 @@ router.put('/update', authenticateToken, async (req: AuthenticatedRequest, res: 
 
 // Upload and process profile image
 router.post('/upload-image', 
-  authenticateToken, 
+  authenticateToken as any, 
   upload.single('profileImage'), 
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'Файл не загружен' });
     }
 
     const userId = req.user!.id;
-    const fileName = `${userId}_${uuidv4()}.jpg`;
-    const uploadsDir = path.join(__dirname, '..', 'uploads', 'profile-images');
-    const filePath = path.join(uploadsDir, fileName);
+    
+    // Convert to base64 for storage
+    const base64Image = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype || 'image/jpeg';
 
-    // Ensure uploads directory exists
-    await fs.mkdir(uploadsDir, { recursive: true });
-
-    // Process image with Sharp - resize and crop to square
-    await sharp(req.file.buffer)
-      .resize(400, 400, {
-        fit: 'cover',
-        position: 'center'
-      })
-      .jpeg({
-        quality: 85,
-        progressive: true
-      })
-      .toFile(filePath);
-
-    // Generate image URL
-    const imageUrl = `/uploads/profile-images/${fileName}`;
-
-    // Update user profile with new image URL
+    // Update user profile with base64 image
     const updatedUser = await storage.updateUser(userId, {
-      profileImageUrl: imageUrl
+      profileImage: base64Image
     });
 
     if (!updatedUser) {
@@ -114,7 +99,7 @@ router.post('/upload-image',
     }
 
     res.json({ 
-      imageUrl,
+      profileImage: `data:${mimeType};base64,${base64Image}`,
       message: 'Изображение профиля успешно загружено'
     });
   } catch (error) {

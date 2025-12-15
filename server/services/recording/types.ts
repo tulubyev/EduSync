@@ -6,6 +6,7 @@ export interface RecordingPart {
   duration?: number;
   status: 'pending' | 'recording' | 'uploading' | 'completed' | 'failed';
   yandexPath?: string;
+  begetPath?: string;
   publicUrl?: string;
   error?: string;
 }
@@ -20,16 +21,20 @@ export interface RecordingTaskData {
   scheduledTime: Date;
   duration: number;
   maxPartDuration: number;
-  status: 'scheduled' | 'recording' | 'uploading' | 'completed' | 'failed' | 'cancelled';
-  saveTarget: 'library' | 'yandex_disk';
+  status: 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
+  saveTarget: 'library' | 'yandex_disk' | 'beget';
   currentPart: number;
   totalParts: number;
   parts: RecordingPart[];
   playlistUrl?: string;
+  begetUrl?: string;
   libraryNoteId?: string;
   errorMessage?: string;
   startedAt?: Date;
   completedAt?: Date;
+  workerId?: string;
+  attemptCount?: number;
+  lastHeartbeat?: Date;
 }
 
 export interface RecordingConfig {

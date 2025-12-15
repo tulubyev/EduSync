@@ -4,7 +4,6 @@ import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import multer from "multer";
-import sharp from "sharp";
 
 interface AuthRequest extends Request {
   user?: { id: string; role?: string | null };
@@ -40,26 +39,12 @@ router.get("/profile", authenticateToken as any, async (req: AuthRequest, res: R
       return res.status(404).json({ message: "Пользователь не найден" });
     }
 
-    // Return user profile without password hash, return profile image as data URI
+    // Return user profile without password hash
     const { passwordHash, profileImage, ...profileData } = user;
-    
-    // Generate smaller avatar for sidebar (48x48) from stored base64
-    let profileImageAvatar = null;
-    if (profileImage) {
-      const avatarBuffer = await sharp(Buffer.from(profileImage, "base64"))
-        .webp({ quality: 90 })
-        .resize(48, 48, {
-          fit: "cover",
-          position: "center",
-        })
-        .toBuffer();
-      profileImageAvatar = `data:image/webp;base64,${avatarBuffer.toString("base64")}`;
-    }
     
     const responseData = {
       ...profileData,
-      profileImageUrl: profileImage ? `data:image/webp;base64,${profileImage}` : null,
-      profileImageAvatar,
+      profileImage: profileImage ? `data:image/jpeg;base64,${profileImage}` : null,
     };
     res.json(responseData);
   } catch (error) {
@@ -124,23 +109,9 @@ router.post("/profile", authenticateToken as any, async (req: AuthRequest, res: 
 
     const { passwordHash, profileImage, ...profileData } = updatedUser;
     
-    // Generate smaller avatar for sidebar (48x48) from stored base64
-    let profileImageAvatar = null;
-    if (profileImage) {
-      const avatarBuffer = await sharp(Buffer.from(profileImage, "base64"))
-        .webp({ quality: 90 })
-        .resize(48, 48, {
-          fit: "cover",
-          position: "center",
-        })
-        .toBuffer();
-      profileImageAvatar = `data:image/webp;base64,${avatarBuffer.toString("base64")}`;
-    }
-    
     const responseData = {
       ...profileData,
-      profileImageUrl: profileImage ? `data:image/webp;base64,${profileImage}` : null,
-      profileImageAvatar,
+      profileImage: profileImage ? `data:image/jpeg;base64,${profileImage}` : null,
     };
     res.json(responseData);
   } catch (error) {
@@ -165,17 +136,8 @@ router.post(
         return res.status(400).json({ message: "Файл не загружен" });
       }
 
-      // Convert image to WebP and optimize - create full size version
-      const webpBuffer = await sharp(req.file.buffer)
-        .webp({ quality: 80 })
-        .resize(400, 400, {
-          fit: "cover",
-          position: "center",
-        })
-        .toBuffer();
-
       // Convert to base64 for storage in database
-      const base64Image = webpBuffer.toString("base64");
+      const base64Image = req.file.buffer.toString("base64");
 
       // Update user with photo stored in database
       const [updatedUser] = await db
@@ -189,21 +151,10 @@ router.post(
 
       console.log("✅ Profile photo uploaded to database:", { userId, size: base64Image.length });
 
-      // Generate smaller avatar for sidebar (48x48)
-      const avatarBuffer = await sharp(req.file.buffer)
-        .webp({ quality: 90 })
-        .resize(48, 48, {
-          fit: "cover",
-          position: "center",
-        })
-        .toBuffer();
-      const base64Avatar = avatarBuffer.toString("base64");
-
       const { passwordHash, profileImage, ...profileData } = updatedUser;
       const responseData = {
         ...profileData,
-        profileImageUrl: profileImage ? `data:image/webp;base64,${profileImage}` : null,
-        profileImageAvatar: profileImage ? `data:image/webp;base64,${base64Avatar}` : null,
+        profileImage: profileImage ? `data:image/jpeg;base64,${profileImage}` : null,
       };
       res.json(responseData);
     } catch (error) {
