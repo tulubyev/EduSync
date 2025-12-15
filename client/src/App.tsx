@@ -10,7 +10,6 @@ import { PlatformsPage } from './components/platforms/PlatformsPage';
 import { AnalyticsPage } from './components/analytics/AnalyticsPage';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { SubscriptionPage } from './components/settings/SubscriptionPage';
-import { RecordingSchedulePage } from './components/recording/RecordingSchedulePage';
 import { OAuthCallbackHandler } from './components/OAuthCallbackHandler';
 import { Sheet, SheetContent, SheetTrigger } from './components/ui/sheet';
 import { 
@@ -166,7 +165,7 @@ function App() {
           onLogout={handleLogout}
         />
       </div>
-      
+
       {/* Mobile Header with Sheet Drawer */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <Sheet>
@@ -191,7 +190,7 @@ function App() {
         </Link>
         <div className="w-11" />
       </div>
-      
+
       <main className={`flex-1 overflow-auto transition-all duration-300 pt-16 lg:pt-0 ml-0 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
         <Switch>
           <Route path="/" component={() => <Dashboard user={currentUser} />} />
@@ -201,7 +200,6 @@ function App() {
           <Route path="/library" component={LibraryPage} />
           <Route path="/platforms" component={PlatformsPage} />
           <Route path="/analytics" component={AnalyticsPage} />
-          <Route path="/recordings" component={RecordingSchedulePage} />
           <Route path="/settings" component={SettingsPage} />
           <Route path="/subscription" component={SubscriptionPage} />
           <Route path="/subscription/success" component={SubscriptionSuccessPage} />
@@ -230,7 +228,6 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
     { path: '/platforms', icon: Globe, label: 'Платформы' },
     { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
     { path: '/library', icon: FileText, label: 'Библиотека' },
-    { path: '/recordings', icon: Video, label: 'Записи' },
     { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
     { path: '/subscription', icon: CreditCard, label: 'Подписка' },
     { path: '/settings', icon: Settings, label: 'Настройки' },
@@ -266,7 +263,7 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
         {navItems.map((item) => {
           const isActive = location === item.path || (location === '/' && item.path === '/home');
           const Icon = item.icon;
-          
+
           return (
             <Link key={item.path} href={item.path}>
               <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
@@ -340,7 +337,6 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
     { path: '/platforms', icon: Globe, label: 'Платформы' },
     { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
     { path: '/library', icon: FileText, label: 'Библиотека' },
-    { path: '/recordings', icon: Video, label: 'Записи' },
     { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
     { path: '/subscription', icon: CreditCard, label: 'Подписка' },
     { path: '/settings', icon: Settings, label: 'Настройки' },
@@ -364,7 +360,7 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
         {navItems.map((item) => {
           const isActive = location === item.path || (location === '/' && item.path === '/home');
           const Icon = item.icon;
-          
+
           return (
             <Link key={item.path} href={item.path}>
               <div className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors cursor-pointer min-h-11 ${
@@ -432,7 +428,7 @@ function Dashboard({ user }: { user: any }) {
 
   const fetchDashboardData = async () => {
     const token = localStorage.getItem('accessToken');
-    
+
     try {
       const [coursesRes, deadlinesRes] = await Promise.all([
         fetch('/api/courses', { headers: { Authorization: `Bearer ${token}` } }),
@@ -492,7 +488,7 @@ function Dashboard({ user }: { user: any }) {
               <div className="text-sm text-purple-600 hover:text-purple-700 cursor-pointer">Все курсы →</div>
             </Link>
           </div>
-          
+
           {recentCourses.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -520,7 +516,7 @@ function Dashboard({ user }: { user: any }) {
               <div className="text-sm text-purple-600 hover:text-purple-700 cursor-pointer">Все дедлайны →</div>
             </Link>
           </div>
-          
+
           {upcomingDeadlines.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -565,7 +561,7 @@ function StatCard({ icon, title, value, color }: { icon: string; title: string; 
 
 function DashboardCourseCard({ course }: { course: any }) {
   const progress = parseFloat(course.progress) || 0;
-  
+
   return (
     <div className="p-4 bg-gray-50 rounded-lg flex items-center justify-between">
       <div className="flex-1 min-w-0">
@@ -598,7 +594,7 @@ function DashboardDeadlineCard({ deadline }: { deadline: any }) {
   const dueDate = new Date(deadline.dueDate);
   const now = new Date();
   const daysLeft = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   const priorityColors: Record<string, string> = {
     'high': '#dc3545',
     'medium': '#ffc107',

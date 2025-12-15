@@ -695,7 +695,7 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
   const filteredPlatforms = platforms.filter(p => 
     p.name.toLowerCase().includes(platformSearch.toLowerCase())
   );
-  
+
   const filteredCourses = courses.filter(c =>
     c.title.toLowerCase().includes(courseSearch.toLowerCase())
   );
