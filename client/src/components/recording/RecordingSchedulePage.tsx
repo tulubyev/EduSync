@@ -15,8 +15,8 @@ import {
   RefreshCw,
   Loader
 } from 'lucide-react';
-import { RecordingTasksList } from '@/components/library/RecordingTasksList';
-import { RecordingModal, RecordingData } from '@/components/library/RecordingModal';
+import { RecordingTasksList } from './RecordingTasksList';
+import { RecordingModal, RecordingData } from './RecordingModal';
 
 interface DashboardStats {
   ready: number;

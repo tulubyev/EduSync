@@ -48,6 +48,7 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 - ✅ **types.ts обновлён** - новые статусы: `ready`, `in_progress`, `uploading`, `completed`, `failed`, `cancelled`; добавлен saveTarget `beget`; новые поля: `begetUrl`, `workerId`, `attemptCount`, `lastHeartbeat`
 - ✅ **recording.ts (API routes) исправлен** - удалены recordingScheduler, executeTask endpoint; статусы обновлены с `scheduled` на `ready`
 - ✅ **Гибридная архитектура записи завершена** - EPA Main только управляет задачами в БД, Recording Worker (отдельный проект) выполняет записи
+- ✅ **Файлы записи перемещены** - RecordingTasksList.tsx и RecordingModal.tsx перемещены из `client/src/components/library/` в `client/src/components/recording/`
 
 # Previous Changes (2025-12-14)
 - ✅ Updated `recording_tasks` schema with: `status`, `beget_url`, `error_message`, `worker_id`, `attempt_count`, `last_heartbeat`

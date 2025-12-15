@@ -41,8 +41,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { RecordingModal, type RecordingData } from './RecordingModal';
-import { RecordingTasksList } from './RecordingTasksList';
+import { RecordingModal, type RecordingData } from '@/components/recording/RecordingModal';
+import { RecordingTasksList } from '@/components/recording/RecordingTasksList';
 
 interface Note {
   id: string;
