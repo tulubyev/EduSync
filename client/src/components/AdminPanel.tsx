@@ -10,6 +10,7 @@ import { PlatformsManagement } from './admin/PlatformsManagement';
 import { AnalyticsSection } from './admin/AnalyticsSection';
 import { SubscriptionPlansManagement } from './admin/SubscriptionPlansManagement';
 import { PaymentSystemsManagement } from './admin/PaymentSystemsManagement';
+import { RecordingsManagement } from './admin/RecordingsManagement';
 
 // AdminPanel component for administrators
 function AdminPanel({ user, onBack }: any) {
@@ -20,6 +21,7 @@ function AdminPanel({ user, onBack }: any) {
   const [showApiManagement, setShowApiManagement] = useState(false);
   const [showSubscriptionPlans, setShowSubscriptionPlans] = useState(false);
   const [showPaymentSystems, setShowPaymentSystems] = useState(false);
+  const [showRecordings, setShowRecordings] = useState(false);
   const [showApiKeysModal, setShowApiKeysModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [showWebhooksModal, setShowWebhooksModal] = useState(false);
@@ -146,6 +148,16 @@ function AdminPanel({ user, onBack }: any) {
               <span className="text-xs opacity-80">—</span>
             </button>
           )}
+
+          {(userRole === 'super_admin' || userRole === 'devops_admin') && (
+            <button 
+              onClick={() => setShowRecordings(!showRecordings)}
+              className={`p-3 sm:p-4 ${showRecordings ? 'bg-indigo-500' : 'bg-red-500'} text-white border-none rounded-lg cursor-pointer text-sm font-medium flex flex-col items-center gap-1 min-h-11 hover:opacity-90 transition-colors`}
+            >
+              <span className="text-xs sm:text-sm">📹 {showRecordings ? 'Скрыть' : 'Записи'}</span>
+              <span className="text-xs opacity-80">—</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -177,6 +189,11 @@ function AdminPanel({ user, onBack }: any) {
 
       <PaymentSystemsManagement 
         isVisible={showPaymentSystems}
+        userRole={userRole}
+      />
+
+      <RecordingsManagement 
+        isVisible={showRecordings}
         userRole={userRole}
       />
 
