@@ -43,7 +43,13 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 - **FFmpeg**: For video and audio processing, encoding, and muxing (in Recording Worker project)
 - **Playwright**: Headless browser automation for recording (in Recording Worker project)
 
-# Recent Changes (2025-12-14)
+# Recent Changes (2025-12-15)
+- ✅ **taskManager.ts полностью переписан** - удалены все worker-only импорты (streamingRecorderService, playlistGenerator), оставлены только CRUD операции для БД
+- ✅ **types.ts обновлён** - новые статусы: `ready`, `in_progress`, `uploading`, `completed`, `failed`, `cancelled`; добавлен saveTarget `beget`; новые поля: `begetUrl`, `workerId`, `attemptCount`, `lastHeartbeat`
+- ✅ **recording.ts (API routes) исправлен** - удалены recordingScheduler, executeTask endpoint; статусы обновлены с `scheduled` на `ready`
+- ✅ **Гибридная архитектура записи завершена** - EPA Main только управляет задачами в БД, Recording Worker (отдельный проект) выполняет записи
+
+# Previous Changes (2025-12-14)
 - ✅ Updated `recording_tasks` schema with: `status`, `beget_url`, `error_message`, `worker_id`, `attempt_count`, `last_heartbeat`
 - ✅ Removed Playwright/FFmpeg from EPA main package.json dependencies 
 - ✅ Updated .replit to exclude unnecessary packages from main EPA
