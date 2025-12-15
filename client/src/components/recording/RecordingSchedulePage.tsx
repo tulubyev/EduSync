@@ -189,58 +189,56 @@ export function RecordingSchedulePage() {
           </TabsList>
 
           <TabsContent value="tasks" className="space-y-4">
-            {stats && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                <StatCard 
-                  title="Ожидают" 
-                  value={stats.ready} 
-                  icon={Clock} 
-                  color="blue" 
-                  active={selectedFilter === 'ready'}
-                  onClick={() => setSelectedFilter(selectedFilter === 'ready' ? null : 'ready')}
-                />
-                <StatCard 
-                  title="Запись" 
-                  value={stats.in_progress} 
-                  icon={Activity} 
-                  color="yellow"
-                  active={selectedFilter === 'in_progress'}
-                  onClick={() => setSelectedFilter(selectedFilter === 'in_progress' ? null : 'in_progress')}
-                />
-                <StatCard 
-                  title="Загрузка" 
-                  value={stats.uploading} 
-                  icon={HardDrive} 
-                  color="purple"
-                  active={selectedFilter === 'uploading'}
-                  onClick={() => setSelectedFilter(selectedFilter === 'uploading' ? null : 'uploading')}
-                />
-                <StatCard 
-                  title="Завершено" 
-                  value={stats.completed} 
-                  icon={CheckCircle} 
-                  color="green"
-                  active={selectedFilter === 'completed'}
-                  onClick={() => setSelectedFilter(selectedFilter === 'completed' ? null : 'completed')}
-                />
-                <StatCard 
-                  title="Ошибки" 
-                  value={stats.failed} 
-                  icon={AlertTriangle} 
-                  color="red"
-                  active={selectedFilter === 'failed'}
-                  onClick={() => setSelectedFilter(selectedFilter === 'failed' ? null : 'failed')}
-                />
-                <StatCard 
-                  title="Всего" 
-                  value={stats.total} 
-                  icon={Video} 
-                  color="gray"
-                  active={selectedFilter === null}
-                  onClick={() => setSelectedFilter(null)}
-                />
-              </div>
-            )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <StatCard 
+                title="Ожидают" 
+                value={stats?.ready ?? 0} 
+                icon={Clock} 
+                color="blue" 
+                active={selectedFilter === 'ready'}
+                onClick={() => setSelectedFilter(selectedFilter === 'ready' ? null : 'ready')}
+              />
+              <StatCard 
+                title="Запись" 
+                value={stats?.in_progress ?? 0} 
+                icon={Activity} 
+                color="yellow"
+                active={selectedFilter === 'in_progress'}
+                onClick={() => setSelectedFilter(selectedFilter === 'in_progress' ? null : 'in_progress')}
+              />
+              <StatCard 
+                title="Загрузка" 
+                value={stats?.uploading ?? 0} 
+                icon={HardDrive} 
+                color="purple"
+                active={selectedFilter === 'uploading'}
+                onClick={() => setSelectedFilter(selectedFilter === 'uploading' ? null : 'uploading')}
+              />
+              <StatCard 
+                title="Завершено" 
+                value={stats?.completed ?? 0} 
+                icon={CheckCircle} 
+                color="green"
+                active={selectedFilter === 'completed'}
+                onClick={() => setSelectedFilter(selectedFilter === 'completed' ? null : 'completed')}
+              />
+              <StatCard 
+                title="Ошибки" 
+                value={stats?.failed ?? 0} 
+                icon={AlertTriangle} 
+                color="red"
+                active={selectedFilter === 'failed'}
+                onClick={() => setSelectedFilter(selectedFilter === 'failed' ? null : 'failed')}
+              />
+              <StatCard 
+                title="Всего" 
+                value={stats?.total ?? 0} 
+                icon={Video} 
+                color="gray"
+                active={selectedFilter === null}
+                onClick={() => setSelectedFilter(null)}
+              />
+            </div>
 
             <Card>
               <CardHeader>
