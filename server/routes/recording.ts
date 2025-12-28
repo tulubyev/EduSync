@@ -351,6 +351,17 @@ router.get('/health', (req: Request, res: Response) => {
 // MONITORING ENDPOINTS
 // ===========================================
 
+const API_SECRET = process.env.API_SECRET;
+
+// Middleware to verify worker/n8n requests
+const verifyInternalRequest = (req: Request, res: Response, next: any) => {
+  const authHeader = req.headers.authorization;
+  if (API_SECRET && authHeader !== `Bearer ${API_SECRET}`) {
+    return res.status(401).json({ message: 'Unauthorized internal request' });
+  }
+  next();
+};
+
 router.get('/monitor/dashboard', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const statusCounts = await db
@@ -522,7 +533,7 @@ router.get('/monitor/recent-logs', authenticateToken as any, async (req: AuthReq
   }
 });
 
-router.post('/monitor/worker-heartbeat', async (req: Request, res: Response) => {
+router.post('/monitor/worker-heartbeat', verifyInternalRequest, async (req: Request, res: Response) => {
   try {
     const { workerId, dbConnected, s3Connected, activeTaskId, currentTaskTitle, buildVersion } = req.body;
 
@@ -562,7 +573,7 @@ router.post('/monitor/worker-heartbeat', async (req: Request, res: Response) => 
   }
 });
 
-router.post('/monitor/worker-task-complete', async (req: Request, res: Response) => {
+router.post('/monitor/worker-task-complete', verifyInternalRequest, async (req: Request, res: Response) => {
   try {
     const { workerId, success, error: errorMessage } = req.body;
 

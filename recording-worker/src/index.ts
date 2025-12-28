@@ -37,6 +37,15 @@ async function updateHeartbeat() {
       await db.update(recordingTasks)
         .set({ lastHeartbeat: new Date() })
         .where(eq(recordingTasks.id, currentTask));
+      
+      // Also update worker status table
+      await db.post('/api/recording/monitor/worker-heartbeat', {
+        workerId: WORKER_ID,
+        dbConnected: true,
+        s3Connected: true,
+        activeTaskId: currentTask,
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
       console.error('Heartbeat error:', error);
     }
