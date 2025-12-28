@@ -39,13 +39,27 @@ async function updateHeartbeat() {
         .where(eq(recordingTasks.id, currentTask));
       
       // Also update worker status table
-      await db.post('/api/recording/monitor/worker-heartbeat', {
-        workerId: WORKER_ID,
-        dbConnected: true,
-        s3Connected: true,
-        activeTaskId: currentTask,
-        timestamp: new Date().toISOString()
-      });
+      try {
+        const response = await fetch(`${process.env.MAIN_APP_URL}/api/recording/monitor/worker-heartbeat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API_SECRET}`
+          },
+          body: JSON.stringify({
+            workerId: WORKER_ID,
+            dbConnected: true,
+            s3Connected: true,
+            activeTaskId: currentTask,
+            timestamp: new Date().toISOString()
+          })
+        });
+        if (!response.ok) {
+          console.error('Failed to send heartbeat to main app:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Heartbeat main app error:', error);
+      }
     } catch (error) {
       console.error('Heartbeat error:', error);
     }

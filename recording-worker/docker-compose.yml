@@ -16,6 +16,7 @@ services:
       - WORKER_ID=worker-vps-01
       - API_SECRET=${API_SECRET}
       - PORT=3001
+      - MAIN_APP_URL=${MAIN_APP_URL}
     volumes:
       - ./recordings:/app/recordings
     healthcheck:
