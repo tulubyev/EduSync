@@ -19,8 +19,14 @@ services:
       - MAIN_APP_URL=${MAIN_APP_URL}
     volumes:
       - ./recordings:/app/recordings
+    networks:
+      - epa-net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+networks:
+  epa-net:
+    external: true
