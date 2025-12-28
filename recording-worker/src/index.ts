@@ -16,6 +16,17 @@ const WORKER_ID = process.env.WORKER_ID || 'worker-vps-01';
 
 app.use(express.json());
 
+const API_SECRET = process.env.API_SECRET || 'fallback-secret-replace-me';
+
+// Middleware for auth
+const authenticate = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== `Bearer ${API_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+};
+
 let currentTask: string | null = null;
 const recorder = new Recorder();
 
@@ -94,7 +105,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', workerId: WORKER_ID, currentTask });
 });
 
-app.post('/task/start', async (req, res) => {
+app.post('/task/start', authenticate, async (req, res) => {
   const { taskId } = req.body;
   if (currentTask) return res.status(400).json({ error: 'Worker busy' });
   startTaskInternal(taskId);
