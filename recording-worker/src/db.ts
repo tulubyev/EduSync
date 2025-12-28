@@ -12,7 +12,7 @@ export const db = drizzle(pool, { schema });
 
 // S3 Storage (Beget)
 export const s3 = new AWS.S3({
-  endpoint: process.env.BEGET_S3_ENDPOINT,
+  endpoint: process.env.BEGET_S3_ENDPOINT || 'https://s3.beget.com',
   accessKeyId: process.env.BEGET_S3_ACCESS_KEY,
   secretAccessKey: process.env.BEGET_S3_SECRET_KEY,
   s3ForcePathStyle: true,
