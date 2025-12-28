@@ -1,3 +1,69 @@
+import { useState, useEffect } from 'react';
+
+function RecordingWorkerStatusCard() {
+  const [status, setStatus] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const response = await fetch('/api/recording/monitor/worker-status');
+        if (response.ok) {
+          const data = await response.json();
+          setStatus(data);
+        }
+      } catch (error) {
+        console.error('Error fetching worker status:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const worker = status?.workers?.[0];
+  const isOnline = worker?.isOnline;
+
+  return (
+    <div style={{ padding: '15px', backgroundColor: '#f1f8e9', borderRadius: '8px', border: '1px solid #dcedc8' }}>
+      <h4 style={{ margin: '0 0 10px 0', color: '#33691e', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        🎥 Recording Worker
+      </h4>
+      <div style={{ fontSize: '13px', lineHeight: '1.4' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+          <span>Статус:</span>
+          <span style={{ color: isOnline ? '#28a745' : '#dc3545', fontWeight: 'bold' }}>
+            {loading ? '⏳ Загрузка...' : isOnline ? '✅ Онлайн' : '❌ Офлайн'}
+          </span>
+        </div>
+        {worker && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+              <span>ID воркера:</span>
+              <span style={{ fontWeight: '500' }}>{worker.workerId}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+              <span>БД / S3:</span>
+              <span style={{ fontWeight: '500' }}>
+                {worker.dbConnected ? '✅' : '❌'} / {worker.s3Connected ? '✅' : '❌'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+              <span>Задач в работе:</span>
+              <span style={{ color: worker.activeTaskId ? '#1976d2' : 'inherit', fontWeight: 'bold' }}>
+                {worker.activeTaskId ? '⏺️ Записывает' : '💤 Ожидание'}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface ApiManagementProps {
   isVisible: boolean;
   onShowApiKeys: () => void;
@@ -115,6 +181,9 @@ export function ApiManagement({
               </div>
             </div>
           </div>
+
+          {/* Состояние Recording Worker */}
+          <RecordingWorkerStatusCard />
         </div>
       </div>
 
