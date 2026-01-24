@@ -45,14 +45,14 @@ export const validationRules = {
   
   // User data validation
   firstName: z.string()
-    .min(1)
-    .max(100)
-    .regex(/^[А-Яа-яЁё\s\-']+$/, 'Invalid characters in name'),
+    .min(1, 'Имя не может быть пустым')
+    .max(100, 'Имя слишком длинное')
+    .refine(val => val.trim().length > 0, 'Имя не может состоять только из пробелов'),
   
   lastName: z.string()
-    .min(1)
-    .max(100)
-    .regex(/^[А-Яа-яЁё\s\-']+$/, 'Invalid characters in name'),
+    .min(1, 'Фамилия не может быть пустой')
+    .max(100, 'Фамилия слишком длинная')
+    .refine(val => val.trim().length > 0, 'Фамилия не может состоять только из пробелов'),
   
   // API key validation
   apiKey: z.string()
