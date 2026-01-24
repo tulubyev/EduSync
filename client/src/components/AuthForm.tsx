@@ -18,6 +18,15 @@ export function AuthForm({ onAuthSuccess }: any) {
     password: ''
   });
 
+  const getPasswordRequirements = (password: string) => {
+    return [
+      { label: '8+ символов', met: password.length >= 8 },
+      { label: 'Цифры', met: /[0-9]/.test(password) },
+      { label: 'Буквы', met: /[a-zA-Zа-яА-Я]/.test(password) },
+      { label: 'Символы', met: /[^a-zA-Zа-яА-Я0-9]/.test(password) }
+    ];
+  };
+
   const handleLogin = async (e: any) => {
     e.preventDefault();
     setIsLoading(true);
@@ -466,7 +475,6 @@ export function AuthForm({ onAuthSuccess }: any) {
                     onChange={(e) => setRegisterForm(prev => ({ ...prev, password: e.target.value }))}
                     placeholder="Создайте надёжный пароль"
                     required
-                    minLength={6}
                     style={{
                       width: '100%',
                       padding: '12px 50px 12px 16px',
@@ -499,6 +507,34 @@ export function AuthForm({ onAuthSuccess }: any) {
                   >
                     {showRegisterPassword ? '🙈' : '👁️'}
                   </button>
+                </div>
+                
+                {/* Password Strength Indicator */}
+                <div style={{ 
+                  marginTop: '10px', 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  gap: '8px' 
+                }}>
+                  {getPasswordRequirements(registerForm.password).map((req, idx) => (
+                    <div 
+                      key={idx} 
+                      style={{ 
+                        fontSize: '11px',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        backgroundColor: req.met ? '#e8f5e9' : '#f8f9fa',
+                        color: req.met ? '#2e7d32' : '#9e9e9e',
+                        border: `1px solid ${req.met ? '#c8e6c9' : '#e0e0e0'}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      {req.met ? '✅' : '⚪'} {req.label}
+                    </div>
+                  ))}
                 </div>
               </div>
 
