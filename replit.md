@@ -26,7 +26,7 @@ The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear
 - **External Platform Sync**: Implements OAuth 2.0 (e.g., for Stepik) to sync external courses and deadlines using encrypted tokens.
 
 **System Design Choices:**
-- **Database**: PostgreSQL with Drizzle ORM.
+- **Database**: PostgreSQL 16 (VPS 62.217.178.173) with Drizzle ORM. Migrated from Beget shared hosting to dedicated VPS 2026-04-11.
 - **Data Storage**: Profile images and uploaded files are stored as base64 strings. User credentials for external platforms are AES-256-GCM encrypted. `localStorage` is used for compact data like access tokens.
 - **Build & Deployment**: Optimized for Cloud Run with production dependencies and non-blocking background schedulers, enabling quick startup times.
 - **React Hooks Compliance**: Adherence to React Hooks rules throughout the application.
