@@ -357,9 +357,16 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             </div>
             <div className="bg-gray-50 p-2 rounded">
               <span className="text-gray-500 text-xs block">Источник</span>
-              <p className="font-semibold text-xs truncate mt-0.5" title={task.streamUrl}>
-                {getDomain(task.streamUrl)}
-              </p>
+              <p className="font-semibold text-xs mt-0.5">{getDomain(task.streamUrl)}</p>
+              <a
+                href={task.streamUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:text-blue-800 hover:underline truncate block"
+                title={task.streamUrl}
+              >
+                {task.streamUrl.length > 32 ? task.streamUrl.slice(0, 32) + '…' : task.streamUrl}
+              </a>
             </div>
             <div className="bg-gray-50 p-2 rounded">
               <span className="text-gray-500 text-xs block">Длительность</span>
@@ -385,15 +392,26 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             </div>
             <div className="bg-gray-50 p-2 rounded col-span-2 sm:col-span-1">
               <span className="text-gray-500 text-xs block">URL записи</span>
-              <a
-                href={task.streamUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-blue-600 hover:text-blue-800 hover:underline truncate block mt-0.5"
-                title={task.streamUrl}
-              >
-                {task.streamUrl.length > 40 ? task.streamUrl.slice(0, 40) + '…' : task.streamUrl}
-              </a>
+              {(task.begetUrl || task.playlistUrl) ? (
+                <a
+                  href={task.begetUrl || task.playlistUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline truncate block mt-0.5"
+                  title={task.begetUrl || task.playlistUrl}
+                >
+                  {(() => {
+                    const url = (task.begetUrl || task.playlistUrl)!;
+                    return url.length > 36 ? url.slice(0, 36) + '…' : url;
+                  })()}
+                </a>
+              ) : (
+                <p className="text-xs text-gray-400 mt-0.5 italic">
+                  {task.status === 'completed' ? 'Нет ссылки' :
+                   task.status === 'failed'    ? '—' :
+                                                 'После записи'}
+                </p>
+              )}
             </div>
           </div>
 
