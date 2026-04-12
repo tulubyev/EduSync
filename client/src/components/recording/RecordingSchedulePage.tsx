@@ -378,41 +378,39 @@ export function RecordingSchedulePage() {
               </Card>
             </div>
 
-            {stats && (
-              <Card>
+            <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Статистика задач</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                     <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-600">{stats.ready}</p>
+                      <p className="text-2xl font-bold text-blue-600">{userStats.ready}</p>
                       <p className="text-sm text-blue-700">Ожидают</p>
                     </div>
                     <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                      <p className="text-2xl font-bold text-yellow-600">{stats.in_progress}</p>
+                      <p className="text-2xl font-bold text-yellow-600">{userStats.in_progress}</p>
                       <p className="text-sm text-yellow-700">Записываются</p>
                     </div>
                     <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <p className="text-2xl font-bold text-purple-600">{stats.uploading}</p>
+                      <p className="text-2xl font-bold text-purple-600">{userStats.uploading}</p>
                       <p className="text-sm text-purple-700">Загружаются</p>
                     </div>
                     <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+                      <p className="text-2xl font-bold text-green-600">{userStats.completed}</p>
                       <p className="text-sm text-green-700">Завершены</p>
                     </div>
                     <div className="text-center p-4 bg-red-50 rounded-lg">
-                      <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
+                      <p className="text-2xl font-bold text-red-600">{userStats.failed}</p>
                       <p className="text-sm text-red-700">С ошибками</p>
                     </div>
                     <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <p className="text-2xl font-bold text-gray-600">{stats.total}</p>
+                      <p className="text-2xl font-bold text-gray-600">{userStats.total}</p>
                       <p className="text-sm text-gray-700">Всего</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            )}
           </TabsContent>
         </Tabs>
       )}
