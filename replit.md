@@ -1,66 +1,166 @@
-# Overview
-My EPA (Агрегатор Онлайн Обучения) is an educational platform aggregator for the Russian market. It consolidates online courses from various global and regional platforms into specialized categories, offering a comprehensive learning hub. Key capabilities include user profile management, course aggregation from over 89 platforms, deadline tracking, progress analytics, and an extensive admin panel. The project features a desktop-first design with mobile portability and integrated payment solutions for subscription management, aiming to provide a central point for online education.
+# My EPA - Educational Platform Aggregator
 
-# User Preferences
-I want to develop this project iteratively. Please provide clear and detailed explanations for any proposed changes or new features. When suggesting code, aim for modern React practices and ensure type safety with TypeScript. I prefer that you ask for my confirmation before making any significant architectural changes or adding new external dependencies.
+## Overview
 
-# System Architecture
-The application is built with React and TypeScript, using Shadcn UI for a modern and responsive interface. State management is handled with React hooks, and user authentication uses an `accessToken` stored in `localStorage`.
+My EPA (Мой ЕПА) is a Russian-market educational platform aggregator that consolidates online courses from multiple platforms (Coursera, Stepik, Udemy, edX, etc.) into a unified dashboard. It provides progress tracking, deadline management, note-taking, course discovery, adaptive UI themes, subscription management, and an autonomous video recording system for webinars and streams.
 
-**UI/UX Decisions:**
-The design emphasizes a clean, modern aesthetic with Shadcn UI components, clear typography, accessible forms, and intuitive feedback. It follows a desktop-first approach with responsive mobile design, ensuring all interactive elements meet a minimum touch target size of 44px.
+The app targets working professionals and students who want to manage their learning across many external platforms from one place. It is designed for Russian-speaking users with plans for iOS/Android mobile portability via React Native.
 
-**Technical Implementations & Features:**
-- **User Management**: Includes profile editing, secure profile picture management, and subscription status display.
-- **Admin Panel**: Provides role-based access for managing users, courses, platforms, payments, and analytics with real-time data.
-- **Platform Integration**: Manages over 89 educational platforms, categorized by region and subject, with dynamic loading and filtering.
-- **Library (Materials Management)**: Supports web resource URLs and local file uploads (images, videos, audio, PDF, documents) with base64 encoding and optimized image compression. Features platform/course linking, category tags, material pinning, and hierarchical tree-based navigation.
-- **Autonomous Recording System (Hybrid Architecture)**: 
-  - **EPA Main**: Displays recording task statuses and links to completed videos (beget_url)
-  - **Recording Worker (Separate Project)**: Headless Playwright + FFmpeg with CDP screencasting. Polls PostgreSQL for new tasks, records streams, uploads to Beget S3, updates task status/beget_url via DB. Includes robust logging.
-  - Recordings chunked (20-min) to avoid timeouts, streamed directly, with HLS playlist generation and heartbeat monitoring.
-- **Course Discovery System**: Automates course population from all integrated educational platforms with duplicate prevention.
-- **Security**: Implements AES-256-GCM encryption for sensitive data, Scrypt key derivation, rate limiting, and Helmet middleware.
-- **API-first Architecture**: All communication between frontend and backend is via REST API.
-- **Subscription Management**: Integrated YooKassa and Alfabank for payment processing, supporting Free, Standard, and Premium plans with monthly/yearly billing, recurring payments, and saved payment methods via a Payment Gateway Pattern.
-- **External Platform Sync**: Implements OAuth 2.0 (e.g., for Stepik) to sync external courses and deadlines using encrypted tokens.
+Key feature areas:
+- **Unified course dashboard** across 89+ integrated platforms
+- **Recording system** (hybrid architecture: EPA manages tasks, a separate Recording Worker on VPS executes recordings via Playwright + FFmpeg)
+- **Subscription management** with YooKassa and Alfabank payment gateways
+- **OAuth 2.0 integration** with external platforms (e.g., Stepik) for course/deadline sync
+- **Admin panel** with role-based access
+- **Adaptive UI** with mood/time-based color themes
 
-**System Design Choices:**
-- **Database**: PostgreSQL 16 (VPS 62.217.178.173) with Drizzle ORM. Migrated from Beget shared hosting to dedicated VPS 2026-04-11.
-- **Data Storage**: Profile images and uploaded files are stored as base64 strings. User credentials for external platforms are AES-256-GCM encrypted. `localStorage` is used for compact data like access tokens.
-- **Build & Deployment**: Optimized for Cloud Run with production dependencies and non-blocking background schedulers, enabling quick startup times.
-- **React Hooks Compliance**: Adherence to React Hooks rules throughout the application.
+## User Preferences
 
-# External Dependencies
-- **Shadcn UI**: UI component library.
-- **Lucide React**: Icon library.
-- **Internal REST API Endpoints**: Comprehensive set of endpoints for all application functionalities.
-- **YooKassa**: Payment gateway for subscriptions.
-- **Alfabank API**: Payment gateway for subscriptions.
-- **Stepik API**: External learning platform API for course and deadline synchronization.
-- **Beget S3 Storage**: Primary storage for recorded video chunks (in Recording Worker project)
-- **Yandex.Disk API**: Alternative storage option for recorded video chunks
-- **FFmpeg**: For video and audio processing, encoding, and muxing (in Recording Worker project)
-- **Playwright**: Headless browser automation for recording (in Recording Worker project)
+Preferred communication style: Simple, everyday language.
 
-# Recent Changes (2025-12-15)
-- ✅ **taskManager.ts полностью переписан** - удалены все worker-only импорты (streamingRecorderService, playlistGenerator), оставлены только CRUD операции для БД
-- ✅ **types.ts обновлён** - новые статусы: `ready`, `in_progress`, `uploading`, `completed`, `failed`, `cancelled`; добавлен saveTarget `beget`; новые поля: `begetUrl`, `workerId`, `attemptCount`, `lastHeartbeat`
-- ✅ **recording.ts (API routes) исправлен** - удалены recordingScheduler, executeTask endpoint; статусы обновлены с `scheduled` на `ready`
-- ✅ **Гибридная архитектура записи завершена** - EPA Main только управляет задачами в БД, Recording Worker (отдельный проект) выполняет записи
-- ✅ **Файлы записи перемещены** - RecordingTasksList.tsx и RecordingModal.tsx перемещены из `client/src/components/library/` в `client/src/components/recording/`
-- ✅ **Удалены записи из LibraryPage** - RecordingModal, RecordingTasksList, и функция планирования записей удалены из библиотеки (теперь только в `/recordings`)
-- ✅ **Блок "Записи" добавлен в админ-панель** - новый компонент RecordingsManagement показывает список запланированных записей, статистику по статусам, размер хранилища и состояние каждой записи
-- ✅ **Информация о размере и хранилище добавлена** - в админ-панели показывается физический размер записи (в MB/GB) и тип носителя (S3 Beget, Yandex.Disk, Библиотека)
+## System Architecture
 
-# Previous Changes (2025-12-14)
-- ✅ Updated `recording_tasks` schema with: `status`, `beget_url`, `error_message`, `worker_id`, `attempt_count`, `last_heartbeat`
-- ✅ Removed Playwright/FFmpeg from EPA main package.json dependencies 
-- ✅ Updated .replit to exclude unnecessary packages from main EPA
-- ✅ Implemented hybrid Recording Worker architecture (separate Replit project)
-- ✅ Updated RecordingTasksList UI: Added status badges (ready, in_progress, uploading, completed, failed, cancelled), beget_url support, video playback
-- ✅ Updated RecordingModal: Added Beget S3 as default storage target
-- ✅ Created `recording_worker_status` table for worker monitoring
-- ✅ Added monitoring API endpoints: dashboard, worker-status, sync-check, recent-logs, worker-heartbeat, worker-task-complete
-- ✅ Created new RecordingSchedulePage (`/recordings`) with tabs for tasks and worker monitoring
-- ✅ Added "Записи" navigation item to sidebar (desktop and mobile)
+### Frontend Architecture
+
+- **Framework**: React 18 with TypeScript
+- **Routing**: `wouter` (lightweight client-side routing)
+- **UI Components**: shadcn/ui (New York style) built on Radix UI primitives
+- **Styling**: Tailwind CSS with CSS variables for theming; dark mode support
+- **State Management**: React Query (TanStack Query v5) for server state; React hooks for local state
+- **Forms**: React Hook Form with `@hookform/resolvers` for Zod validation
+- **Icons**: Lucide React
+- **Build Tool**: Vite with React plugin; output to `dist/public`
+- **Path Aliases**: `@/` → `client/src/`, `@shared/` → `shared/`
+
+The frontend is a SPA rooted at `client/index.html`, served by Vite in dev and by Express static serving in production.
+
+**Adaptive Theme System**: A custom React context (`use-adaptive-theme.tsx`) manages mood-based color themes (Neutral/Calm/Focused/Energetic) that shift CSS variables. Theme preferences are stored in both `localStorage` and the server.
+
+### Backend Architecture
+
+- **Runtime**: Node.js 20 (ESM modules)
+- **Framework**: Express.js with TypeScript (`tsx` for dev, `esbuild` for prod build)
+- **Entry Point**: `server/index.ts` → `server/routes.ts` → modular routers in `server/routes/`
+- **Modular Routing**: Routes are split into domain-specific modules (auth, admin, courses, deadlines, notes, platforms, recording, payments, settings, etc.) imported through `server/routes/index.ts`
+- **Rate Limiting**: `express-rate-limit` on all `/api` routes (100 req/min default)
+- **Request Size**: JSON/URL-encoded bodies up to 20MB (for base64 file uploads)
+- **Dev Server Integration**: Vite middleware is attached to the Express server in development
+
+**Security**:
+- AES-256-GCM encryption for sensitive data (external platform credentials, tokens)
+- Password hashing with Scrypt (Node.js `crypto`)
+- Helmet middleware for security headers
+- CORS configured per environment
+- Token-based session authentication (custom JWT sessions stored in DB)
+
+**Configuration**: Centralized in `config/environment.ts` with typed interfaces for rate limiting, logging, performance, and security settings. All values driven by environment variables.
+
+### Data Storage
+
+- **Database**: PostgreSQL 16 hosted on a dedicated VPS (`DATABASE_URL` env var)
+- **ORM**: Drizzle ORM (`drizzle-orm/node-postgres`) with Drizzle Kit for migrations
+- **Schema Location**: `shared/schema.ts` — shared between frontend type inference and backend
+- **Connection**: `pg.Pool` with SSL (`rejectUnauthorized: false` for Beget compatibility)
+- **Migration Command**: `npm run db:push` (drizzle-kit push)
+
+**Key Tables**:
+| Table | Purpose |
+|---|---|
+| `users` | Core user data (UUID PK, email, phone, passwordHash, role, planType, profileImage as base64) |
+| `sessions` | Token-based auth sessions with expiry |
+| `courses` | Aggregated courses from external platforms |
+| `platforms` | Supported educational platforms (89+) |
+| `deadlines` | Course deadlines and assignments |
+| `notes` | User notes attached to courses |
+| `recording_tasks` | Tasks for the Recording Worker (status: ready/in_progress/uploading/completed/failed/cancelled) |
+| `subscriptions` | User subscription records |
+| `payments` | Payment transaction records |
+| `user_activities` | Activity log |
+| `system_logs` / `system_messages` | Admin/system audit logs |
+
+**File Storage**: Profile images and uploaded files are stored as base64 strings in the database (not on filesystem). Recorded videos are uploaded to Beget S3 by the Recording Worker.
+
+### Authentication
+
+- **Mechanism**: Custom token-based sessions (JWT-style tokens stored in the `sessions` DB table)
+- **Password Security**: Scrypt key derivation (Node.js crypto) + bcrypt also available
+- **Session Cookie**: httpOnly, secure in production
+- **Protected Routes**: Middleware checks token from cookie or Authorization header, verifies against DB
+- **Admin Access**: Role-based (`role: admin`, `adminRole: super_admin | analytics_admin | devops_admin | finance_admin | api_admin | security_admin`)
+- **External Platform Auth**: OAuth 2.0 (e.g., Stepik) with AES-256-GCM encrypted token storage
+
+### Recording Worker (Separate Service)
+
+A standalone Docker-based microservice (`recording-worker/`) deployed on a separate VPS. It:
+- Polls the `recording_tasks` table every 30 seconds for tasks with `status = 'ready'`
+- Uses Playwright (headless Chromium) to navigate to streams/webinars
+- Captures video via CDP (Chrome DevTools Protocol) + FFmpeg streaming pipeline
+- Uses PulseAudio virtual sink for audio capture
+- Chunks recordings into 20-minute segments, uploads to Beget S3
+- Updates `recording_tasks.beget_url`, `status`, `worker_id` in the shared DB
+- Exposes a REST API for n8n automation integration
+
+The EPA main app only creates/reads recording tasks — it does NOT run Playwright or FFmpeg.
+
+### Mobile Strategy
+
+Documentation exists for a React Native mobile app (`docs/MOBILE_ARCHITECTURE.md`, `docs/MOBILE_FIRST_GUIDELINES.md`). The backend REST API is designed to serve web, mobile, and admin clients equally. Business logic is kept server-side; UI is platform-specific.
+
+## External Dependencies
+
+### Payment Gateways
+- **YooKassa**: Russian payment gateway for subscription billing (monthly/yearly), recurring payments
+- **Alfabank API**: Secondary Russian payment gateway
+
+### Educational Platform APIs
+- **Stepik API**: OAuth 2.0 integration for syncing external courses and deadlines
+- Additional platforms planned via REST/OAuth/LTI protocols
+
+### Storage
+- **Beget S3 (Object Storage)**: Primary storage for recorded video chunks (used by Recording Worker via `aws-sdk`)
+- **Yandex.Disk API**: Alternative storage option for video chunks
+
+### Media Processing (Recording Worker only)
+- **Playwright**: Headless browser automation for capturing streams
+- **FFmpeg** (`fluent-ffmpeg`): Video/audio encoding, muxing, HLS playlist generation
+- **PulseAudio**: Virtual audio sink for capturing browser audio
+
+### Infrastructure
+- **PostgreSQL 16**: Primary database on dedicated VPS
+- **Google Cloud Storage SDK**: Used in `server/objectStorage.ts` via Replit sidecar endpoint (for Replit Object Storage integration)
+- **Drizzle ORM + Drizzle Kit**: Schema management and migrations
+- **Nodemailer**: Email sending (SMTP via Beget)
+
+### UI & Frontend Libraries
+- **shadcn/ui**: Component library (Radix UI based)
+- **TanStack React Query v5**: Server state management and caching
+- **Lucide React**: Icon set
+- **wouter**: Lightweight React router
+- **React Hook Form + Zod**: Form validation
+
+### Dev & Build
+- **Vite**: Frontend bundler with HMR
+- **esbuild**: Backend bundler for production
+- **tsx**: TypeScript execution for development
+- **@replit/vite-plugin-cartographer**: Replit-specific dev tool (dev only)
+
+### Environment Variables Required
+```
+DATABASE_URL          # PostgreSQL connection string
+JWT_SECRET            # JWT signing secret
+ENCRYPTION_KEY        # 64-char hex key for AES-256-GCM
+NODE_ENV              # development | production
+BEGET_SMTP_HOST       # SMTP host for email
+BEGET_SMTP_USER       # SMTP username
+BEGET_SMTP_PASSWORD   # SMTP password
+```
+
+Recording Worker also needs:
+```
+BEGET_S3_ENDPOINT     # S3 endpoint URL
+BEGET_S3_ACCESS_KEY   # S3 access key
+BEGET_S3_SECRET_KEY   # S3 secret key
+BEGET_S3_BUCKET       # Bucket name
+WORKER_ID             # Unique worker identifier
+API_SECRET            # Secret for n8n integration
+```
