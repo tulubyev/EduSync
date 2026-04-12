@@ -345,10 +345,10 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm">
             <div className="bg-gray-50 p-2 rounded">
               <span className="text-gray-500 text-xs block">Начало записи</span>
-              <p className="font-semibold text-xs sm:text-sm leading-tight mt-0.5">
+              <p className="font-semibold text-xs leading-tight mt-0.5">
                 {format(new Date(task.scheduledTime), 'dd.MM.yyyy', { locale: ru })}
               </p>
               <p className="text-xs text-gray-600">
@@ -357,13 +357,43 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             </div>
             <div className="bg-gray-50 p-2 rounded">
               <span className="text-gray-500 text-xs block">Источник</span>
-              <p className="font-semibold text-xs sm:text-sm truncate mt-0.5" title={task.streamUrl}>
+              <p className="font-semibold text-xs truncate mt-0.5" title={task.streamUrl}>
                 {getDomain(task.streamUrl)}
               </p>
             </div>
             <div className="bg-gray-50 p-2 rounded">
               <span className="text-gray-500 text-xs block">Длительность</span>
-              <p className="font-semibold text-xs sm:text-sm mt-0.5">{formatDuration(task.duration)}</p>
+              <p className="font-semibold text-xs mt-0.5">{formatDuration(task.duration)}</p>
+            </div>
+            <div className="bg-gray-50 p-2 rounded">
+              <span className="text-gray-500 text-xs block">Статус</span>
+              <p className={`text-xs font-semibold mt-0.5 ${
+                task.status === 'ready'       ? 'text-blue-600' :
+                task.status === 'in_progress' ? 'text-amber-600' :
+                task.status === 'uploading'   ? 'text-purple-600' :
+                task.status === 'completed'   ? 'text-green-600' :
+                task.status === 'failed'      ? 'text-red-600' :
+                                                'text-gray-500'
+              }`}>
+                {task.status === 'ready'       ? 'Ожидает' :
+                 task.status === 'in_progress' ? 'Идёт запись' :
+                 task.status === 'uploading'   ? 'Загрузка' :
+                 task.status === 'completed'   ? 'Завершена' :
+                 task.status === 'failed'      ? 'Ошибка' :
+                                                'Отменена'}
+              </p>
+            </div>
+            <div className="bg-gray-50 p-2 rounded col-span-2 sm:col-span-1">
+              <span className="text-gray-500 text-xs block">URL записи</span>
+              <a
+                href={task.streamUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:text-blue-800 hover:underline truncate block mt-0.5"
+                title={task.streamUrl}
+              >
+                {task.streamUrl.length > 40 ? task.streamUrl.slice(0, 40) + '…' : task.streamUrl}
+              </a>
             </div>
           </div>
 
