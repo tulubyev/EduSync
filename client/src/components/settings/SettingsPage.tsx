@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Upload, Mail, Phone, BookOpen } from 'lucide-react';
+import { User, Upload, Mail, Phone, BookOpen, Shield } from 'lucide-react';
 import { StepikConnectionPage } from './StepikConnectionPage';
 
 interface UserProfile {
@@ -14,6 +14,8 @@ interface UserProfile {
   phone: string;
   profileImageUrl?: string;
   planType: string;
+  role: string;
+  adminRole?: string;
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
   createdAt: string;
@@ -242,8 +244,34 @@ export function SettingsPage() {
       free: 'Бесплатный план',
       premium: 'Premium план',
       pro: 'Pro план',
+      family: 'Семейный план',
+      business: 'Бизнес план',
     };
     return labels[plan] || plan;
+  };
+
+  const getAdminRoleLabel = (adminRole?: string) => {
+    const labels: Record<string, string> = {
+      super_admin: 'Супер Администратор',
+      analytics_admin: 'Аналитик',
+      devops_admin: 'DevOps Администратор',
+      finance_admin: 'Финансовый Администратор',
+      api_admin: 'API Администратор',
+      security_admin: 'Администратор Безопасности',
+    };
+    return adminRole ? labels[adminRole] || adminRole : null;
+  };
+
+  const getAdminRoleBadgeColor = (adminRole?: string) => {
+    switch (adminRole) {
+      case 'super_admin': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'analytics_admin': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'devops_admin': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'finance_admin': return 'bg-green-100 text-green-800 border-green-200';
+      case 'api_admin': return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+      case 'security_admin': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
   };
 
   return (
@@ -397,6 +425,40 @@ export function SettingsPage() {
               >
                 {saving ? 'Сохранение...' : 'Сохранить изменения'}
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* Role Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Роль в системе
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Тип учётной записи</p>
+                  <p className="text-base font-semibold">
+                    {profile?.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                  </p>
+                </div>
+                <Badge className={profile?.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}>
+                  {profile?.role === 'admin' ? 'ADMIN' : 'USER'}
+                </Badge>
+              </div>
+              {profile?.adminRole && (
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Административная роль</p>
+                    <p className="text-base font-semibold">{getAdminRoleLabel(profile.adminRole)}</p>
+                  </div>
+                  <Badge className={getAdminRoleBadgeColor(profile.adminRole)}>
+                    {profile.adminRole.replace('_', ' ').toUpperCase()}
+                  </Badge>
+                </div>
+              )}
             </CardContent>
           </Card>
 

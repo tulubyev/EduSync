@@ -314,9 +314,24 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
             </div>
           )}
           {isOpen && (
-            <div className="overflow-hidden">
+            <div className="overflow-hidden flex-1 min-w-0">
               <p className="font-medium text-sm text-gray-800 truncate">{user.firstName} {user.lastName}</p>
               <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
+              {user.adminRole ? (
+                <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-purple-100 text-purple-700 leading-tight">
+                  {user.adminRole === 'super_admin' ? 'Супер Админ'
+                    : user.adminRole === 'analytics_admin' ? 'Аналитик'
+                    : user.adminRole === 'devops_admin' ? 'DevOps'
+                    : user.adminRole === 'finance_admin' ? 'Финансы'
+                    : user.adminRole === 'api_admin' ? 'API Админ'
+                    : user.adminRole === 'security_admin' ? 'Безопасность'
+                    : user.adminRole}
+                </span>
+              ) : (
+                <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-500 leading-tight">
+                  Пользователь
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -406,9 +421,24 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
               {user.firstName?.[0]}{user.lastName?.[0]}
             </div>
           )}
-          <div className="overflow-hidden">
+          <div className="overflow-hidden flex-1 min-w-0">
             <p className="font-medium text-sm text-gray-800 truncate">{user.firstName} {user.lastName}</p>
             <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
+            {user.adminRole ? (
+              <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-purple-100 text-purple-700 leading-tight">
+                {user.adminRole === 'super_admin' ? 'Супер Админ'
+                  : user.adminRole === 'analytics_admin' ? 'Аналитик'
+                  : user.adminRole === 'devops_admin' ? 'DevOps'
+                  : user.adminRole === 'finance_admin' ? 'Финансы'
+                  : user.adminRole === 'api_admin' ? 'API Админ'
+                  : user.adminRole === 'security_admin' ? 'Безопасность'
+                  : user.adminRole}
+              </span>
+            ) : (
+              <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-500 leading-tight">
+                Пользователь
+              </span>
+            )}
           </div>
         </div>
       </div>
