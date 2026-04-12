@@ -35,6 +35,9 @@ export interface RecordingTaskData {
   workerId?: string;
   attemptCount?: number;
   lastHeartbeat?: Date;
+  urlCheckStatus?: 'pending' | 'ok' | 'warning' | 'failed';
+  urlCheckMessage?: string;
+  urlCheckedAt?: Date;
 }
 
 export interface RecordingConfig {

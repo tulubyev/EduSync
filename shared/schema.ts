@@ -403,6 +403,9 @@ export const recordingTasks = pgTable("recording_tasks", {
   metadata: jsonb("metadata"),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
+  urlCheckStatus: varchar("url_check_status", { length: 20 }).default("pending"), // pending, ok, warning, failed
+  urlCheckMessage: text("url_check_message"),
+  urlCheckedAt: timestamp("url_checked_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({

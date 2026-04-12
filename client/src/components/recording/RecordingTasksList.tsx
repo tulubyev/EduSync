@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, TriangleAlert, XCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -39,6 +39,9 @@ interface RecordingTask {
   lastHeartbeat?: string;
   startedAt?: string;
   completedAt?: string;
+  urlCheckStatus?: 'pending' | 'ok' | 'warning' | 'failed';
+  urlCheckMessage?: string;
+  urlCheckedAt?: string;
 }
 
 interface RecordingTasksListProps {
@@ -159,6 +162,19 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       }
     } catch (error) {
       console.error('Error deleting task:', error);
+    }
+  };
+
+  const handleRecheck = async (taskId: string) => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      await fetch(`/api/recording/tasks/${taskId}/recheck`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      await fetchTasks();
+    } catch (error) {
+      console.error('Error requesting recheck:', error);
     }
   };
 
@@ -320,15 +336,28 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               )}
 
               {(task.status === 'ready' || task.status === 'failed') && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  title={task.status === 'failed' ? 'Исправить и перезапустить' : 'Редактировать'}
-                  onClick={() => handleEditStart(task)}
-                >
-                  <Edit2 className="h-4 w-4" />
-                </Button>
+                <>
+                  {(task.urlCheckStatus === 'warning' || task.urlCheckStatus === 'failed') && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                      title="Перепроверить доступность URL"
+                      onClick={() => handleRecheck(task.id)}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    title={task.status === 'failed' ? 'Исправить и перезапустить' : 'Редактировать'}
+                    onClick={() => handleEditStart(task)}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                </>
               )}
 
               {task.status !== 'in_progress' && task.status !== 'uploading' && (
@@ -357,7 +386,21 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             </div>
             <div className="bg-gray-50 p-2 rounded">
               <span className="text-gray-500 text-xs block">Источник</span>
-              <p className="font-semibold text-xs mt-0.5">{getDomain(task.streamUrl)}</p>
+              <div className="flex items-center gap-1 mt-0.5">
+                <p className="font-semibold text-xs">{getDomain(task.streamUrl)}</p>
+                {task.urlCheckStatus === 'pending' && (
+                  <Loader className="h-3 w-3 text-gray-400 animate-spin flex-shrink-0" title="Проверяется доступность..." />
+                )}
+                {task.urlCheckStatus === 'ok' && (
+                  <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" title="URL доступен" />
+                )}
+                {task.urlCheckStatus === 'warning' && (
+                  <TriangleAlert className="h-3 w-3 text-amber-500 flex-shrink-0" title={task.urlCheckMessage} />
+                )}
+                {task.urlCheckStatus === 'failed' && (
+                  <XCircle className="h-3 w-3 text-red-500 flex-shrink-0" title={task.urlCheckMessage} />
+                )}
+              </div>
               <a
                 href={task.streamUrl}
                 target="_blank"
@@ -414,6 +457,26 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               )}
             </div>
           </div>
+
+          {task.urlCheckStatus === 'warning' && task.urlCheckMessage && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded p-2 mt-2">
+              <TriangleAlert className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-amber-800">Предупреждение о доступности</p>
+                <p className="text-xs text-amber-700 mt-0.5">{task.urlCheckMessage}</p>
+              </div>
+            </div>
+          )}
+
+          {task.urlCheckStatus === 'failed' && task.urlCheckMessage && (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded p-2 mt-2">
+              <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-red-800">URL трансляции недоступен</p>
+                <p className="text-xs text-red-700 mt-0.5">{task.urlCheckMessage}</p>
+              </div>
+            </div>
+          )}
 
           {task.errorMessage && (
             <div className="bg-red-50 border border-red-200 rounded p-2 mt-2">

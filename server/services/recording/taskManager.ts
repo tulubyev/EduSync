@@ -188,6 +188,9 @@ class RecordingTaskManager {
       workerId: task.workerId || undefined,
       attemptCount: task.attemptCount || 0,
       lastHeartbeat: task.lastHeartbeat || undefined,
+      urlCheckStatus: (task.urlCheckStatus as RecordingTaskData['urlCheckStatus']) || 'pending',
+      urlCheckMessage: task.urlCheckMessage || undefined,
+      urlCheckedAt: task.urlCheckedAt || undefined,
     };
   }
 }

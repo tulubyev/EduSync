@@ -206,6 +206,35 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
   }
 });
 
+router.post('/tasks/:taskId/recheck', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+
+    const task = await recordingTaskManager.getTask(taskId);
+    if (!task) return res.status(404).json({ message: 'Задача не найдена' });
+    if (task.userId !== userId) return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    if (!['ready', 'failed'].includes(task.status!)) {
+      return res.status(400).json({ message: 'Перепроверка возможна только для ожидающих или неудавшихся задач' });
+    }
+
+    await db.update(recordingTasks)
+      .set({
+        urlCheckStatus: 'pending',
+        urlCheckMessage: null,
+        urlCheckedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(recordingTasks.id, taskId));
+
+    logger.info(`URL recheck requested for task ${taskId} by user ${userId}`);
+    res.json({ success: true, message: 'Проверка запущена, результат появится в течение 5 секунд' });
+  } catch (error) {
+    logger.error('Error requesting recheck:', error);
+    res.status(500).json({ message: 'Ошибка запуска перепроверки' });
+  }
+});
+
 router.get('/scheduler/status', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const readyTasks = await recordingTaskManager.getReadyTasks();
