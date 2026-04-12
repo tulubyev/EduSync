@@ -292,75 +292,73 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
           key={task.id}
           className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
         >
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
-              <h4 className="font-semibold text-gray-900">{task.title}</h4>
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-900 truncate">{task.title}</h4>
               {task.description && (
-                <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                <p className="text-sm text-gray-600 mt-0.5 line-clamp-1">{task.description}</p>
               )}
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 mt-0.5">
                 {format(new Date(task.scheduledTime), 'dd MMMM yyyy, HH:mm', { locale: ru })}
               </p>
             </div>
-            <div className="ml-4">{getStatusBadge(task.status)}</div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {getStatusBadge(task.status)}
+
+              {task.status === 'completed' && (task.begetUrl || task.playlistUrl) && (
+                <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="Смотреть видео" asChild>
+                  <a href={task.begetUrl || task.playlistUrl} target="_blank" rel="noopener noreferrer">
+                    <Play className="h-4 w-4" />
+                  </a>
+                </Button>
+              )}
+
+              {(task.status === 'ready' || task.status === 'failed') && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  title={task.status === 'failed' ? 'Исправить и перезапустить' : 'Редактировать'}
+                  onClick={() => handleEditStart(task)}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              )}
+
+              {task.status !== 'in_progress' && task.status !== 'uploading' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:border-red-300"
+                  title="Удалить"
+                  onClick={() => handleDelete(task.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-3 text-sm">
-            <div className="bg-gray-50 p-2 sm:p-3 rounded flex justify-between sm:block">
-              <span className="text-gray-600">Длительность</span>
-              <p className="font-semibold">{formatDuration(task.duration)} мин</p>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div className="bg-gray-50 p-2 rounded flex justify-between sm:block">
+              <span className="text-gray-500 text-xs">Длительность</span>
+              <p className="font-semibold text-xs sm:text-sm">{formatDuration(task.duration)} мин</p>
             </div>
-            <div className="bg-gray-50 p-2 sm:p-3 rounded flex justify-between sm:block">
-              <span className="text-gray-600">Размер</span>
-              <p className="font-semibold">{getTotalFileSize(task.parts)}</p>
+            <div className="bg-gray-50 p-2 rounded flex justify-between sm:block">
+              <span className="text-gray-500 text-xs">Размер</span>
+              <p className="font-semibold text-xs sm:text-sm">{getTotalFileSize(task.parts)}</p>
             </div>
-            <div className="bg-gray-50 p-2 sm:p-3 rounded flex justify-between sm:block">
-              <span className="text-gray-600">Части</span>
-              <p className="font-semibold">{task.parts.filter(p => p.status === 'completed').length}/{task.parts.length}</p>
+            <div className="bg-gray-50 p-2 rounded flex justify-between sm:block">
+              <span className="text-gray-500 text-xs">Части</span>
+              <p className="font-semibold text-xs sm:text-sm">{task.parts.filter(p => p.status === 'completed').length}/{task.parts.length}</p>
             </div>
           </div>
 
           {task.errorMessage && (
-            <div className="bg-red-50 border border-red-200 rounded p-2 mb-3">
-              <p className="text-sm text-red-800">{task.errorMessage}</p>
+            <div className="bg-red-50 border border-red-200 rounded p-2 mt-2">
+              <p className="text-xs text-red-700">{task.errorMessage}</p>
             </div>
           )}
-
-          <div className="flex flex-wrap gap-2">
-            {task.status === 'completed' && (task.begetUrl || task.playlistUrl) && (
-              <Button size="sm" variant="outline" className="min-h-11 flex-1 sm:flex-none" asChild>
-                <a href={task.begetUrl || task.playlistUrl} target="_blank" rel="noopener noreferrer">
-                  <Play className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Смотреть видео</span>
-                  <span className="sm:hidden">Видео</span>
-                </a>
-              </Button>
-            )}
-            {(task.status === 'ready' || task.status === 'failed') && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleEditStart(task)}
-                className="min-h-11 flex-1 sm:flex-none"
-              >
-                <Edit2 className="h-4 w-4 sm:mr-1" />
-                <span className="hidden sm:inline">
-                  {task.status === 'failed' ? 'Исправить и перезапустить' : 'Редактировать'}
-                </span>
-              </Button>
-            )}
-            {task.status !== 'in_progress' && task.status !== 'uploading' && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleDelete(task.id)}
-                className="text-red-600 hover:text-red-700 min-h-11 flex-1 sm:flex-none"
-              >
-                <Trash2 className="h-4 w-4 sm:mr-1" />
-                <span className="hidden sm:inline">Удалить</span>
-              </Button>
-            )}
-          </div>
         </div>
       ))}
 
