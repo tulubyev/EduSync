@@ -394,13 +394,18 @@ authRouter.post('/forgot-password', resetLimiter, async (req, res) => {
     });
 
     // Send code
+    let sendResult: { success: boolean; message?: string } = { success: false };
     if (method === 'email' && user.email) {
-      await emailService.sendPasswordResetEmail(user.email, code, user.firstName);
+      sendResult = await emailService.sendPasswordResetEmail(user.email, code, user.firstName);
     } else if (method === 'sms' && user.phone) {
-      await smsService.sendPasswordResetCode(user.phone, code);
+      sendResult = await smsService.sendPasswordResetCode(user.phone, code);
     }
 
-    logger.info('Password reset requested', { userId: user.id, method });
+    if (!sendResult.success) {
+      logger.error('Failed to send reset code', { userId: user.id, method, error: sendResult.message });
+    }
+
+    logger.info('Password reset requested', { userId: user.id, method, sent: sendResult.success });
     res.json({ success: true, message: 'Код отправлен', userId: user.id });
   } catch (error: any) {
     logger.error('Forgot password error:', secureLogs.logError(error));

@@ -196,20 +196,30 @@ export class SMSService {
     }
 
     try {
-      const params = new URLSearchParams({
-        api_id: this.SMS_RU_API_KEY,
-        to: formattedPhone,
-        msg: message,
-        json: '1',
+      const response = await fetch(this.SMS_RU_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          api_id: this.SMS_RU_API_KEY,
+          to: formattedPhone,
+          msg: message,
+          json: '1',
+        }),
       });
-      const response = await fetch(`${this.SMS_RU_API_URL}?${params}`);
-      const data: any = await response.json();
-      if (data.status === 'OK') {
-        const smsId = Object.keys(data.sms)[0];
-        return { success: data.sms[smsId].status === 'OK', messageId: smsId };
+      const result: any = await response.json();
+      console.log('📱 SMS.RU password reset response:', JSON.stringify(result));
+      if (result.status === 'OK') {
+        const smsStatus = result.sms?.[formattedPhone];
+        if (smsStatus?.status === 'OK') {
+          return { success: true, message: 'SMS отправлен', messageId: smsStatus.sms_id };
+        }
+        const errText = smsStatus?.status_text || 'Ошибка доставки SMS';
+        console.error(`📱 SMS delivery failed for ${formattedPhone}: [${smsStatus?.status_code}] ${errText}`);
+        return { success: false, message: errText };
       }
-      return { success: false, message: data.status_text || 'Ошибка отправки SMS' };
+      return { success: false, message: result.status_text || 'Ошибка отправки SMS' };
     } catch (error) {
+      console.error('SMS password reset error:', error);
       return { success: false, message: error instanceof Error ? error.message : 'Ошибка SMS сервиса' };
     }
   }
