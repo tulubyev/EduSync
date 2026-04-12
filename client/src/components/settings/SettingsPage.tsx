@@ -13,6 +13,7 @@ interface UserProfile {
   lastName: string;
   phone: string;
   profileImageUrl?: string;
+  profileImage?: string;
   planType: string;
   role: string;
   adminRole?: string;
@@ -54,7 +55,11 @@ export function SettingsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setProfile(data);
+        const normalizedProfile = {
+          ...data,
+          profileImageUrl: data.profileImage || data.profileImageUrl || null,
+        };
+        setProfile(normalizedProfile);
         setFormData({
           email: data.email || '',
           firstName: data.firstName || '',
@@ -143,30 +148,25 @@ export function SettingsPage() {
       setSaving(true);
       const token = localStorage.getItem('accessToken');
       
-      let photoToUpload = profile?.profileImageUrl || null;
+      let uploadedImageUrl: string | null = null;
 
       if (selectedFile) {
-        const reader = new FileReader();
-        await new Promise((resolve) => {
-          reader.onload = async () => {
-            const base64 = reader.result as string;
-            
-            const photoRes = await fetch('/api/users/profile/photo', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ photoData: base64 })
-            });
+        const photoFormData = new FormData();
+        photoFormData.append('photo', selectedFile);
 
-            if (photoRes.ok) {
-              photoToUpload = base64;
-            }
-            resolve(null);
-          };
-          reader.readAsDataURL(selectedFile);
+        const photoRes = await fetch('/api/users/profile/photo', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: photoFormData,
         });
+
+        if (photoRes.ok) {
+          const photoData = await photoRes.json();
+          uploadedImageUrl = photoData.profileImage || null;
+        } else {
+          const err = await photoRes.json().catch(() => ({}));
+          setErrors(prev => ({ ...prev, photo: err.message || 'Ошибка загрузки фото' }));
+        }
       }
 
       const response = await fetch('/api/users/profile', {
@@ -180,7 +180,6 @@ export function SettingsPage() {
           firstName: formData.firstName,
           lastName: formData.lastName,
           phone: formData.phone,
-          profileImageUrl: photoToUpload,
         }),
       });
 
@@ -196,11 +195,15 @@ export function SettingsPage() {
       const updatedProfileData = await response.json();
       
       setSuccessMessage('✓ Профиль успешно обновлен');
-      setProfile(updatedProfileData);
+      const fullProfileData = {
+        ...updatedProfileData,
+        profileImageUrl: uploadedImageUrl || profile?.profileImageUrl || null,
+      };
+      setProfile(fullProfileData);
       
-      // Dispatch custom event to notify App component about user update
+      // Dispatch custom event to notify App component about user update (including new avatar)
       window.dispatchEvent(new CustomEvent('userUpdated', { 
-        detail: updatedProfileData 
+        detail: fullProfileData
       }));
       
       // Re-fetch profile to ensure we have the latest data from database

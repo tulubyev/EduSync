@@ -302,9 +302,9 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
 
         {/* User Profile Section with Avatar */}
         <div className={`flex items-center gap-3 px-3 py-3 bg-gray-50 rounded-lg transition-all ${isOpen ? '' : 'justify-center'}`}>
-          {user.profileImageAvatar ? (
+          {user.profileImageUrl ? (
             <img
-              src={user.profileImageAvatar}
+              src={user.profileImageUrl}
               alt="Avatar"
               className="w-8 h-8 rounded-full object-cover flex-shrink-0"
             />
@@ -414,8 +414,8 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
         </button>
 
         <div className="flex items-center gap-3 px-3 py-3 bg-gray-50 rounded-lg">
-          {user.profileImageAvatar ? (
-            <img src={user.profileImageAvatar} alt="Avatar" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+          {user.profileImageUrl ? (
+            <img src={user.profileImageUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
           ) : (
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
               {user.firstName?.[0]}{user.lastName?.[0]}

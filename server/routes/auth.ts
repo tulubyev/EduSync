@@ -166,7 +166,9 @@ authRouter.post('/login', authLimiter, async (req, res) => {
         isVerified: loginResult.user.isVerified,
         verificationLevel2: loginResult.user.verificationLevel2,
         verificationLevel3: loginResult.user.verificationLevel3,
-        profileImageUrl: loginResult.user.profileImageUrl
+        profileImageUrl: loginResult.user.profileImage
+          ? `data:image/jpeg;base64,${loginResult.user.profileImage}`
+          : (loginResult.user.profileImageUrl || null)
       },
       accessToken: loginResult.tokens.accessToken,
       message: 'Успешный вход'
@@ -230,7 +232,7 @@ authRouter.get('/verify', authenticateToken, async (req: AuthenticatedRequest, r
         verificationLevel1: req.user.verificationLevel1,
         verificationLevel2: req.user.verificationLevel2,
         verificationLevel3: req.user.verificationLevel3,
-        profileImageUrl: req.user.profileImageUrl,
+        profileImageUrl: req.user.profileImage ? `data:image/jpeg;base64,${req.user.profileImage}` : null,
         twoFactorEnabled: req.user.twoFactorEnabled
       }
     });
