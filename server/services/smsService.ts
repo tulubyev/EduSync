@@ -188,7 +188,7 @@ export class SMSService {
    */
   async sendPasswordResetCode(phone: string, code: string): Promise<SMSResult> {
     const formattedPhone = phone.replace(/[\s\-\+]/g, '');
-    const message = `Ваш код для сброса пароля My EPA: ${code}. Действителен 15 минут. Не сообщайте код никому.`;
+    const message = `Ваш код для сброса пароля My EPA: ${code}. Действителен 5 минут. Не сообщайте код никому.`;
 
     if (!this.SMS_RU_API_KEY) {
       console.log(`📱 [TEST MODE] Password reset SMS to ${formattedPhone}: ${message}`);

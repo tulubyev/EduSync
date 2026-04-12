@@ -14,7 +14,7 @@ import { logger } from "../services/logger";
 import { secureLogs } from "../middleware/secureLogs";
 import { db } from "../db";
 import { users, passwordResetTokens } from "@shared/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, desc } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 // Auth rate limiting (из config)
@@ -384,7 +384,7 @@ authRouter.post('/forgot-password', resetLimiter, async (req, res) => {
 
     // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
     await db.insert(passwordResetTokens).values({
       userId: user.id,
@@ -424,18 +424,36 @@ authRouter.post('/verify-reset-code', async (req, res) => {
       code: z.string().length(6),
     }).parse(req.body);
 
-    const [token] = await db
+    // Find latest token for this user (ignore code match for diagnostics)
+    const [latest] = await db
       .select()
       .from(passwordResetTokens)
-      .where(and(
-        eq(passwordResetTokens.userId, userId),
-        eq(passwordResetTokens.token, code),
-        eq(passwordResetTokens.used, false),
-        gt(passwordResetTokens.expiresAt, new Date()),
-      ))
+      .where(eq(passwordResetTokens.userId, userId))
+      .orderBy(desc(passwordResetTokens.createdAt))
       .limit(1);
 
-    if (!token) {
+    if (!latest) {
+      logger.warn('Verify reset code: no token found', { userId });
+      return res.status(400).json({ message: 'Неверный или устаревший код' });
+    }
+
+    const now = new Date();
+    const isExpired = latest.expiresAt <= now;
+    const isUsed = latest.used;
+    const codeMatch = latest.token === code;
+
+    logger.info('Verify reset code attempt', {
+      userId,
+      codeMatch,
+      isExpired,
+      isUsed,
+      expiresAt: latest.expiresAt,
+      now,
+    });
+
+    if (!codeMatch || isExpired || isUsed) {
+      const reason = !codeMatch ? 'код не совпадает' : isExpired ? 'истёк срок' : 'уже использован';
+      logger.warn('Verify reset code failed', { userId, reason });
       return res.status(400).json({ message: 'Неверный или устаревший код' });
     }
 

@@ -309,7 +309,7 @@ export class EmailService {
             <div class="code">
               <div class="code-text">${code}</div>
             </div>
-            <p>Код действителен <strong>15 минут</strong>.</p>
+            <p>Код действителен <strong>5 минут</strong>.</p>
             <p class="warning">⚠️ Если вы не запрашивали сброс пароля — просто проигнорируйте это письмо. Ваш пароль не изменится.</p>
           </div>
           <div class="footer">
@@ -324,7 +324,7 @@ export class EmailService {
       to: email,
       subject: `${code} — код для сброса пароля My EPA`,
       html,
-      text: `Ваш код для сброса пароля My EPA: ${code}. Действителен 15 минут.`,
+      text: `Ваш код для сброса пароля My EPA: ${code}. Действителен 5 минут.`,
     });
   }
 
