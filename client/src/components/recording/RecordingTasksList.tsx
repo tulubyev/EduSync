@@ -94,9 +94,18 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
   }, [refreshKey]);
 
   const formatDuration = (minutes: number) => {
-    const mins = Math.floor(minutes);
-    const secs = Math.round((minutes % 1) * 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h > 0) return `${h} ч ${m > 0 ? `${m} мин` : ''}`.trim();
+    return `${m} мин`;
+  };
+
+  const getDomain = (url: string) => {
+    try {
+      return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      return url;
+    }
   };
 
   const getTotalFileSize = (parts: RecordingPart[]) => {
@@ -298,9 +307,6 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               {task.description && (
                 <p className="text-sm text-gray-600 mt-0.5 line-clamp-1">{task.description}</p>
               )}
-              <p className="text-xs text-gray-500 mt-0.5">
-                {format(new Date(task.scheduledTime), 'dd MMMM yyyy, HH:mm', { locale: ru })}
-              </p>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {getStatusBadge(task.status)}
@@ -340,17 +346,24 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-sm">
-            <div className="bg-gray-50 p-2 rounded flex justify-between sm:block">
-              <span className="text-gray-500 text-xs">Длительность</span>
-              <p className="font-semibold text-xs sm:text-sm">{formatDuration(task.duration)} мин</p>
+            <div className="bg-gray-50 p-2 rounded">
+              <span className="text-gray-500 text-xs block">Начало записи</span>
+              <p className="font-semibold text-xs sm:text-sm leading-tight mt-0.5">
+                {format(new Date(task.scheduledTime), 'dd.MM.yyyy', { locale: ru })}
+              </p>
+              <p className="text-xs text-gray-600">
+                {format(new Date(task.scheduledTime), 'HH:mm', { locale: ru })}
+              </p>
             </div>
-            <div className="bg-gray-50 p-2 rounded flex justify-between sm:block">
-              <span className="text-gray-500 text-xs">Размер</span>
-              <p className="font-semibold text-xs sm:text-sm">{getTotalFileSize(task.parts)}</p>
+            <div className="bg-gray-50 p-2 rounded">
+              <span className="text-gray-500 text-xs block">Источник</span>
+              <p className="font-semibold text-xs sm:text-sm truncate mt-0.5" title={task.streamUrl}>
+                {getDomain(task.streamUrl)}
+              </p>
             </div>
-            <div className="bg-gray-50 p-2 rounded flex justify-between sm:block">
-              <span className="text-gray-500 text-xs">Части</span>
-              <p className="font-semibold text-xs sm:text-sm">{task.parts.filter(p => p.status === 'completed').length}/{task.parts.length}</p>
+            <div className="bg-gray-50 p-2 rounded">
+              <span className="text-gray-500 text-xs block">Длительность</span>
+              <p className="font-semibold text-xs sm:text-sm mt-0.5">{formatDuration(task.duration)}</p>
             </div>
           </div>
 
