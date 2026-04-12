@@ -184,6 +184,37 @@ export class SMSService {
   }
 
   /**
+   * Отправка SMS с кодом сброса пароля
+   */
+  async sendPasswordResetCode(phone: string, code: string): Promise<SMSResult> {
+    const formattedPhone = phone.replace(/[\s\-\+]/g, '');
+    const message = `Ваш код для сброса пароля My EPA: ${code}. Действителен 15 минут. Не сообщайте код никому.`;
+
+    if (!this.SMS_RU_API_KEY) {
+      console.log(`📱 [TEST MODE] Password reset SMS to ${formattedPhone}: ${message}`);
+      return { success: true, message: 'SMS отправлен (тестовый режим)', messageId: 'test_' + Date.now() };
+    }
+
+    try {
+      const params = new URLSearchParams({
+        api_id: this.SMS_RU_API_KEY,
+        to: formattedPhone,
+        msg: message,
+        json: '1',
+      });
+      const response = await fetch(`${this.SMS_RU_API_URL}?${params}`);
+      const data: any = await response.json();
+      if (data.status === 'OK') {
+        const smsId = Object.keys(data.sms)[0];
+        return { success: data.sms[smsId].status === 'OK', messageId: smsId };
+      }
+      return { success: false, message: data.status_text || 'Ошибка отправки SMS' };
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : 'Ошибка SMS сервиса' };
+    }
+  }
+
+  /**
    * Тестирование SMS сервиса
    */
   async testService(): Promise<{ success: boolean; error?: string }> {

@@ -279,6 +279,55 @@ export class EmailService {
     });
   }
 
+  async sendPasswordResetEmail(email: string, code: string, firstName: string): Promise<EmailResponse> {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Восстановление пароля - My EPA</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+          .content { padding: 30px; }
+          .code { background: #f8f9fa; border: 2px dashed #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
+          .code-text { font-size: 40px; font-weight: bold; color: #667eea; letter-spacing: 8px; }
+          .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 12px; }
+          .warning { color: #dc3545; font-size: 13px; margin-top: 15px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>💎 My EPA</h1>
+            <p>Восстановление пароля</p>
+          </div>
+          <div class="content">
+            <h2>Здравствуйте, ${firstName}!</h2>
+            <p>Вы запросили сброс пароля для вашего аккаунта. Введите код ниже в форме восстановления:</p>
+            <div class="code">
+              <div class="code-text">${code}</div>
+            </div>
+            <p>Код действителен <strong>15 минут</strong>.</p>
+            <p class="warning">⚠️ Если вы не запрашивали сброс пароля — просто проигнорируйте это письмо. Ваш пароль не изменится.</p>
+          </div>
+          <div class="footer">
+            <p>My EPA — Агрегатор Онлайн Обучения</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return this.sendEmail({
+      to: email,
+      subject: `${code} — код для сброса пароля My EPA`,
+      html,
+      text: `Ваш код для сброса пароля My EPA: ${code}. Действителен 15 минут.`,
+    });
+  }
+
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
       await this.transporter.verify();

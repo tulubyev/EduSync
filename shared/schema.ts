@@ -471,6 +471,17 @@ export const adminLogs = pgTable("admin_logs", {
   createdAtIdx: index("admin_logs_created_at_idx").on(table.createdAt),
 }));
 
+// Password Reset Tokens table
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  token: varchar("token", { length: 6 }).notNull(),
+  method: varchar("method", { length: 10 }).notNull().default('email'), // 'email' | 'sms'
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ===========================================
 // RELATIONS
 // ===========================================

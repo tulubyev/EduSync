@@ -3,6 +3,7 @@ import { authService } from "../services/authService";
 import { twoFactorService } from "../services/twoFactorService";
 import { esiaService } from "../services/esiaService";
 import { smsService } from "../services/smsService";
+import { emailService } from "../services/emailService";
 import { userService } from "../services/UserService";
 import { authenticateToken, type AuthenticatedRequest } from "../middleware/auth";
 import { z } from "zod";
@@ -11,6 +12,10 @@ import { config } from "../../config/environment";
 import { validationRules } from "../middleware/validationRules";
 import { logger } from "../services/logger";
 import { secureLogs } from "../middleware/secureLogs";
+import { db } from "../db";
+import { users, passwordResetTokens } from "@shared/schema";
+import { eq, and, gt } from "drizzle-orm";
+import bcrypt from "bcrypt";
 
 // Auth rate limiting (из config)
 const authLimiter = rateLimit({
@@ -340,6 +345,147 @@ authRouter.post('/sms/verify', authLimiter, async (req, res) => {
   } catch (error: any) {
     logger.error('SMS verify error:', secureLogs.logError(error));
     res.status(400).json({ message: error.message || 'Ошибка проверки SMS кода' });
+  }
+});
+
+// ===========================================
+// PASSWORD RESET ROUTES
+// ===========================================
+
+const resetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: "Слишком много запросов на сброс пароля. Попробуйте позже.",
+});
+
+// Step 1: Request reset code (via email or SMS)
+authRouter.post('/forgot-password', resetLimiter, async (req, res) => {
+  try {
+    const { identifier, method } = z.object({
+      identifier: z.string().min(1, 'Email или телефон обязателен'),
+      method: z.enum(['email', 'sms']).default('email'),
+    }).parse(req.body);
+
+    // Find user by email or phone
+    const isEmail = identifier.includes('@');
+    const [user] = await db
+      .select({ id: users.id, email: users.email, phone: users.phone, firstName: users.firstName })
+      .from(users)
+      .where(isEmail ? eq(users.email, identifier) : eq(users.phone, identifier))
+      .limit(1);
+
+    // Always respond with success to avoid user enumeration
+    if (!user) {
+      return res.json({ success: true, message: 'Если пользователь найден, код будет отправлен' });
+    }
+
+    // Invalidate old tokens
+    await db.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id));
+
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    await db.insert(passwordResetTokens).values({
+      userId: user.id,
+      token: code,
+      method,
+      expiresAt,
+    });
+
+    // Send code
+    if (method === 'email' && user.email) {
+      await emailService.sendPasswordResetEmail(user.email, code, user.firstName);
+    } else if (method === 'sms' && user.phone) {
+      await smsService.sendPasswordResetCode(user.phone, code);
+    }
+
+    logger.info('Password reset requested', { userId: user.id, method });
+    res.json({ success: true, message: 'Код отправлен', userId: user.id });
+  } catch (error: any) {
+    logger.error('Forgot password error:', secureLogs.logError(error));
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: error.errors[0]?.message || 'Ошибка валидации' });
+    }
+    res.status(500).json({ message: 'Ошибка при отправке кода' });
+  }
+});
+
+// Step 2: Verify the code
+authRouter.post('/verify-reset-code', async (req, res) => {
+  try {
+    const { userId, code } = z.object({
+      userId: z.string().uuid(),
+      code: z.string().length(6),
+    }).parse(req.body);
+
+    const [token] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(and(
+        eq(passwordResetTokens.userId, userId),
+        eq(passwordResetTokens.token, code),
+        eq(passwordResetTokens.used, false),
+        gt(passwordResetTokens.expiresAt, new Date()),
+      ))
+      .limit(1);
+
+    if (!token) {
+      return res.status(400).json({ message: 'Неверный или устаревший код' });
+    }
+
+    res.json({ success: true, message: 'Код подтверждён' });
+  } catch (error: any) {
+    logger.error('Verify reset code error:', secureLogs.logError(error));
+    res.status(400).json({ message: 'Ошибка проверки кода' });
+  }
+});
+
+// Step 3: Set new password
+authRouter.post('/reset-password', async (req, res) => {
+  try {
+    const { userId, code, newPassword } = z.object({
+      userId: z.string().uuid(),
+      code: z.string().length(6),
+      newPassword: z.string().min(8, 'Пароль должен быть не менее 8 символов'),
+    }).parse(req.body);
+
+    const [token] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(and(
+        eq(passwordResetTokens.userId, userId),
+        eq(passwordResetTokens.token, code),
+        eq(passwordResetTokens.used, false),
+        gt(passwordResetTokens.expiresAt, new Date()),
+      ))
+      .limit(1);
+
+    if (!token) {
+      return res.status(400).json({ message: 'Неверный или устаревший код' });
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    // Update user password
+    await db.update(users)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+
+    // Mark token as used
+    await db.update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.id, token.id));
+
+    logger.info('Password reset successful', { userId });
+    res.json({ success: true, message: 'Пароль успешно изменён' });
+  } catch (error: any) {
+    logger.error('Reset password error:', secureLogs.logError(error));
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: error.errors[0]?.message || 'Ошибка валидации' });
+    }
+    res.status(500).json({ message: 'Ошибка при сбросе пароля' });
   }
 });
 
