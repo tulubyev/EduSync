@@ -160,8 +160,8 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
     }
 
-    if (task.status !== 'ready') {
-      return res.status(400).json({ message: 'Можно редактировать только готовые к записи задачи' });
+    if (task.status !== 'ready' && task.status !== 'failed') {
+      return res.status(400).json({ message: 'Редактировать можно только задачи в статусе «Готова к записи» или «Ошибка»' });
     }
 
     // Validate input
@@ -169,20 +169,37 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
       return res.status(400).json({ message: 'Все обязательные поля должны быть заполнены' });
     }
 
+    const durationNum = Number(duration);
+    if (isNaN(durationNum) || durationNum < 1 || durationNum > 1440) {
+      return res.status(400).json({ message: 'Длительность должна быть от 1 до 1440 минут' });
+    }
+
+    const updateData: Record<string, any> = {
+      title: title.trim(),
+      description: description?.trim() || null,
+      streamUrl: streamUrl.trim(),
+      streamPassword: streamPassword?.trim() || null,
+      scheduledTime: new Date(scheduledTime),
+      duration: durationNum,
+      updatedAt: new Date(),
+    };
+
+    // Если задача была с ошибкой — сбрасываем в статус "готова к записи"
+    if (task.status === 'failed') {
+      updateData.status = 'ready';
+      updateData.errorMessage = null;
+      updateData.workerId = null;
+      updateData.startedAt = null;
+      updateData.completedAt = null;
+    }
+
     await db.update(recordingTasks)
-      .set({
-        title,
-        description: description || null,
-        streamUrl,
-        streamPassword: streamPassword || null,
-        scheduledTime: new Date(scheduledTime),
-        duration,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(recordingTasks.id, taskId));
 
-    logger.info(`Updated recording task: ${taskId}`);
-    res.json({ success: true, message: 'Задача обновлена' });
+    const action = task.status === 'failed' ? 'перезапущена' : 'обновлена';
+    logger.info(`Recording task ${taskId} ${action} by user ${userId}`);
+    res.json({ success: true, message: `Задача ${action}` });
   } catch (error) {
     logger.error('Error updating recording task:', error);
     res.status(500).json({ message: 'Ошибка обновления задачи' });

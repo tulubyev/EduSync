@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface RecordingPart {
   partNumber: number;
@@ -60,6 +61,8 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     duration: 60,
   });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState(false);
 
   const filteredTasks = statusFilter 
     ? tasks.filter(task => task.status === statusFilter)
@@ -172,19 +175,42 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
   const handleEditStart = (task: RecordingTask) => {
     setEditingTask(task);
+    setEditError(null);
+    setEditSuccess(false);
+    const localTime = new Date(task.scheduledTime);
+    const offset = localTime.getTimezoneOffset() * 60000;
+    const localISO = new Date(localTime.getTime() - offset).toISOString().substring(0, 16);
     setEditFormData({
       title: task.title,
       description: task.description || '',
       streamUrl: task.streamUrl,
       streamPassword: '',
-      scheduledTime: task.scheduledTime.substring(0, 16),
+      scheduledTime: localISO,
       duration: task.duration,
     });
   };
 
   const handleEditSave = async () => {
-    if (!editingTask || !editFormData.title.trim() || !editFormData.streamUrl.trim()) return;
-    
+    if (!editingTask) return;
+    setEditError(null);
+
+    if (!editFormData.title.trim()) {
+      setEditError('Укажите название записи');
+      return;
+    }
+    if (!editFormData.streamUrl.trim()) {
+      setEditError('Укажите ссылку на трансляцию');
+      return;
+    }
+    if (!editFormData.scheduledTime) {
+      setEditError('Укажите дату и время начала');
+      return;
+    }
+    if (editFormData.duration < 1 || editFormData.duration > 1440) {
+      setEditError('Длительность должна быть от 1 до 1440 минут');
+      return;
+    }
+
     try {
       setIsUpdating(true);
       const token = localStorage.getItem('accessToken');
@@ -195,21 +221,28 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          title: editFormData.title,
-          description: editFormData.description,
-          streamUrl: editFormData.streamUrl,
-          streamPassword: editFormData.streamPassword,
+          title: editFormData.title.trim(),
+          description: editFormData.description.trim() || undefined,
+          streamUrl: editFormData.streamUrl.trim(),
+          streamPassword: editFormData.streamPassword || undefined,
           scheduledTime: new Date(editFormData.scheduledTime).toISOString(),
-          duration: editFormData.duration,
+          duration: Number(editFormData.duration),
         }),
       });
 
       if (response.ok) {
+        setEditSuccess(true);
         await fetchTasks();
-        setEditingTask(null);
+        setTimeout(() => {
+          setEditingTask(null);
+          setEditSuccess(false);
+        }, 1000);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setEditError(data.message || 'Ошибка при сохранении. Попробуйте ещё раз.');
       }
     } catch (error) {
-      console.error('Error updating task:', error);
+      setEditError('Ошибка соединения с сервером');
     } finally {
       setIsUpdating(false);
     }
@@ -303,7 +336,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 </a>
               </Button>
             )}
-            {task.status === 'ready' && (
+            {(task.status === 'ready' || task.status === 'failed') && (
               <Button
                 size="sm"
                 variant="outline"
@@ -311,7 +344,9 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 className="min-h-11 flex-1 sm:flex-none"
               >
                 <Edit2 className="h-4 w-4 sm:mr-1" />
-                <span className="hidden sm:inline">Редактировать</span>
+                <span className="hidden sm:inline">
+                  {task.status === 'failed' ? 'Исправить и перезапустить' : 'Редактировать'}
+                </span>
               </Button>
             )}
             {task.status !== 'in_progress' && task.status !== 'uploading' && (
@@ -330,19 +365,53 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       ))}
 
       {editingTask && (
-        <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
+        <Dialog open={!!editingTask} onOpenChange={() => { setEditingTask(null); setEditError(null); setEditSuccess(false); }}>
           <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Редактировать запись</DialogTitle>
+              <DialogTitle>
+                {editingTask.status === 'failed' ? 'Исправить и перезапустить запись' : 'Редактировать запись'}
+              </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4">
+              {editingTask.status === 'failed' && editingTask.errorMessage && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-700 text-sm">
+                    <span className="font-medium">Причина ошибки:</span> {editingTask.errorMessage}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {editingTask.status === 'failed' && (
+                <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+                  После сохранения задача будет переведена в статус «Готова к записи»
+                </div>
+              )}
+
+              {editError && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-700 text-sm">{editError}</AlertDescription>
+                </Alert>
+              )}
+
+              {editSuccess && (
+                <Alert className="border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-700 text-sm font-medium">
+                    Изменения сохранены
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="edit-title">Название</Label>
                 <Input
                   id="edit-title"
                   value={editFormData.title}
                   onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                  disabled={isUpdating || editSuccess}
                 />
               </div>
 
@@ -353,6 +422,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                   value={editFormData.description}
                   onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
                   className="min-h-[80px]"
+                  disabled={isUpdating || editSuccess}
                 />
               </div>
 
@@ -363,31 +433,37 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                   type="url"
                   value={editFormData.streamUrl}
                   onChange={(e) => setEditFormData({ ...editFormData, streamUrl: e.target.value })}
+                  disabled={isUpdating || editSuccess}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-password">Пароль (опционально)</Label>
+                <Label htmlFor="edit-password">
+                  Пароль {editingTask.status === 'failed' ? '(оставьте пустым, если не изменился)' : '(опционально)'}
+                </Label>
                 <Input
                   id="edit-password"
                   type="password"
+                  placeholder={editingTask.status === 'failed' ? 'Введите новый пароль или оставьте пустым' : ''}
                   value={editFormData.streamPassword}
                   onChange={(e) => setEditFormData({ ...editFormData, streamPassword: e.target.value })}
+                  disabled={isUpdating || editSuccess}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-time">Время начала</Label>
+                <Label htmlFor="edit-time">Дата и время начала</Label>
                 <Input
                   id="edit-time"
                   type="datetime-local"
                   value={editFormData.scheduledTime}
                   onChange={(e) => setEditFormData({ ...editFormData, scheduledTime: e.target.value })}
+                  disabled={isUpdating || editSuccess}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-duration">Длительность (минут)</Label>
+                <Label htmlFor="edit-duration">Длительность (минут, от 1 до 1440)</Label>
                 <Input
                   id="edit-duration"
                   type="number"
@@ -395,16 +471,26 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                   max="1440"
                   value={editFormData.duration}
                   onChange={(e) => setEditFormData({ ...editFormData, duration: parseInt(e.target.value) || 60 })}
+                  disabled={isUpdating || editSuccess}
                 />
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setEditingTask(null)} disabled={isUpdating}>
+              <Button
+                variant="outline"
+                onClick={() => { setEditingTask(null); setEditError(null); setEditSuccess(false); }}
+                disabled={isUpdating}
+              >
                 Отмена
               </Button>
-              <Button onClick={handleEditSave} disabled={isUpdating}>
-                {isUpdating ? 'Сохранение...' : 'Сохранить'}
+              <Button onClick={handleEditSave} disabled={isUpdating || editSuccess}>
+                {isUpdating ? (
+                  <>
+                    <Loader className="h-4 w-4 mr-2 animate-spin" />
+                    Сохранение...
+                  </>
+                ) : editingTask.status === 'failed' ? 'Сохранить и перезапустить' : 'Сохранить'}
               </Button>
             </DialogFooter>
           </DialogContent>
