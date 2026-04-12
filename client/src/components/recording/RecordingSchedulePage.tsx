@@ -56,28 +56,31 @@ interface SyncIssue {
 export function RecordingSchedulePage() {
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [userStats, setUserStats] = useState<DashboardStats>({ ready: 0, in_progress: 0, uploading: 0, completed: 0, failed: 0, cancelled: 0, total: 0 });
   const [workers, setWorkers] = useState<WorkerInfo[]>([]);
   const [syncIssues, setSyncIssues] = useState<SyncIssue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
+  const [tasksRefreshKey, setTasksRefreshKey] = useState(0);
+
+  const computeUserStats = (tasks: Array<{ status: string }>) => {
+    const stats: DashboardStats = { ready: 0, in_progress: 0, uploading: 0, completed: 0, failed: 0, cancelled: 0, total: tasks.length };
+    tasks.forEach(t => {
+      if (t.status in stats) (stats as any)[t.status]++;
+    });
+    setUserStats(stats);
+  };
 
   const fetchMonitoringData = async () => {
     try {
       const token = localStorage.getItem('accessToken');
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      const [dashboardRes, workersRes, syncRes] = await Promise.all([
-        fetch('/api/recording/monitor/dashboard', { headers }),
+      const [workersRes, syncRes] = await Promise.all([
         fetch('/api/recording/monitor/worker-status', { headers }),
         fetch('/api/recording/monitor/sync-check', { headers }),
       ]);
-
-      if (dashboardRes.ok) {
-        const data = await dashboardRes.json();
-        setStats(data.stats);
-      }
 
       if (workersRes.ok) {
         const data = await workersRes.json();
@@ -104,6 +107,7 @@ export function RecordingSchedulePage() {
 
   const handleRefresh = () => {
     setIsRefreshing(true);
+    setTasksRefreshKey(k => k + 1);
     fetchMonitoringData();
   };
 
@@ -125,7 +129,7 @@ export function RecordingSchedulePage() {
 
       if (response.ok) {
         setShowRecordingModal(false);
-        fetchMonitoringData();
+        setTasksRefreshKey(k => k + 1);
       }
     } catch (error) {
       console.error('Error scheduling recording:', error);
@@ -192,7 +196,7 @@ export function RecordingSchedulePage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <StatCard 
                 title="Ожидают" 
-                value={stats?.ready ?? 0} 
+                value={userStats.ready} 
                 icon={Clock} 
                 color="blue" 
                 active={selectedFilter === 'ready'}
@@ -200,7 +204,7 @@ export function RecordingSchedulePage() {
               />
               <StatCard 
                 title="Запись" 
-                value={stats?.in_progress ?? 0} 
+                value={userStats.in_progress} 
                 icon={Activity} 
                 color="yellow"
                 active={selectedFilter === 'in_progress'}
@@ -208,7 +212,7 @@ export function RecordingSchedulePage() {
               />
               <StatCard 
                 title="Загрузка" 
-                value={stats?.uploading ?? 0} 
+                value={userStats.uploading} 
                 icon={HardDrive} 
                 color="purple"
                 active={selectedFilter === 'uploading'}
@@ -216,7 +220,7 @@ export function RecordingSchedulePage() {
               />
               <StatCard 
                 title="Завершено" 
-                value={stats?.completed ?? 0} 
+                value={userStats.completed} 
                 icon={CheckCircle} 
                 color="green"
                 active={selectedFilter === 'completed'}
@@ -224,7 +228,7 @@ export function RecordingSchedulePage() {
               />
               <StatCard 
                 title="Ошибки" 
-                value={stats?.failed ?? 0} 
+                value={userStats.failed} 
                 icon={AlertTriangle} 
                 color="red"
                 active={selectedFilter === 'failed'}
@@ -232,7 +236,7 @@ export function RecordingSchedulePage() {
               />
               <StatCard 
                 title="Всего" 
-                value={stats?.total ?? 0} 
+                value={userStats.total} 
                 icon={Video} 
                 color="gray"
                 active={selectedFilter === null}
@@ -262,7 +266,11 @@ export function RecordingSchedulePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <RecordingTasksList statusFilter={selectedFilter} />
+                <RecordingTasksList 
+                  statusFilter={selectedFilter}
+                  refreshKey={tasksRefreshKey}
+                  onTasksLoaded={computeUserStats}
+                />
               </CardContent>
             </Card>
           </TabsContent>

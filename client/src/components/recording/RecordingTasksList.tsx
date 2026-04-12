@@ -42,9 +42,11 @@ interface RecordingTask {
 
 interface RecordingTasksListProps {
   statusFilter?: string | null;
+  refreshKey?: number;
+  onTasksLoaded?: (tasks: RecordingTask[]) => void;
 }
 
-export function RecordingTasksList({ statusFilter }: RecordingTasksListProps) {
+export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: RecordingTasksListProps) {
   const [tasks, setTasks] = useState<RecordingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
@@ -73,6 +75,7 @@ export function RecordingTasksList({ statusFilter }: RecordingTasksListProps) {
       if (response.ok) {
         const data = await response.json();
         setTasks(data);
+        onTasksLoaded?.(data);
       }
     } catch (error) {
       console.error('Error fetching recording tasks:', error);
@@ -85,7 +88,7 @@ export function RecordingTasksList({ statusFilter }: RecordingTasksListProps) {
     fetchTasks();
     const interval = setInterval(fetchTasks, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshKey]);
 
   const formatDuration = (minutes: number) => {
     const mins = Math.floor(minutes);

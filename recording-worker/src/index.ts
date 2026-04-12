@@ -119,7 +119,19 @@ async function startTaskInternal(taskId: string) {
     currentTask = null;
     fs.unlinkSync(outputPath);
   } catch (error) {
-    console.error('Task execution error:', error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error(`Task ${taskId} execution error:`, errMsg);
+    try {
+      await db.update(recordingTasks)
+        .set({ 
+          status: 'failed', 
+          errorMessage: errMsg.slice(0, 500),
+          completedAt: new Date()
+        })
+        .where(eq(recordingTasks.id, taskId));
+    } catch (dbErr) {
+      console.error('Failed to update task status to failed:', dbErr);
+    }
     currentTask = null;
   }
 }
