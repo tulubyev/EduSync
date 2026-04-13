@@ -676,8 +676,9 @@ function getS3Client(): { client: S3Client; bucket: string; publicUrl: string } 
   const bucket = process.env.BEGET_S3_BUCKET;
   const publicUrl = process.env.BEGET_S3_PUBLIC_URL || '';
   if (!endpoint || !accessKeyId || !secretAccessKey || !bucket) return null;
+  const region = process.env.BEGET_S3_REGION || 'us-east-1';
   const client = new S3Client({
-    region: 'us-east-1',
+    region,
     endpoint,
     credentials: { accessKeyId, secretAccessKey },
     forcePathStyle: true,
