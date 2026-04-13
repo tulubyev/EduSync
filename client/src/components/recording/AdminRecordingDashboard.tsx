@@ -1,7 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -19,21 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  RefreshCw,
-  Trash2,
-  RotateCcw,
-  XCircle,
-  ExternalLink,
-  Database,
-  HardDrive,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  Activity,
-  CloudOff,
-} from 'lucide-react';
 
+/* ─── types ─────────────────────────────────────────────────── */
 interface AdminTask {
   id: string;
   userId: string;
@@ -77,63 +61,59 @@ interface HealthService {
 
 interface HealthData {
   timestamp: string;
-  services: {
-    database?: HealthService;
-    s3?: HealthService;
-  };
+  services: { database?: HealthService; s3?: HealthService };
 }
 
-interface StatEntry {
-  status: string;
-  count: number;
-}
+interface StatEntry { status: string; count: number; }
 
-const STATUS_LABELS: Record<string, string> = {
-  scheduled: 'Запланировано',
-  ready: 'Готова',
-  in_progress: 'Запись',
-  uploading: 'Загрузка',
-  completed: 'Завершена',
-  failed: 'Ошибка',
-  cancelled: 'Отменена',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  scheduled: 'bg-blue-100 text-blue-800',
-  ready: 'bg-cyan-100 text-cyan-800',
-  in_progress: 'bg-yellow-100 text-yellow-800',
-  uploading: 'bg-purple-100 text-purple-800',
-  completed: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
-  cancelled: 'bg-gray-100 text-gray-700',
-};
-
+/* ─── constants ─────────────────────────────────────────────── */
 const ALL_STATUSES = ['scheduled', 'ready', 'in_progress', 'uploading', 'completed', 'failed', 'cancelled'];
 
+const STAT_COLORS: Record<string, { num: string }> = {
+  scheduled: { num: '#64748b' },
+  ready:      { num: '#3b82f6' },
+  in_progress:{ num: '#f59e0b' },
+  uploading:  { num: '#8b5cf6' },
+  completed:  { num: '#22c55e' },
+  failed:     { num: '#ef4444' },
+  cancelled:  { num: '#94a3b8' },
+};
+
+const BADGE_STYLES: Record<string, React.CSSProperties> = {
+  scheduled:   { background: '#1e2535', color: '#64748b' },
+  ready:       { background: '#1d3461', color: '#60a5fa' },
+  in_progress: { background: '#3d2a00', color: '#fbbf24' },
+  uploading:   { background: '#2e1a5b', color: '#a78bfa' },
+  completed:   { background: '#052e16', color: '#4ade80' },
+  failed:      { background: '#3b0d0d', color: '#f87171' },
+  cancelled:   { background: '#1e2535', color: '#94a3b8' },
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  scheduled: 'Scheduled', ready: 'Ready', in_progress: 'In Progress',
+  uploading: 'Uploading', completed: 'Completed', failed: 'Failed', cancelled: 'Cancelled',
+};
+
+/* ─── helpers ───────────────────────────────────────────────── */
 function fmtDuration(minutes: number | null): string {
   if (!minutes) return '—';
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
+  const h = Math.floor(minutes / 60), m = minutes % 60;
   return h > 0 ? `${h}ч ${m}м` : `${m}м`;
 }
-
 function fmtDate(d: string | null | undefined): string {
   if (!d) return '—';
   return new Date(d).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
-
 function fmtDateFull(d: string | null | undefined): string {
   if (!d) return '—';
   return new Date(d).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
-
 function fmtSize(bytes: number | null | undefined): string {
   if (!bytes) return '';
   if (bytes > 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
   if (bytes > 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
   return (bytes / 1024).toFixed(0) + ' KB';
 }
-
 function toDatetimeLocal(d: string | null | undefined): string {
   if (!d) return '';
   const dt = new Date(d);
@@ -141,62 +121,98 @@ function toDatetimeLocal(d: string | null | undefined): string {
   return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
 }
 
+/* ─── inline style tokens ───────────────────────────────────── */
+const S = {
+  root:      { background: '#0f1117', borderRadius: 12, padding: 20, minHeight: 400 } as React.CSSProperties,
+  card:      { background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 10, overflow: 'hidden' } as React.CSSProperties,
+  cardHead:  { padding: '12px 18px', borderBottom: '1px solid #2d3748', display: 'flex', alignItems: 'center', justifyContent: 'space-between' } as React.CSSProperties,
+  h2:        { fontSize: 13, fontWeight: 600, color: '#e2e8f0', margin: 0 } as React.CSSProperties,
+  th:        { padding: '9px 14px', textAlign: 'left', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.5px', color: '#64748b', borderBottom: '1px solid #1e2535', whiteSpace: 'nowrap' } as React.CSSProperties,
+  td:        { padding: '10px 14px', borderBottom: '1px solid #1a2035', verticalAlign: 'middle', color: '#e2e8f0', fontSize: 13 } as React.CSSProperties,
+  tdMuted:   { padding: '10px 14px', borderBottom: '1px solid #1a2035', verticalAlign: 'middle', color: '#94a3b8', fontSize: 12 } as React.CSSProperties,
+  badge:     { display: 'inline-block', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, whiteSpace: 'nowrap' } as React.CSSProperties,
+  filterBtn: (active: boolean): React.CSSProperties => ({
+    fontSize: 12, padding: '4px 12px', borderRadius: 6,
+    border: active ? '1px solid #3b82f6' : '1px solid #2d3748',
+    background: active ? '#3b82f6' : '#0f1117',
+    color: active ? '#fff' : '#94a3b8',
+    cursor: 'pointer', transition: 'all .15s',
+  }),
+  actionBtn: (variant: 'reset' | 'cancel' | 'delete'): React.CSSProperties => ({
+    fontSize: 11, padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', transition: 'opacity .15s',
+    background: variant === 'reset' ? '#1d3461' : variant === 'cancel' ? '#3b0d0d' : '#1e2535',
+    color: variant === 'reset' ? '#60a5fa' : variant === 'cancel' ? '#f87171' : '#64748b',
+  }),
+  refreshBtn: (spinning: boolean): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500,
+    padding: '6px 14px', borderRadius: 8, border: '1px solid #3b82f6',
+    background: '#1d3461', color: '#60a5fa', cursor: 'pointer', transition: 'background .15s',
+    opacity: spinning ? .7 : 1,
+  }),
+  clearBtn: { fontSize: 11, padding: '4px 12px', borderRadius: 6, border: 'none', background: '#1e2535', color: '#64748b', cursor: 'pointer' } as React.CSSProperties,
+  loadMoreBtn: { fontSize: 12, padding: '6px 18px', borderRadius: 7, border: '1px solid #2d3748', background: '#1a1f2e', color: '#94a3b8', cursor: 'pointer', margin: '12px auto', display: 'block' } as React.CSSProperties,
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   Main component
+═══════════════════════════════════════════════════════════════ */
 export function AdminRecordingDashboard() {
-  const [tasks, setTasks] = useState<AdminTask[]>([]);
-  const [tasksTotal, setTasksTotal] = useState(0);
-  const [taskLimit, setTaskLimit] = useState(100);
-  const [stats, setStats] = useState<Record<string, number>>({});
-  const [health, setHealth] = useState<HealthData | null>(null);
-  const [s3Files, setS3Files] = useState<S3File[]>([]);
-  const [s3Configured, setS3Configured] = useState<boolean>(true);
-  const [s3Message, setS3Message] = useState<string>('');
+  const [tasks, setTasks]             = useState<AdminTask[]>([]);
+  const [tasksTotal, setTasksTotal]   = useState(0);
+  const [taskLimit, setTaskLimit]     = useState(100);
+  const [stats, setStats]             = useState<Record<string, number>>({});
+  const [health, setHealth]           = useState<HealthData | null>(null);
+  const [s3Files, setS3Files]         = useState<S3File[]>([]);
+  const [s3Configured, setS3Configured] = useState(true);
+  const [s3Message, setS3Message]     = useState('');
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState('');
+  const [lastUpdate, setLastUpdate]   = useState('');
 
-  const [editTask, setEditTask] = useState<AdminTask | null>(null);
-  const [editForm, setEditForm] = useState<Partial<AdminTask>>({});
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+  const [editTask, setEditTask]       = useState<AdminTask | null>(null);
+  const [editForm, setEditForm]       = useState<Partial<AdminTask>>({});
+  const [isSaving, setIsSaving]       = useState(false);
+  const [saveStatus, setSaveStatus]   = useState<'idle' | 'ok' | 'error'>('idle');
   const [saveMessage, setSaveMessage] = useState('');
 
-  const token = () => localStorage.getItem('accessToken');
-  const headers = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}` });
+  const token   = () => localStorage.getItem('accessToken');
+  const authHdr = () => ({ 'Authorization': `Bearer ${token()}` });
+  const jsonHdr = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}` });
 
   const fetchStats = useCallback(async () => {
-    const res = await fetch('/api/recording/admin/stats', { headers: { 'Authorization': `Bearer ${token()}` } });
-    if (res.ok) {
-      const data = await res.json();
+    const r = await fetch('/api/recording/admin/stats', { headers: authHdr() });
+    if (r.ok) {
+      const d = await r.json();
       const map: Record<string, number> = {};
-      (data.stats || []).forEach((s: StatEntry) => { map[s.status] = s.count; });
+      (d.stats || []).forEach((s: StatEntry) => { map[s.status] = s.count; });
       setStats(map);
     }
   }, []);
 
   const fetchHealth = useCallback(async () => {
-    const res = await fetch('/api/recording/admin/health', { headers: { 'Authorization': `Bearer ${token()}` } });
-    if (res.ok) setHealth(await res.json());
+    const r = await fetch('/api/recording/admin/health', { headers: authHdr() });
+    if (r.ok) setHealth(await r.json());
   }, []);
 
   const fetchTasks = useCallback(async () => {
     const url = filterStatus
       ? `/api/recording/admin/tasks?status=${filterStatus}&limit=${taskLimit}`
       : `/api/recording/admin/tasks?limit=${taskLimit}`;
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token()}` } });
-    if (res.ok) {
-      const data = await res.json();
-      setTasks(data.tasks || []);
-      setTasksTotal(data.total ?? (data.tasks?.length ?? 0));
+    const r = await fetch(url, { headers: authHdr() });
+    if (r.ok) {
+      const d = await r.json();
+      setTasks(d.tasks || []);
+      setTasksTotal(d.total ?? d.tasks?.length ?? 0);
     }
   }, [filterStatus, taskLimit]);
 
   const fetchS3Files = useCallback(async () => {
-    const res = await fetch('/api/recording/admin/s3-files', { headers: { 'Authorization': `Bearer ${token()}` } });
-    if (res.ok) {
-      const data = await res.json();
-      setS3Files(data.files || []);
-      setS3Configured(data.configured !== false);
-      setS3Message(data.message || '');
+    const r = await fetch('/api/recording/admin/s3-files', { headers: authHdr() });
+    if (r.ok) {
+      const d = await r.json();
+      setS3Files(d.files || []);
+      setS3Configured(d.configured !== false);
+      setS3Message(d.message || '');
     }
   }, []);
 
@@ -209,474 +225,323 @@ export function AdminRecordingDashboard() {
 
   useEffect(() => {
     refreshAll();
-    const interval = setInterval(refreshAll, 15000);
-    return () => clearInterval(interval);
+    const iv = setInterval(refreshAll, 15000);
+    return () => clearInterval(iv);
   }, [refreshAll]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
+  /* actions */
   const handleReset = async (id: string) => {
-    await fetch(`/api/recording/admin/tasks/${id}/reset`, { method: 'PATCH', headers: headers() });
-    fetchTasks();
-    fetchStats();
+    await fetch(`/api/recording/admin/tasks/${id}/reset`, { method: 'PATCH', headers: jsonHdr() });
+    fetchTasks(); fetchStats();
   };
-
   const handleCancel = async (id: string) => {
     if (!confirm('Отменить задачу?')) return;
-    await fetch(`/api/recording/admin/tasks/${id}/cancel`, { method: 'PATCH', headers: headers() });
-    fetchTasks();
-    fetchStats();
+    await fetch(`/api/recording/admin/tasks/${id}/cancel`, { method: 'PATCH', headers: jsonHdr() });
+    fetchTasks(); fetchStats();
   };
-
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Удалить задачу "${title.slice(0, 40)}" из БД?`)) return;
-    await fetch(`/api/recording/admin/tasks/${id}`, { method: 'DELETE', headers: headers() });
-    fetchTasks();
-    fetchStats();
+    await fetch(`/api/recording/admin/tasks/${id}`, { method: 'DELETE', headers: jsonHdr() });
+    fetchTasks(); fetchStats();
   };
-
   const handleClearFailed = async () => {
-    if (!confirm('Удалить все задачи со статусом "failed" из базы данных?')) return;
-    const res = await fetch('/api/recording/admin/tasks/failed/clear', { method: 'DELETE', headers: headers() });
-    if (res.ok) {
-      const data = await res.json();
-      alert(`Удалено: ${data.deleted} задач`);
-    }
-    fetchTasks();
-    fetchStats();
+    if (!confirm('Удалить все задачи со статусом "failed"?')) return;
+    const r = await fetch('/api/recording/admin/tasks/failed/clear', { method: 'DELETE', headers: jsonHdr() });
+    if (r.ok) { const d = await r.json(); alert(`Удалено: ${d.deleted} задач`); }
+    fetchTasks(); fetchStats();
   };
 
+  /* modal */
   const openEdit = async (id: string) => {
-    const res = await fetch(`/api/recording/admin/tasks/${id}`, { headers: { 'Authorization': `Bearer ${token()}` } });
-    if (res.ok) {
-      const data = await res.json();
-      setEditTask(data.task);
-      setEditForm({ ...data.task });
-      setSaveStatus('idle');
-      setSaveMessage('');
+    const r = await fetch(`/api/recording/admin/tasks/${id}`, { headers: authHdr() });
+    if (r.ok) {
+      const d = await r.json();
+      setEditTask(d.task); setEditForm({ ...d.task });
+      setSaveStatus('idle'); setSaveMessage('');
     }
   };
-
   const handleSave = async () => {
     if (!editTask) return;
-    setIsSaving(true);
-    setSaveStatus('idle');
+    setIsSaving(true); setSaveStatus('idle');
     const payload = {
-      title: editForm.title,
-      description: editForm.description || null,
-      streamUrl: editForm.streamUrl,
-      streamPassword: editForm.streamPassword || null,
-      duration: editForm.duration,
-      scheduledTime: editForm.scheduledTime || null,
-      saveTarget: editForm.saveTarget || null,
-      status: editForm.status,
-      begetUrl: editForm.begetUrl || null,
-      errorMessage: editForm.errorMessage || null,
+      title: editForm.title, description: editForm.description || null,
+      streamUrl: editForm.streamUrl, streamPassword: editForm.streamPassword || null,
+      duration: editForm.duration, scheduledTime: editForm.scheduledTime || null,
+      saveTarget: editForm.saveTarget || null, status: editForm.status,
+      begetUrl: editForm.begetUrl || null, errorMessage: editForm.errorMessage || null,
     };
     try {
-      const res = await fetch(`/api/recording/admin/tasks/${editTask.id}`, {
-        method: 'PATCH',
-        headers: headers(),
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Ошибка');
-      setSaveStatus('ok');
-      setSaveMessage('Сохранено');
-      fetchTasks();
-      fetchStats();
+      const r = await fetch(`/api/recording/admin/tasks/${editTask.id}`, { method: 'PATCH', headers: jsonHdr(), body: JSON.stringify(payload) });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.message || 'Ошибка');
+      setSaveStatus('ok'); setSaveMessage('Сохранено');
+      fetchTasks(); fetchStats();
       setTimeout(() => setSaveStatus('idle'), 2500);
     } catch (e: unknown) {
-      setSaveStatus('error');
-      setSaveMessage(e instanceof Error ? e.message : 'Ошибка сохранения');
-    } finally {
-      setIsSaving(false);
-    }
+      setSaveStatus('error'); setSaveMessage(e instanceof Error ? e.message : 'Ошибка сохранения');
+    } finally { setIsSaving(false); }
   };
 
-  const filteredTasks = tasks;
   const totalCount = Object.values(stats).reduce((a, b) => a + b, 0);
+  const db = health?.services?.database;
+  const s3 = health?.services?.s3;
 
   return (
-    <div className="space-y-4">
-      {/* Header bar */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="text-sm text-gray-500">
-          {lastUpdate && <>Обновлено: {lastUpdate}</>}
-        </div>
-        <Button variant="outline" size="sm" onClick={refreshAll} disabled={isRefreshing} className="min-h-9">
-          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+    <div style={S.root}>
+
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <span style={{ fontSize: 12, color: '#64748b' }}>
+          {lastUpdate ? `Обновлено: ${lastUpdate}` : 'Загрузка...'}
+        </span>
+        <button style={S.refreshBtn(isRefreshing)} onClick={refreshAll} disabled={isRefreshing}>
+          <span style={{ display: 'inline-block', animation: isRefreshing ? 'spin .6s linear infinite' : 'none' }}>↻</span>
           Обновить
-        </Button>
+        </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+      {/* ── Stats grid ─────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 12, marginBottom: 20 }}>
         {ALL_STATUSES.map(s => (
-          <div
-            key={s}
+          <div key={s}
             onClick={() => setFilterStatus(filterStatus === s ? null : s)}
-            className={`p-2 rounded-lg border cursor-pointer transition-all text-center ${
-              filterStatus === s ? 'ring-2 ring-purple-500 bg-purple-50' : 'hover:bg-gray-50'
-            }`}
+            style={{
+              background: '#1a1f2e',
+              border: filterStatus === s ? '1px solid #3b82f6' : '1px solid #2d3748',
+              borderRadius: 10, padding: '14px 12px', textAlign: 'center', cursor: 'pointer',
+              boxShadow: filterStatus === s ? '0 0 0 1px #3b82f6' : 'none',
+              transition: 'all .15s',
+            }}
           >
-            <p className="text-xl font-bold text-gray-800">{stats[s] || 0}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{STATUS_LABELS[s]}</p>
+            <div style={{ fontSize: 30, fontWeight: 700, lineHeight: 1, color: STAT_COLORS[s]?.num || '#e2e8f0' }}>
+              {stats[s] || 0}
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 5, textTransform: 'uppercase', letterSpacing: '.5px' }}>
+              {STATUS_LABELS[s]}
+            </div>
           </div>
         ))}
         <div
           onClick={() => setFilterStatus(null)}
-          className={`p-2 rounded-lg border cursor-pointer transition-all text-center ${
-            filterStatus === null ? 'ring-2 ring-gray-500 bg-gray-100' : 'hover:bg-gray-50'
-          }`}
+          style={{
+            background: '#1a1f2e',
+            border: filterStatus === null ? '1px solid #3b82f6' : '1px solid #2d3748',
+            borderRadius: 10, padding: '14px 12px', textAlign: 'center', cursor: 'pointer',
+            boxShadow: filterStatus === null ? '0 0 0 1px #3b82f6' : 'none',
+            transition: 'all .15s',
+          }}
         >
-          <p className="text-xl font-bold text-gray-800">{totalCount}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Всего</p>
+          <div style={{ fontSize: 30, fontWeight: 700, lineHeight: 1, color: '#e2e8f0' }}>{totalCount}</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 5, textTransform: 'uppercase', letterSpacing: '.5px' }}>Всего</div>
         </div>
       </div>
 
-      {/* Health */}
-      <Card>
-        <CardHeader className="py-3 px-4">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Состояние сервисов
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="py-2 px-4">
-          <div className="flex flex-wrap gap-6">
-            <HealthItem
-              label="PostgreSQL"
-              icon={Database}
-              service={health?.services?.database}
-            />
-            <HealthItem
-              label="Beget S3"
-              icon={HardDrive}
-              service={health?.services?.s3}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* ── Health ─────────────────────────────────────────────── */}
+      <div style={{ ...S.card, marginBottom: 16 }}>
+        <div style={S.cardHead}><span style={S.h2}>Состояние сервисов</span></div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 18 }}>
+          <HealthRow label="PostgreSQL" service={db} />
+          <HealthRow label="Beget S3" service={s3} />
+        </div>
+      </div>
 
-      {/* Tasks table */}
-      <Card>
-        <CardHeader className="py-3 px-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              Задачи записи
-              {filterStatus && (
-                <Badge variant="outline" className="text-xs">
-                  {STATUS_LABELS[filterStatus] || filterStatus}
-                  <button className="ml-1 hover:text-red-500" onClick={() => setFilterStatus(null)}>×</button>
-                </Badge>
-              )}
-              <span className="text-xs text-gray-400 font-normal">
-                (показано {tasks.length}{tasksTotal > tasks.length ? ` из ${tasksTotal}` : ''})
-              </span>
-            </CardTitle>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleClearFailed}
-              className="min-h-8 text-xs"
-            >
-              <Trash2 className="h-3 w-3 mr-1" />
-              Очистить failed
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {filteredTasks.length === 0 ? (
-            <div className="text-center py-10 text-gray-500 text-sm">Нет задач</div>
-          ) : (
-            <div className="overflow-x-auto" id="tasks-table-wrapper">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="text-left py-2 px-3 font-medium text-gray-600 whitespace-nowrap">ID</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-600">Название</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-600 whitespace-nowrap">Статус</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-600 whitespace-nowrap">Длит.</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-600 whitespace-nowrap">Воркер</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-600 whitespace-nowrap">Heartbeat</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-600 whitespace-nowrap">Файл</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-600">Ошибка</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-600 whitespace-nowrap">Действия</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTasks.map(task => (
-                    <tr key={task.id} className="border-b hover:bg-gray-50">
-                      <td className="py-2 px-3">
-                        <button
-                          className="font-mono text-xs text-purple-600 hover:text-purple-800 hover:underline whitespace-nowrap"
-                          onClick={() => openEdit(task.id)}
-                          title={task.id}
-                        >
-                          {task.id.slice(0, 8)}…
-                        </button>
-                      </td>
-                      <td className="py-2 px-3 max-w-[180px]">
-                        <span className="block truncate" title={task.title}>{task.title}</span>
-                      </td>
-                      <td className="py-2 px-3 whitespace-nowrap">
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[task.status] || 'bg-gray-100 text-gray-700'}`}>
-                          {STATUS_LABELS[task.status] || task.status}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 whitespace-nowrap text-gray-600">{fmtDuration(task.duration)}</td>
-                      <td className="py-2 px-3 whitespace-nowrap">
-                        <span className="font-mono text-xs text-gray-500">
-                          {task.workerId ? task.workerId.slice(-10) : '—'}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 whitespace-nowrap text-gray-500 text-xs">{fmtDate(task.lastHeartbeat)}</td>
-                      <td className="py-2 px-3 whitespace-nowrap">
-                        {task.begetUrl ? (
-                          <a href={task.begetUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs">
-                            <ExternalLink className="h-3 w-3" /> Открыть
-                          </a>
-                        ) : '—'}
-                      </td>
-                      <td className="py-2 px-3 max-w-[160px]">
-                        {task.errorMessage && (
-                          <span className="text-red-600 text-xs truncate block" title={task.errorMessage}>
-                            {task.errorMessage.slice(0, 50)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          {['failed', 'in_progress'].includes(task.status) && (
-                            <button
-                              onClick={() => handleReset(task.id)}
-                              title="Сбросить (повторить)"
-                              className="p-1 rounded hover:bg-blue-100 text-blue-600"
-                            >
-                              <RotateCcw className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          {['ready', 'in_progress', 'scheduled'].includes(task.status) && (
-                            <button
-                              onClick={() => handleCancel(task.id)}
-                              title="Отменить"
-                              className="p-1 rounded hover:bg-yellow-100 text-yellow-600"
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDelete(task.id, task.title)}
-                            title="Удалить из БД"
-                            className="p-1 rounded hover:bg-red-100 text-red-600"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {tasksTotal > tasks.length && (
-            <div className="flex justify-center py-3 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTaskLimit(l => l + 100)}
-                className="text-xs"
-              >
-                Загрузить ещё (показано {tasks.length} из {tasksTotal})
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* S3 files */}
-      <Card>
-        <CardHeader className="py-3 px-4">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <HardDrive className="h-4 w-4" />
-            Файлы в S3 (последние 100)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!s3Configured ? (
-            <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
-              <CloudOff className="h-5 w-5 text-gray-400" />
-              <span>{s3Message || 'S3 не настроен'}</span>
-            </div>
-          ) : s3Files.length === 0 ? (
-            <div className="text-center py-6 text-sm text-gray-500">Нет файлов</div>
-          ) : (
-            <div className="space-y-1">
-              {s3Files.map(f => (
-                <div key={f.key} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-50">
-                  <span className="text-xs font-mono text-gray-700 truncate flex-1 mr-2" title={f.key}>{f.key}</span>
-                  <span className="text-xs text-gray-500 mr-3 whitespace-nowrap">{fmtSize(f.size)}</span>
-                  <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs whitespace-nowrap">
-                    <ExternalLink className="h-3 w-3" /> Открыть
-                  </a>
-                </div>
+      {/* ── Tasks table ────────────────────────────────────────── */}
+      <div style={{ ...S.card, marginBottom: 16 }}>
+        <div style={S.cardHead}>
+          <span style={S.h2}>
+            Задачи записи
+            <span style={{ color: '#64748b', fontWeight: 400, marginLeft: 8 }}>
+              ({tasks.length}{tasksTotal > tasks.length ? ` из ${tasksTotal}` : ''})
+            </span>
+          </span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* filter pills */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button style={S.filterBtn(filterStatus === null)} onClick={() => setFilterStatus(null)}>Все</button>
+              {ALL_STATUSES.map(s => (
+                <button key={s} style={S.filterBtn(filterStatus === s)} onClick={() => setFilterStatus(s)}>
+                  {STATUS_LABELS[s]}
+                </button>
               ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <button style={S.clearBtn} onClick={handleClearFailed}>🗑 Очистить failed</button>
+          </div>
+        </div>
 
-      {/* Edit modal */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>
+                {['ID', 'Название', 'Статус', 'Длит.', 'Воркер', 'Heartbeat', 'URL записи', 'Ошибка', 'Действия'].map(h => (
+                  <th key={h} style={S.th as React.CSSProperties}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: 32, color: '#64748b', fontSize: 13 }}>Нет задач</td>
+                </tr>
+              ) : tasks.map(t => (
+                <TaskRow
+                  key={t.id} task={t}
+                  onOpen={openEdit}
+                  onReset={handleReset}
+                  onCancel={handleCancel}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {tasksTotal > tasks.length && (
+          <button style={S.loadMoreBtn} onClick={() => setTaskLimit(l => l + 100)}>
+            Загрузить ещё (показано {tasks.length} из {tasksTotal})
+          </button>
+        )}
+      </div>
+
+      {/* ── S3 files ───────────────────────────────────────────── */}
+      <div style={S.card}>
+        <div style={S.cardHead}><span style={S.h2}>Файлы в S3 (последние 100)</span></div>
+        <div style={{ padding: '4px 18px 16px' }}>
+          {!s3Configured ? (
+            <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>{s3Message || 'S3 не настроен'}</div>
+          ) : s3Files.length === 0 ? (
+            <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Нет файлов</div>
+          ) : s3Files.map(f => (
+            <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #1e2535' }}>
+              <span style={{ color: '#94a3b8', fontSize: 12, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 420 }} title={f.key}>{f.key}</span>
+              <span style={{ color: '#64748b', fontSize: 12, flexShrink: 0, marginLeft: 12 }}>{fmtSize(f.size)}</span>
+              <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 12, flexShrink: 0, marginLeft: 12, textDecoration: 'none' }}>▶ Открыть</a>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* spin keyframe */}
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+
+      {/* ── Edit Modal ─────────────────────────────────────────── */}
       <Dialog open={!!editTask} onOpenChange={open => { if (!open) setEditTask(null); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" style={{ background: '#1a1f2e', border: '1px solid #2d3748', color: '#e2e8f0' }}>
           <DialogHeader>
-            <DialogTitle className="truncate">{editTask?.title || 'Задача'}</DialogTitle>
-            <p className="text-xs font-mono text-gray-500">{editTask?.id}</p>
+            <DialogTitle style={{ color: '#fff', fontSize: 15 }} className="truncate">{editTask?.title || 'Задача'}</DialogTitle>
+            <p style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b', marginTop: 2 }}>{editTask?.id}</p>
           </DialogHeader>
 
           {editTask && (
-            <div className="space-y-4 py-2">
-              <Section title="Основное">
-                <FormField label="Название">
-                  <Input
-                    value={editForm.title || ''}
-                    onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
-                  />
-                </FormField>
-                <FormField label="Описание">
-                  <Textarea
-                    value={editForm.description || ''}
-                    onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                    rows={2}
-                  />
-                </FormField>
-              </Section>
+            <div className="space-y-5 py-2">
+              <ModalSection title="Основное">
+                <ModalField label="Название">
+                  <DarkInput value={editForm.title || ''} onChange={v => setEditForm(f => ({ ...f, title: v }))} />
+                </ModalField>
+                <ModalField label="Описание" full>
+                  <DarkTextarea value={editForm.description || ''} onChange={v => setEditForm(f => ({ ...f, description: v }))} />
+                </ModalField>
+              </ModalSection>
 
-              <Section title="Трансляция">
-                <FormField label="URL источника" full>
-                  <Input
-                    value={editForm.streamUrl || ''}
-                    onChange={e => setEditForm(f => ({ ...f, streamUrl: e.target.value }))}
-                    className="font-mono text-sm"
-                  />
-                </FormField>
-                <FormField label="Пароль">
-                  <Input
-                    value={editForm.streamPassword || ''}
-                    onChange={e => setEditForm(f => ({ ...f, streamPassword: e.target.value }))}
-                  />
-                </FormField>
-                <FormField label="Длительность (мин)">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={editForm.duration || ''}
-                    onChange={e => setEditForm(f => ({ ...f, duration: parseInt(e.target.value) || undefined }))}
-                  />
-                </FormField>
-                <FormField label="Время записи">
-                  <Input
-                    type="datetime-local"
-                    value={toDatetimeLocal(editForm.scheduledTime)}
-                    onChange={e => setEditForm(f => ({ ...f, scheduledTime: e.target.value }))}
-                  />
-                </FormField>
-                <FormField label="Хранилище (saveTarget)">
-                  <Select
-                    value={editForm.saveTarget || 'beget'}
-                    onValueChange={v => setEditForm(f => ({ ...f, saveTarget: v }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
+              <ModalSection title="Трансляция">
+                <ModalField label="URL источника" full>
+                  <DarkInput value={editForm.streamUrl || ''} onChange={v => setEditForm(f => ({ ...f, streamUrl: v }))} mono />
+                </ModalField>
+                <ModalField label="Пароль">
+                  <DarkInput value={editForm.streamPassword || ''} onChange={v => setEditForm(f => ({ ...f, streamPassword: v }))} />
+                </ModalField>
+                <ModalField label="Длительность (мин)">
+                  <DarkInput type="number" value={String(editForm.duration || '')} onChange={v => setEditForm(f => ({ ...f, duration: v ? Number(v) : null }))} />
+                </ModalField>
+                <ModalField label="Время начала">
+                  <DarkInput type="datetime-local" value={toDatetimeLocal(editForm.scheduledTime)} onChange={v => setEditForm(f => ({ ...f, scheduledTime: v ? new Date(v).toISOString() : null }))} />
+                </ModalField>
+              </ModalSection>
+
+              <ModalSection title="Хранилище и статус">
+                <ModalField label="Сохранить в">
+                  <Select value={editForm.saveTarget || ''} onValueChange={v => setEditForm(f => ({ ...f, saveTarget: v || null }))}>
+                    <SelectTrigger style={{ background: '#0f1117', border: '1px solid #2d3748', color: '#e2e8f0', fontSize: 13 }}>
+                      <SelectValue placeholder="Выберите..." />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="beget">Beget S3</SelectItem>
-                      <SelectItem value="yandex_disk">Яндекс.Диск</SelectItem>
-                      <SelectItem value="library">Библиотека</SelectItem>
+                    <SelectContent style={{ background: '#1a1f2e', border: '1px solid #2d3748', color: '#e2e8f0' }}>
+                      <SelectItem value="beget_s3">Beget S3</SelectItem>
+                      <SelectItem value="yandex_disk">Yandex Disk</SelectItem>
+                      <SelectItem value="local">Local</SelectItem>
                     </SelectContent>
                   </Select>
-                </FormField>
-              </Section>
-
-              <Section title="Статус и управление">
-                <FormField label="Статус">
-                  <Select
-                    value={editForm.status || ''}
-                    onValueChange={v => setEditForm(f => ({ ...f, status: v }))}
-                  >
-                    <SelectTrigger>
+                </ModalField>
+                <ModalField label="Статус">
+                  <Select value={editForm.status || ''} onValueChange={v => setEditForm(f => ({ ...f, status: v }))}>
+                    <SelectTrigger style={{ background: '#0f1117', border: '1px solid #2d3748', color: '#e2e8f0', fontSize: 13 }}>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      {ALL_STATUSES.map(s => (
-                        <SelectItem key={s} value={s}>{STATUS_LABELS[s] || s}</SelectItem>
-                      ))}
+                    <SelectContent style={{ background: '#1a1f2e', border: '1px solid #2d3748', color: '#e2e8f0' }}>
+                      {ALL_STATUSES.map(s => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </FormField>
-                <ReadOnlyField label="Worker ID" value={editTask.workerId || ''} mono />
-                <ReadOnlyField label="Попытки" value={String(editTask.attemptCount ?? 0)} />
-                <ReadOnlyField label="Часть" value={`${editTask.currentPart || 1} / ${editTask.totalParts || 1}`} />
-              </Section>
+                </ModalField>
+                <ModalField label="URL файла (begetUrl)" full>
+                  <DarkInput value={editForm.begetUrl || ''} onChange={v => setEditForm(f => ({ ...f, begetUrl: v || null }))} mono />
+                </ModalField>
+                <ModalField label="Сообщение об ошибке" full>
+                  <DarkTextarea value={editForm.errorMessage || ''} onChange={v => setEditForm(f => ({ ...f, errorMessage: v || null }))} />
+                </ModalField>
+              </ModalSection>
 
-              <Section title="Результат">
-                <FormField label="Beget URL" full>
-                  <Input
-                    value={editForm.begetUrl || ''}
-                    onChange={e => setEditForm(f => ({ ...f, begetUrl: e.target.value }))}
-                    className="font-mono text-sm"
-                  />
-                </FormField>
-                <ReadOnlyField label="Размер файла" value={fmtSize(editTask.fileSize) || '—'} />
-                <FormField label="Сообщение об ошибке" full>
-                  <Textarea
-                    value={editForm.errorMessage || ''}
-                    onChange={e => setEditForm(f => ({ ...f, errorMessage: e.target.value }))}
-                    rows={2}
-                  />
-                </FormField>
-              </Section>
-
-              <Section title="Временные метки">
-                <ReadOnlyField label="Создана" value={fmtDateFull(editTask.createdAt)} />
-                <ReadOnlyField label="Обновлена" value={fmtDateFull(editTask.updatedAt)} />
-                <ReadOnlyField label="Начата" value={fmtDateFull(editTask.startedAt)} />
-                <ReadOnlyField label="Завершена" value={fmtDateFull(editTask.completedAt)} />
-                <ReadOnlyField label="Heartbeat" value={fmtDateFull(editTask.lastHeartbeat)} />
-              </Section>
-
-              {editTask.urlCheckStatus && (
-                <Section title="Проверка URL">
-                  <FormField label="Статус проверки">
-                    <div className="py-2">
-                      <UrlCheckBadge status={editTask.urlCheckStatus} />
-                    </div>
-                  </FormField>
-                  <ReadOnlyField label="Проверено в" value={fmtDateFull(editTask.urlCheckedAt)} />
-                  <ReadOnlyField label="Сообщение" value={editTask.urlCheckMessage || ''} />
-                </Section>
-              )}
+              <ModalSection title="Системная информация (только чтение)">
+                <ModalField label="ID пользователя">
+                  <DarkInput value={editTask.userId} readOnly mono />
+                </ModalField>
+                <ModalField label="Воркер">
+                  <DarkInput value={editTask.workerId || ''} readOnly mono />
+                </ModalField>
+                <ModalField label="Создана">
+                  <DarkInput value={fmtDateFull(editTask.createdAt)} readOnly />
+                </ModalField>
+                <ModalField label="Обновлена">
+                  <DarkInput value={fmtDateFull(editTask.updatedAt)} readOnly />
+                </ModalField>
+                <ModalField label="Начата">
+                  <DarkInput value={fmtDateFull(editTask.startedAt)} readOnly />
+                </ModalField>
+                <ModalField label="Завершена">
+                  <DarkInput value={fmtDateFull(editTask.completedAt)} readOnly />
+                </ModalField>
+                <ModalField label="Последний heartbeat">
+                  <DarkInput value={fmtDateFull(editTask.lastHeartbeat)} readOnly />
+                </ModalField>
+                {editTask.urlCheckStatus && (
+                  <ModalField label="URL-проверка">
+                    <DarkInput value={`${editTask.urlCheckStatus}${editTask.urlCheckMessage ? ' — ' + editTask.urlCheckMessage : ''}`} readOnly />
+                  </ModalField>
+                )}
+                {(editTask.attemptCount != null) && (
+                  <ModalField label="Попыток / Часть / Всего">
+                    <DarkInput value={`${editTask.attemptCount} / ${editTask.currentPart ?? '—'} / ${editTask.totalParts ?? '—'}`} readOnly />
+                  </ModalField>
+                )}
+              </ModalSection>
             </div>
           )}
 
-          <DialogFooter className="flex items-center gap-3">
-            {saveStatus === 'ok' && (
-              <span className="text-sm text-green-600 flex items-center gap-1">
-                <CheckCircle2 className="h-4 w-4" /> {saveMessage}
+          <DialogFooter style={{ borderTop: '1px solid #2d3748', paddingTop: 14, gap: 10 }}>
+            {saveStatus !== 'idle' && (
+              <span style={{ fontSize: 12, color: saveStatus === 'ok' ? '#4ade80' : '#f87171', alignSelf: 'center', marginRight: 'auto' }}>
+                {saveMessage}
               </span>
             )}
-            {saveStatus === 'error' && (
-              <span className="text-sm text-red-600 flex items-center gap-1">
-                <AlertCircle className="h-4 w-4" /> {saveMessage}
-              </span>
-            )}
-            <Button variant="outline" onClick={() => setEditTask(null)}>Закрыть</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Сохранить
-            </Button>
+            <button style={{ background: '#1e2535', color: '#94a3b8', border: 'none', padding: '8px 20px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }} onClick={() => setEditTask(null)}>
+              Закрыть
+            </button>
+            <button
+              style={{ background: isSaving ? '#1e2535' : '#1d4ed8', color: isSaving ? '#64748b' : '#fff', border: 'none', padding: '8px 20px', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: isSaving ? 'default' : 'pointer' }}
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? 'Сохранение...' : '💾 Сохранить'}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -684,71 +549,136 @@ export function AdminRecordingDashboard() {
   );
 }
 
-function HealthItem({ label, icon: Icon, service }: { label: string; icon: React.ElementType; service?: HealthService }) {
-  const status = service?.status;
-  const isOk = status === 'ok';
-  const isNotConfigured = status === 'not_configured';
+/* ─── sub-components ────────────────────────────────────────── */
+function HealthRow({ label, service }: { label: string; service?: HealthService }) {
+  const isOk  = service?.status === 'ok';
+  const isNA  = service?.status === 'not_configured';
+  const dotColor = isOk ? '#22c55e' : isNA ? '#64748b' : '#ef4444';
+  const dotGlow  = isOk ? '0 0 8px #22c55e66' : isNA ? 'none' : '0 0 8px #ef444466';
   return (
-    <div className="flex items-center gap-3">
-      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isOk ? 'bg-green-500' : isNotConfigured ? 'bg-gray-300' : status ? 'bg-red-500' : 'bg-gray-200'}`} />
-      <Icon className="h-4 w-4 text-gray-500" />
+    <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: dotColor, boxShadow: dotGlow }} />
       <div>
-        <p className="text-sm font-medium text-gray-700">{label}</p>
-        <p className="text-xs text-gray-500">
-          {isOk ? (service?.bucket ? `Bucket: ${service.bucket}` : 'Подключено') :
-           isNotConfigured ? 'Не настроено' :
-           status === 'error' ? (service?.error || 'Ошибка') :
-           'Загрузка...'}
-        </p>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>{label}</div>
+        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+          {service ? (isOk ? (service.bucket ? `Bucket: ${service.bucket}` : 'Подключено') : isNA ? 'Не настроен' : service.error || 'Ошибка') : '...'}
+        </div>
       </div>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function TaskRow({ task, onOpen, onReset, onCancel, onDelete }: {
+  task: AdminTask;
+  onOpen: (id: string) => void;
+  onReset: (id: string) => void;
+  onCancel: (id: string) => void;
+  onDelete: (id: string, title: string) => void;
+}) {
+  const badge = BADGE_STYLES[task.status] || { background: '#1e2535', color: '#94a3b8' };
+  return (
+    <tr style={{ borderBottom: '1px solid #1a2035' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'rgba(59,130,246,.04)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'; }}
+    >
+      <td style={{ ...S.td, fontFamily: 'monospace', fontSize: 12 }}>
+        <button
+          onClick={() => onOpen(task.id)}
+          title={task.id}
+          style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', padding: 0, fontFamily: 'monospace', fontSize: 12 }}
+        >
+          {task.id.slice(0, 14)}…
+        </button>
+      </td>
+      <td style={{ ...S.td, maxWidth: 180 }}>
+        <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={task.title}>{task.title}</span>
+      </td>
+      <td style={S.td}>
+        <span style={{ ...S.badge, ...badge }}>{STATUS_LABELS[task.status] || task.status}</span>
+      </td>
+      <td style={S.tdMuted}>{fmtDuration(task.duration)}</td>
+      <td style={{ ...S.tdMuted, fontFamily: 'monospace', maxWidth: 120 }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+          {task.workerId ? task.workerId.slice(-12) : '—'}
+        </span>
+      </td>
+      <td style={S.tdMuted}>{fmtDate(task.lastHeartbeat)}</td>
+      <td style={S.td}>
+        {task.begetUrl
+          ? <a href={task.begetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 12, textDecoration: 'none' }}>▶ Открыть</a>
+          : <span style={{ color: '#2d3748' }}>—</span>}
+      </td>
+      <td style={{ ...S.td, maxWidth: 160 }}>
+        {task.errorMessage && (
+          <span style={{ color: '#ef4444', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }} title={task.errorMessage}>
+            {task.errorMessage.slice(0, 60)}
+          </span>
+        )}
+      </td>
+      <td style={{ ...S.td, whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {['failed', 'in_progress'].includes(task.status) && (
+            <button style={S.actionBtn('reset')} onClick={() => onReset(task.id)} title="Повторить">↺ Повтор</button>
+          )}
+          {['ready', 'in_progress', 'scheduled'].includes(task.status) && (
+            <button style={S.actionBtn('cancel')} onClick={() => onCancel(task.id)} title="Отменить">✕</button>
+          )}
+          <button style={S.actionBtn('delete')} onClick={() => onDelete(task.id, task.title)} title="Удалить из БД">🗑</button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function ModalSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{title}</h4>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {children}
-      </div>
+      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.7px', color: '#64748b', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid #1e2535' }}>{title}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>{children}</div>
     </div>
   );
 }
 
-function FormField({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+function ModalField({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
-    <div className={full ? 'sm:col-span-2' : ''}>
-      <Label className="text-xs text-gray-600 mb-1 block">{label}</Label>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: full ? '1 / -1' : undefined }}>
+      <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{label}</label>
       {children}
     </div>
   );
 }
 
-function ReadOnlyField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function DarkInput({ value, onChange, readOnly, mono, type }: {
+  value: string; onChange?: (v: string) => void; readOnly?: boolean; mono?: boolean; type?: string;
+}) {
   return (
-    <div>
-      <Label className="text-xs text-gray-600 mb-1 block">{label}</Label>
-      <Input
-        disabled
-        value={value}
-        className={`bg-gray-50 text-gray-600 ${mono ? 'font-mono text-xs' : ''}`}
-      />
-    </div>
+    <input
+      type={type || 'text'}
+      value={value}
+      readOnly={readOnly}
+      onChange={e => onChange?.(e.target.value)}
+      style={{
+        background: '#0f1117', border: '1px solid #2d3748', borderRadius: 6,
+        color: readOnly ? '#64748b' : '#e2e8f0', fontSize: mono ? 12 : 13,
+        fontFamily: mono ? 'monospace' : 'inherit',
+        padding: '7px 10px', outline: 'none', width: '100%',
+        cursor: readOnly ? 'default' : 'text',
+      }}
+    />
   );
 }
 
-function UrlCheckBadge({ status }: { status: string }) {
-  const labels: Record<string, string> = { ok: '✓ ok', warning: '⚠ warning', failed: '✕ failed', pending: '… pending' };
-  const colors: Record<string, string> = {
-    ok: 'bg-green-100 text-green-800',
-    warning: 'bg-yellow-100 text-yellow-800',
-    failed: 'bg-red-100 text-red-800',
-    pending: 'bg-gray-100 text-gray-600',
-  };
+function DarkTextarea({ value, onChange }: { value: string; onChange?: (v: string) => void }) {
   return (
-    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-600'}`}>
-      {labels[status] || status}
-    </span>
+    <textarea
+      value={value}
+      onChange={e => onChange?.(e.target.value)}
+      rows={2}
+      style={{
+        background: '#0f1117', border: '1px solid #2d3748', borderRadius: 6,
+        color: '#e2e8f0', fontSize: 13, padding: '7px 10px', outline: 'none',
+        width: '100%', resize: 'vertical', fontFamily: 'inherit',
+      }}
+    />
   );
 }
