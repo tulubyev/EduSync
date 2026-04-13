@@ -8,7 +8,7 @@ import { logger } from "../services/logger";
 import { db } from "../db";
 import { recordingTasks, recordingWorkerStatus, recordingLogs } from "@shared/schema";
 import { eq, and, or, desc, sql, gte, count } from "drizzle-orm";
-import AWS from "aws-sdk";
+import { S3Client, HeadBucketCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 
 const router = Router();
 
@@ -669,22 +669,38 @@ router.post('/monitor/worker-task-complete', verifyInternalRequest, async (req: 
 // ADMIN ENDPOINTS (adminRole required)
 // ===========================================
 
-function getS3Client(): { client: AWS.S3; bucket: string; publicUrl: string } | null {
+function getS3Client(): { client: S3Client; bucket: string; publicUrl: string } | null {
   const endpoint = process.env.BEGET_S3_ENDPOINT;
   const accessKeyId = process.env.BEGET_S3_ACCESS_KEY;
   const secretAccessKey = process.env.BEGET_S3_SECRET_KEY;
   const bucket = process.env.BEGET_S3_BUCKET;
   const publicUrl = process.env.BEGET_S3_PUBLIC_URL || '';
   if (!endpoint || !accessKeyId || !secretAccessKey || !bucket) return null;
-  const region = process.env.BEGET_S3_REGION || 'ru-msk';
-  const client = new AWS.S3({
+  const region = process.env.BEGET_S3_REGION || 'ru-1';
+  const client = new S3Client({
     region,
     endpoint,
-    accessKeyId,
-    secretAccessKey,
-    s3ForcePathStyle: true,
-    signatureVersion: 'v4',
+    credentials: { accessKeyId, secretAccessKey },
+    forcePathStyle: true,
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   });
+  client.middlewareStack.add(
+    (next: any) => async (args: any) => {
+      const req = args.request;
+      if (req && req.headers) {
+        const headersToRemove = Object.keys(req.headers).filter(
+          (h) =>
+            h.toLowerCase().startsWith('x-amz-checksum') ||
+            h.toLowerCase() === 'x-amz-sdk-checksum-algorithm' ||
+            h.toLowerCase() === 'x-amz-trailer'
+        );
+        headersToRemove.forEach((h) => delete req.headers[h]);
+      }
+      return next(args);
+    },
+    { step: 'build', priority: 'low', name: 'removeBegetIncompatibleHeaders' }
+  );
   return { client, bucket, publicUrl };
 }
 
@@ -724,7 +740,7 @@ router.get('/admin/health', authenticateToken as any, async (req: AuthRequest, r
     health.services.s3 = { status: 'not_configured', error: 'Переменные BEGET_S3_* не установлены' };
   } else {
     try {
-      await s3.client.headBucket({ Bucket: s3.bucket }).promise();
+      await s3.client.send(new HeadBucketCommand({ Bucket: s3.bucket }));
       health.services.s3 = { status: 'ok', bucket: s3.bucket };
     } catch (e) {
       health.services.s3 = { status: 'error', error: (e as Error).message };
@@ -740,10 +756,10 @@ router.get('/admin/s3-files', authenticateToken as any, async (req: AuthRequest,
     return res.json({ success: true, files: [], configured: false, message: 'S3 не настроен (BEGET_S3_* переменные отсутствуют)' });
   }
   try {
-    const result = await s3.client.listObjectsV2({
+    const result = await s3.client.send(new ListObjectsV2Command({
       Bucket: s3.bucket,
       MaxKeys: 100,
-    }).promise();
+    }));
     const files = (result.Contents || []).map(obj => ({
       key: obj.Key,
       size: obj.Size,
