@@ -13,7 +13,7 @@ import { S3Client, HeadBucketCommand, ListObjectsV2Command } from "@aws-sdk/clie
 const router = Router();
 
 interface AuthRequest extends Request {
-  user?: { id: string; role?: string | null };
+  user?: { id: string; role?: string | null; adminRole?: string | null };
 }
 
 const recordingSchema = z.object({
@@ -759,11 +759,16 @@ router.get('/admin/tasks', authenticateToken as any, async (req: AuthRequest, re
   if (!requireAdminRole(req, res)) return;
   try {
     const status = req.query.status as string | undefined;
-    const limit = Math.min(parseInt(req.query.limit as string || '100', 10), 200);
-    const tasks = status
-      ? await db.select().from(recordingTasks).where(eq(recordingTasks.status, status)).orderBy(desc(recordingTasks.createdAt)).limit(limit)
-      : await db.select().from(recordingTasks).orderBy(desc(recordingTasks.createdAt)).limit(limit);
-    res.json({ success: true, tasks });
+    const limit = Math.min(parseInt(req.query.limit as string || '100', 10), 500);
+    const [tasks, totalRow] = await Promise.all([
+      status
+        ? db.select().from(recordingTasks).where(eq(recordingTasks.status, status)).orderBy(desc(recordingTasks.createdAt)).limit(limit)
+        : db.select().from(recordingTasks).orderBy(desc(recordingTasks.createdAt)).limit(limit),
+      status
+        ? db.select({ total: sql<number>`count(*)::int` }).from(recordingTasks).where(eq(recordingTasks.status, status))
+        : db.select({ total: sql<number>`count(*)::int` }).from(recordingTasks),
+    ]);
+    res.json({ success: true, tasks, total: totalRow[0]?.total ?? tasks.length });
   } catch (error) {
     logger.error('Admin tasks error:', error);
     res.status(500).json({ message: 'Ошибка получения задач' });
@@ -830,7 +835,7 @@ router.patch('/admin/tasks/:taskId/cancel', authenticateToken as any, async (req
   if (!requireAdminRole(req, res)) return;
   try {
     await db.update(recordingTasks)
-      .set({ status: 'failed', errorMessage: 'Отменено администратором', updatedAt: new Date() })
+      .set({ status: 'cancelled', errorMessage: 'Отменено администратором', updatedAt: new Date() })
       .where(eq(recordingTasks.id, req.params.taskId));
     logger.info(`Admin cancelled task ${req.params.taskId} by ${req.user!.id}`);
     res.json({ success: true });

@@ -143,6 +143,8 @@ function toDatetimeLocal(d: string | null | undefined): string {
 
 export function AdminRecordingDashboard() {
   const [tasks, setTasks] = useState<AdminTask[]>([]);
+  const [tasksTotal, setTasksTotal] = useState(0);
+  const [taskLimit, setTaskLimit] = useState(100);
   const [stats, setStats] = useState<Record<string, number>>({});
   const [health, setHealth] = useState<HealthData | null>(null);
   const [s3Files, setS3Files] = useState<S3File[]>([]);
@@ -178,14 +180,15 @@ export function AdminRecordingDashboard() {
 
   const fetchTasks = useCallback(async () => {
     const url = filterStatus
-      ? `/api/recording/admin/tasks?status=${filterStatus}&limit=100`
-      : '/api/recording/admin/tasks?limit=100';
+      ? `/api/recording/admin/tasks?status=${filterStatus}&limit=${taskLimit}`
+      : `/api/recording/admin/tasks?limit=${taskLimit}`;
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token()}` } });
     if (res.ok) {
       const data = await res.json();
       setTasks(data.tasks || []);
+      setTasksTotal(data.total ?? (data.tasks?.length ?? 0));
     }
-  }, [filterStatus]);
+  }, [filterStatus, taskLimit]);
 
   const fetchS3Files = useCallback(async () => {
     const res = await fetch('/api/recording/admin/s3-files', { headers: { 'Authorization': `Bearer ${token()}` } });
@@ -372,6 +375,9 @@ export function AdminRecordingDashboard() {
                   <button className="ml-1 hover:text-red-500" onClick={() => setFilterStatus(null)}>×</button>
                 </Badge>
               )}
+              <span className="text-xs text-gray-400 font-normal">
+                (показано {tasks.length}{tasksTotal > tasks.length ? ` из ${tasksTotal}` : ''})
+              </span>
             </CardTitle>
             <Button
               variant="destructive"
@@ -388,7 +394,7 @@ export function AdminRecordingDashboard() {
           {filteredTasks.length === 0 ? (
             <div className="text-center py-10 text-gray-500 text-sm">Нет задач</div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" id="tasks-table-wrapper">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-gray-50">
@@ -477,6 +483,18 @@ export function AdminRecordingDashboard() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {tasksTotal > tasks.length && (
+            <div className="flex justify-center py-3 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTaskLimit(l => l + 100)}
+                className="text-xs"
+              >
+                Загрузить ещё (показано {tasks.length} из {tasksTotal})
+              </Button>
             </div>
           )}
         </CardContent>
@@ -568,6 +586,21 @@ export function AdminRecordingDashboard() {
                     value={toDatetimeLocal(editForm.scheduledTime)}
                     onChange={e => setEditForm(f => ({ ...f, scheduledTime: e.target.value }))}
                   />
+                </FormField>
+                <FormField label="Хранилище (saveTarget)">
+                  <Select
+                    value={editForm.saveTarget || 'beget'}
+                    onValueChange={v => setEditForm(f => ({ ...f, saveTarget: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="beget">Beget S3</SelectItem>
+                      <SelectItem value="yandex_disk">Яндекс.Диск</SelectItem>
+                      <SelectItem value="library">Библиотека</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </FormField>
               </Section>
 
