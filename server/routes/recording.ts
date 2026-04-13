@@ -755,7 +755,7 @@ router.get('/admin/s3-files', authenticateToken as any, async (req: AuthRequest,
   if (!s3) {
     return res.json({ success: true, files: [], folders: [], configured: false, message: 'S3 не настроен (BEGET_S3_* переменные отсутствуют)' });
   }
-  const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : 'myepa/';
+  const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : 'epa/';
   try {
     const result = await s3.client.send(new ListObjectsV2Command({
       Bucket: s3.bucket,

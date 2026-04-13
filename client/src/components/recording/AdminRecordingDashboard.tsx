@@ -170,8 +170,8 @@ export function AdminRecordingDashboard() {
   const [taskLimit, setTaskLimit]     = useState(100);
   const [stats, setStats]             = useState<Record<string, number>>({});
   const [health, setHealth]           = useState<HealthData | null>(null);
-  const [s3Data, setS3Data]           = useState<S3Data>({ prefix: 'myepa/', folders: [], files: [], configured: true });
-  const [s3Prefix, setS3Prefix]       = useState('myepa/');
+  const [s3Data, setS3Data]           = useState<S3Data>({ prefix: 'epa/', folders: [], files: [], configured: true });
+  const [s3Prefix, setS3Prefix]       = useState('epa/');
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate]   = useState('');
@@ -427,7 +427,7 @@ export function AdminRecordingDashboard() {
           <span style={S.h2}>Файлы в S3</span>
           <button
             style={{ ...S.clearBtn, fontSize: 12 }}
-            onClick={() => navigateS3('myepa/')}
+            onClick={() => navigateS3('epa/')}
           >
             ↺ Сброс
           </button>
