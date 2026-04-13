@@ -610,18 +610,36 @@ export function AdminRecordingDashboard() {
 
 /* ─── sub-components ────────────────────────────────────────── */
 function S3Breadcrumbs({ prefix, onNavigate }: { prefix: string; onNavigate: (p: string) => void }) {
+  const ROOT = 'epa/';
   const parts = prefix.replace(/\/$/, '').split('/').filter(Boolean);
-  const crumbs: { label: string; path: string }[] = [{ label: '/', path: '' }];
+  const crumbs: { label: string; path: string }[] = [];
   parts.forEach((part, i) => {
     crumbs.push({ label: part, path: parts.slice(0, i + 1).join('/') + '/' });
   });
+
+  const parentPrefix = (): string => {
+    const trimmed = prefix.replace(/\/$/, '');
+    const up = trimmed.split('/').slice(0, -1).join('/');
+    const candidate = up ? up + '/' : ROOT;
+    return candidate.startsWith('epa/') ? candidate : ROOT;
+  };
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 0 12px', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0 12px', flexWrap: 'wrap' }}>
+      {prefix !== ROOT && (
+        <button
+          onClick={() => onNavigate(parentPrefix())}
+          title="На уровень выше"
+          style={{ background: '#1e2535', border: 'none', padding: '3px 8px', borderRadius: 5, cursor: 'pointer', fontSize: 12, color: '#94a3b8' }}
+        >
+          ⬆ Наверх
+        </button>
+      )}
       {crumbs.map((c, i) => (
         <span key={c.path} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           {i > 0 && <span style={{ color: '#2d3748' }}>›</span>}
           <button
-            onClick={() => onNavigate(c.path || '')}
+            onClick={() => onNavigate(c.path.startsWith('epa/') ? c.path : ROOT)}
             style={{ background: 'none', border: 'none', padding: '2px 4px', borderRadius: 4, cursor: 'pointer', fontSize: 12, color: i === crumbs.length - 1 ? '#e2e8f0' : '#3b82f6', fontFamily: 'monospace' }}
           >
             {c.label}
