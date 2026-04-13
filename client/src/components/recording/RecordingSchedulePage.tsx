@@ -13,10 +13,13 @@ import {
   Server, 
   HardDrive,
   RefreshCw,
-  Loader
+  Loader,
+  ShieldCheck,
 } from 'lucide-react';
 import { RecordingTasksList } from './RecordingTasksList';
 import { RecordingModal, RecordingData } from './RecordingModal';
+import { AdminRecordingDashboard } from './AdminRecordingDashboard';
+import { useAuth } from '@/hooks/useAuth';
 
 interface DashboardStats {
   ready: number;
@@ -54,6 +57,8 @@ interface SyncIssue {
 }
 
 export function RecordingSchedulePage() {
+  const { user } = useAuth();
+  const isAdmin = !!(user?.adminRole);
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [userStats, setUserStats] = useState<DashboardStats>({ ready: 0, in_progress: 0, uploading: 0, completed: 0, failed: 0, cancelled: 0, total: 0 });
@@ -181,7 +186,7 @@ export function RecordingSchedulePage() {
         </div>
       ) : (
         <Tabs defaultValue="tasks" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex">
+          <TabsList className={`grid w-full lg:w-auto lg:inline-flex ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <TabsTrigger value="tasks" className="min-h-11">
               <Video className="h-4 w-4 mr-2" />
               Записи
@@ -190,6 +195,12 @@ export function RecordingSchedulePage() {
               <Activity className="h-4 w-4 mr-2" />
               Мониторинг
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="admin" className="min-h-11">
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                Администрирование
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="tasks" className="space-y-4">
@@ -274,6 +285,12 @@ export function RecordingSchedulePage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="admin" className="space-y-4">
+              <AdminRecordingDashboard />
+            </TabsContent>
+          )}
 
           <TabsContent value="monitoring" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -8,6 +8,7 @@ import { logger } from "../services/logger";
 import { db } from "../db";
 import { recordingTasks, recordingWorkerStatus, recordingLogs } from "@shared/schema";
 import { eq, and, or, desc, sql, gte, count } from "drizzle-orm";
+import { S3Client, HeadBucketCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 
 const router = Router();
 
@@ -661,6 +662,207 @@ router.post('/monitor/worker-task-complete', verifyInternalRequest, async (req: 
   } catch (error) {
     logger.error('Error processing task completion:', error);
     res.status(500).json({ message: 'Ошибка обработки завершения задачи' });
+  }
+});
+
+// ===========================================
+// ADMIN ENDPOINTS (adminRole required)
+// ===========================================
+
+function getS3Client(): { client: S3Client; bucket: string; publicUrl: string } | null {
+  const endpoint = process.env.BEGET_S3_ENDPOINT;
+  const accessKeyId = process.env.BEGET_S3_ACCESS_KEY;
+  const secretAccessKey = process.env.BEGET_S3_SECRET_KEY;
+  const bucket = process.env.BEGET_S3_BUCKET;
+  const publicUrl = process.env.BEGET_S3_PUBLIC_URL || '';
+  if (!endpoint || !accessKeyId || !secretAccessKey || !bucket) return null;
+  const client = new S3Client({
+    region: 'us-east-1',
+    endpoint,
+    credentials: { accessKeyId, secretAccessKey },
+    forcePathStyle: true,
+  });
+  return { client, bucket, publicUrl };
+}
+
+const requireAdminRole = (req: AuthRequest, res: Response): boolean => {
+  if (!req.user?.adminRole) {
+    res.status(403).json({ message: 'Доступ разрешён только администраторам' });
+    return false;
+  }
+  return true;
+};
+
+router.get('/admin/stats', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    const stats = await db
+      .select({ status: recordingTasks.status, count: sql<number>`count(*)::int` })
+      .from(recordingTasks)
+      .groupBy(recordingTasks.status);
+    res.json({ success: true, stats });
+  } catch (error) {
+    logger.error('Admin stats error:', error);
+    res.status(500).json({ message: 'Ошибка получения статистики' });
+  }
+});
+
+router.get('/admin/health', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const health: any = { timestamp: new Date().toISOString(), services: {} };
+  try {
+    await db.select({ id: recordingTasks.id }).from(recordingTasks).limit(1);
+    health.services.database = { status: 'ok' };
+  } catch (e) {
+    health.services.database = { status: 'error', error: (e as Error).message };
+  }
+  const s3 = getS3Client();
+  if (!s3) {
+    health.services.s3 = { status: 'not_configured', error: 'Переменные BEGET_S3_* не установлены' };
+  } else {
+    try {
+      await s3.client.send(new HeadBucketCommand({ Bucket: s3.bucket }));
+      health.services.s3 = { status: 'ok', bucket: s3.bucket };
+    } catch (e) {
+      health.services.s3 = { status: 'error', error: (e as Error).message };
+    }
+  }
+  res.json(health);
+});
+
+router.get('/admin/s3-files', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const s3 = getS3Client();
+  if (!s3) {
+    return res.json({ success: true, files: [], configured: false, message: 'S3 не настроен (BEGET_S3_* переменные отсутствуют)' });
+  }
+  try {
+    const result = await s3.client.send(new ListObjectsV2Command({
+      Bucket: s3.bucket,
+      Prefix: 'recordings/',
+      MaxKeys: 100,
+    }));
+    const files = (result.Contents || []).map(obj => ({
+      key: obj.Key,
+      size: obj.Size,
+      lastModified: obj.LastModified,
+      url: s3.publicUrl ? `${s3.publicUrl}/${obj.Key}` : obj.Key,
+    }));
+    res.json({ success: true, files, total: files.length, configured: true });
+  } catch (error) {
+    logger.error('Admin S3 files error:', error);
+    res.status(500).json({ message: 'Ошибка получения файлов S3', error: (error as Error).message });
+  }
+});
+
+router.get('/admin/tasks', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    const status = req.query.status as string | undefined;
+    const limit = Math.min(parseInt(req.query.limit as string || '100', 10), 200);
+    const tasks = status
+      ? await db.select().from(recordingTasks).where(eq(recordingTasks.status, status)).orderBy(desc(recordingTasks.createdAt)).limit(limit)
+      : await db.select().from(recordingTasks).orderBy(desc(recordingTasks.createdAt)).limit(limit);
+    res.json({ success: true, tasks });
+  } catch (error) {
+    logger.error('Admin tasks error:', error);
+    res.status(500).json({ message: 'Ошибка получения задач' });
+  }
+});
+
+router.get('/admin/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    const rows = await db.select().from(recordingTasks).where(eq(recordingTasks.id, req.params.taskId)).limit(1);
+    if (!rows.length) return res.status(404).json({ message: 'Задача не найдена' });
+    res.json({ success: true, task: rows[0] });
+  } catch (error) {
+    logger.error('Admin get task error:', error);
+    res.status(500).json({ message: 'Ошибка получения задачи' });
+  }
+});
+
+router.patch('/admin/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    const body = req.body;
+    const allowed = ['title', 'description', 'streamUrl', 'streamPassword', 'duration', 'scheduledTime', 'saveTarget', 'status', 'begetUrl', 'errorMessage'] as const;
+    const update: Record<string, any> = { updatedAt: new Date() };
+    for (const key of allowed) {
+      if (key in body) {
+        if (key === 'scheduledTime') {
+          update[key] = body[key] ? new Date(body[key]) : null;
+        } else if (key === 'duration') {
+          update[key] = parseInt(body[key], 10) || null;
+        } else {
+          update[key] = body[key] ?? null;
+        }
+      }
+    }
+    if (update.status === 'ready') {
+      update.workerId = null;
+      update.lastHeartbeat = null;
+    }
+    await db.update(recordingTasks).set(update).where(eq(recordingTasks.id, req.params.taskId));
+    logger.info(`Admin updated task ${req.params.taskId}: ${JSON.stringify(Object.keys(update))} by ${req.user!.id}`);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Admin patch task error:', error);
+    res.status(500).json({ message: 'Ошибка обновления задачи' });
+  }
+});
+
+router.patch('/admin/tasks/:taskId/reset', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    await db.update(recordingTasks)
+      .set({ status: 'ready', errorMessage: null, workerId: null, lastHeartbeat: null, updatedAt: new Date() })
+      .where(eq(recordingTasks.id, req.params.taskId));
+    logger.info(`Admin reset task ${req.params.taskId} to ready by ${req.user!.id}`);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Admin reset task error:', error);
+    res.status(500).json({ message: 'Ошибка сброса задачи' });
+  }
+});
+
+router.patch('/admin/tasks/:taskId/cancel', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    await db.update(recordingTasks)
+      .set({ status: 'failed', errorMessage: 'Отменено администратором', updatedAt: new Date() })
+      .where(eq(recordingTasks.id, req.params.taskId));
+    logger.info(`Admin cancelled task ${req.params.taskId} by ${req.user!.id}`);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Admin cancel task error:', error);
+    res.status(500).json({ message: 'Ошибка отмены задачи' });
+  }
+});
+
+router.delete('/admin/tasks/failed/clear', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    const result = await db.delete(recordingTasks)
+      .where(eq(recordingTasks.status, 'failed'))
+      .returning({ id: recordingTasks.id });
+    logger.info(`Admin cleared ${result.length} failed tasks, by ${req.user!.id}`);
+    res.json({ success: true, deleted: result.length });
+  } catch (error) {
+    logger.error('Admin clear failed tasks error:', error);
+    res.status(500).json({ message: 'Ошибка очистки failed задач' });
+  }
+});
+
+router.delete('/admin/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    await db.delete(recordingTasks).where(eq(recordingTasks.id, req.params.taskId));
+    logger.info(`Admin deleted task ${req.params.taskId} by ${req.user!.id}`);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Admin delete task error:', error);
+    res.status(500).json({ message: 'Ошибка удаления задачи' });
   }
 });
 
