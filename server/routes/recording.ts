@@ -682,6 +682,8 @@ function getS3Client(): { client: S3Client; bucket: string; publicUrl: string } 
     endpoint,
     credentials: { accessKeyId, secretAccessKey },
     forcePathStyle: true,
+    requestChecksumCalculation: 'WHEN_REQUIRED' as any,
+    responseChecksumValidation: 'WHEN_REQUIRED' as any,
   });
   return { client, bucket, publicUrl };
 }
