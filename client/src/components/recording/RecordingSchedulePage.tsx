@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   Video, 
   Plus, 
@@ -169,27 +168,7 @@ export function RecordingSchedulePage() {
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center justify-between">
-                <span>Список записей</span>
-                {selectedFilter && (
-                  <Badge variant="outline" className="ml-2">
-                    Фильтр: {selectedFilter === 'ready' ? 'Ожидают' : 
-                             selectedFilter === 'in_progress' ? 'Запись' :
-                             selectedFilter === 'uploading' ? 'Загрузка' :
-                             selectedFilter === 'completed' ? 'Завершено' :
-                             selectedFilter === 'failed' ? 'Ошибки' : selectedFilter}
-                    <button 
-                      onClick={() => setSelectedFilter(null)}
-                      className="ml-1 hover:text-red-500"
-                    >
-                      ×
-                    </button>
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <RecordingTasksList 
                 statusFilter={selectedFilter}
                 refreshKey={tasksRefreshKey}

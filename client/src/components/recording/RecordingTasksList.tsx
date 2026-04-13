@@ -53,7 +53,6 @@ interface RecordingTasksListProps {
 export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: RecordingTasksListProps) {
   const [tasks, setTasks] = useState<RecordingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isClearing, setIsClearing] = useState(false);
   const [editingTask, setEditingTask] = useState<RecordingTask | null>(null);
   const [editFormData, setEditFormData] = useState({
     title: '',
@@ -178,26 +177,6 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     }
   };
 
-  const handleClearQueue = async () => {
-    if (!confirm('Удалить все запланированные и неудачные записи?')) return;
-    try {
-      setIsClearing(true);
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/recording/tasks/clear-queue', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      
-      if (response.ok) {
-        await fetchTasks();
-      }
-    } catch (error) {
-      console.error('Error clearing queue:', error);
-    } finally {
-      setIsClearing(false);
-    }
-  };
-
   const handleEditStart = (task: RecordingTask) => {
     setEditingTask(task);
     setEditError(null);
@@ -285,33 +264,8 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     return <div className="text-center py-8 text-gray-500">Нет записей с выбранным статусом</div>;
   }
 
-  const hasScheduledOrFailed = tasks.some(t => t.status === 'ready' || t.status === 'failed');
-
   return (
     <div className="space-y-4">
-      {hasScheduledOrFailed && !statusFilter && (
-        <div className="flex justify-end mb-3">
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={handleClearQueue}
-            disabled={isClearing}
-            className="min-h-11"
-          >
-            {isClearing ? (
-              <>
-                <Loader className="h-4 w-4 mr-1 animate-spin" />
-                <span className="hidden sm:inline">Очистка...</span>
-              </>
-            ) : (
-              <>
-                <Trash2 className="h-4 w-4 sm:mr-1" />
-                <span className="hidden sm:inline">Очистить очередь</span>
-              </>
-            )}
-          </Button>
-        </div>
-      )}
       {filteredTasks.map((task) => (
         <div
           key={task.id}
