@@ -49,8 +49,16 @@ interface AdminTask {
 interface S3File {
   key: string;
   size: number;
-  lastModified: string;
+  lastModified: string | null;
   url: string;
+}
+
+interface S3Data {
+  prefix: string;
+  folders: string[];
+  files: S3File[];
+  configured: boolean;
+  message?: string;
 }
 
 interface HealthService {
@@ -162,9 +170,8 @@ export function AdminRecordingDashboard() {
   const [taskLimit, setTaskLimit]     = useState(100);
   const [stats, setStats]             = useState<Record<string, number>>({});
   const [health, setHealth]           = useState<HealthData | null>(null);
-  const [s3Files, setS3Files]         = useState<S3File[]>([]);
-  const [s3Configured, setS3Configured] = useState(true);
-  const [s3Message, setS3Message]     = useState('');
+  const [s3Data, setS3Data]           = useState<S3Data>({ prefix: 'myepa/', folders: [], files: [], configured: true });
+  const [s3Prefix, setS3Prefix]       = useState('myepa/');
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate]   = useState('');
@@ -206,15 +213,25 @@ export function AdminRecordingDashboard() {
     }
   }, [filterStatus, taskLimit]);
 
-  const fetchS3Files = useCallback(async () => {
-    const r = await fetch('/api/recording/admin/s3-files', { headers: authHdr() });
+  const fetchS3Files = useCallback(async (prefix?: string) => {
+    const p = prefix ?? s3Prefix;
+    const r = await fetch(`/api/recording/admin/s3-files?prefix=${encodeURIComponent(p)}`, { headers: authHdr() });
     if (r.ok) {
       const d = await r.json();
-      setS3Files(d.files || []);
-      setS3Configured(d.configured !== false);
-      setS3Message(d.message || '');
+      setS3Data({
+        prefix: d.prefix ?? p,
+        folders: d.folders || [],
+        files: d.files || [],
+        configured: d.configured !== false,
+        message: d.message,
+      });
     }
-  }, []);
+  }, [s3Prefix]);
+
+  const navigateS3 = useCallback((newPrefix: string) => {
+    setS3Prefix(newPrefix);
+    fetchS3Files(newPrefix);
+  }, [fetchS3Files]);
 
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
@@ -404,21 +421,63 @@ export function AdminRecordingDashboard() {
         )}
       </div>
 
-      {/* ── S3 files ───────────────────────────────────────────── */}
+      {/* ── S3 Browser ─────────────────────────────────────────── */}
       <div style={S.card}>
-        <div style={S.cardHead}><span style={S.h2}>Файлы в S3 (последние 100)</span></div>
-        <div style={{ padding: '4px 18px 16px' }}>
-          {!s3Configured ? (
-            <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>{s3Message || 'S3 не настроен'}</div>
-          ) : s3Files.length === 0 ? (
-            <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Нет файлов</div>
-          ) : s3Files.map(f => (
-            <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #1e2535' }}>
-              <span style={{ color: '#94a3b8', fontSize: 12, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 420 }} title={f.key}>{f.key}</span>
-              <span style={{ color: '#64748b', fontSize: 12, flexShrink: 0, marginLeft: 12 }}>{fmtSize(f.size)}</span>
-              <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 12, flexShrink: 0, marginLeft: 12, textDecoration: 'none' }}>▶ Открыть</a>
-            </div>
-          ))}
+        <div style={S.cardHead}>
+          <span style={S.h2}>Файлы в S3</span>
+          <button
+            style={{ ...S.clearBtn, fontSize: 12 }}
+            onClick={() => navigateS3('myepa/')}
+          >
+            ↺ Сброс
+          </button>
+        </div>
+        <div style={{ padding: '8px 18px 16px' }}>
+          {!s3Data.configured ? (
+            <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>{s3Data.message || 'S3 не настроен'}</div>
+          ) : (
+            <>
+              {/* Breadcrumbs */}
+              <S3Breadcrumbs prefix={s3Data.prefix} onNavigate={navigateS3} />
+
+              {/* Folders */}
+              {s3Data.folders.map(folder => {
+                const label = folder.replace(s3Data.prefix, '').replace(/\/$/, '') || folder;
+                return (
+                  <div
+                    key={folder}
+                    onClick={() => navigateS3(folder)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #1e2535', cursor: 'pointer' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(59,130,246,.04)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                  >
+                    <span style={{ fontSize: 14 }}>📁</span>
+                    <span style={{ color: '#60a5fa', fontSize: 13, fontFamily: 'monospace' }}>{label}/</span>
+                  </div>
+                );
+              })}
+
+              {/* Files */}
+              {s3Data.files.map(f => {
+                const name = f.key.split('/').pop() || f.key;
+                return (
+                  <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #1e2535' }}>
+                    <span style={{ fontSize: 14 }}>🎬</span>
+                    <span style={{ color: '#94a3b8', fontSize: 12, fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.key}>{name}</span>
+                    <span style={{ color: '#64748b', fontSize: 11, flexShrink: 0 }}>{fmtSize(f.size)}</span>
+                    {f.lastModified && (
+                      <span style={{ color: '#475569', fontSize: 11, flexShrink: 0 }}>{fmtDate(f.lastModified)}</span>
+                    )}
+                    <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 12, flexShrink: 0, textDecoration: 'none' }}>▶</a>
+                  </div>
+                );
+              })}
+
+              {s3Data.folders.length === 0 && s3Data.files.length === 0 && (
+                <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Папка пуста</div>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -550,6 +609,29 @@ export function AdminRecordingDashboard() {
 }
 
 /* ─── sub-components ────────────────────────────────────────── */
+function S3Breadcrumbs({ prefix, onNavigate }: { prefix: string; onNavigate: (p: string) => void }) {
+  const parts = prefix.replace(/\/$/, '').split('/').filter(Boolean);
+  const crumbs: { label: string; path: string }[] = [{ label: '/', path: '' }];
+  parts.forEach((part, i) => {
+    crumbs.push({ label: part, path: parts.slice(0, i + 1).join('/') + '/' });
+  });
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 0 12px', flexWrap: 'wrap' }}>
+      {crumbs.map((c, i) => (
+        <span key={c.path} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {i > 0 && <span style={{ color: '#2d3748' }}>›</span>}
+          <button
+            onClick={() => onNavigate(c.path || '')}
+            style={{ background: 'none', border: 'none', padding: '2px 4px', borderRadius: 4, cursor: 'pointer', fontSize: 12, color: i === crumbs.length - 1 ? '#e2e8f0' : '#3b82f6', fontFamily: 'monospace' }}
+          >
+            {c.label}
+          </button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function HealthRow({ label, service }: { label: string; service?: HealthService }) {
   const isOk  = service?.status === 'ok';
   const isNA  = service?.status === 'not_configured';

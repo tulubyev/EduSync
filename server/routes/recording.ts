@@ -753,20 +753,24 @@ router.get('/admin/s3-files', authenticateToken as any, async (req: AuthRequest,
   if (!requireAdminRole(req, res)) return;
   const s3 = getS3Client();
   if (!s3) {
-    return res.json({ success: true, files: [], configured: false, message: 'S3 не настроен (BEGET_S3_* переменные отсутствуют)' });
+    return res.json({ success: true, files: [], folders: [], configured: false, message: 'S3 не настроен (BEGET_S3_* переменные отсутствуют)' });
   }
+  const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : 'myepa/';
   try {
     const result = await s3.client.send(new ListObjectsV2Command({
       Bucket: s3.bucket,
-      MaxKeys: 100,
+      Prefix: prefix,
+      Delimiter: '/',
+      MaxKeys: 500,
     }));
+    const folders = (result.CommonPrefixes || []).map(cp => cp.Prefix!).filter(Boolean);
     const files = (result.Contents || []).map(obj => ({
-      key: obj.Key,
-      size: obj.Size,
-      lastModified: obj.LastModified,
-      url: s3.publicUrl ? `${s3.publicUrl}/${obj.Key}` : obj.Key,
+      key: obj.Key!,
+      size: obj.Size ?? 0,
+      lastModified: obj.LastModified?.toISOString() ?? null,
+      url: s3.publicUrl ? `${s3.publicUrl}/${obj.Key}` : obj.Key!,
     }));
-    res.json({ success: true, files, total: files.length, configured: true });
+    res.json({ success: true, prefix, folders, files, total: files.length, configured: true });
   } catch (error) {
     logger.error('Admin S3 files error:', error);
     res.status(500).json({ message: 'Ошибка получения файлов S3', error: (error as Error).message });

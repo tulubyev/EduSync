@@ -28,6 +28,8 @@ export interface RecordingTaskData {
   parts: RecordingPart[];
   playlistUrl?: string;
   begetUrl?: string;
+  s3Prefix?: string;
+  s3Filename?: string;
   libraryNoteId?: string;
   errorMessage?: string;
   startedAt?: Date;

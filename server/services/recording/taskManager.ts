@@ -4,6 +4,29 @@ import { eq, and, lte, gte, desc } from 'drizzle-orm';
 import { logger } from '../logger';
 import { RecordingTaskData, RecordingPart } from './types';
 import { recordingLogger } from './logger';
+import { randomUUID } from 'crypto';
+
+const TRANSLIT_MAP: Record<string, string> = {
+  'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z',
+  'и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r',
+  'с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh',
+  'щ':'shch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+  'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Е':'E','Ё':'Yo','Ж':'Zh','З':'Z',
+  'И':'I','Й':'Y','К':'K','Л':'L','М':'M','Н':'N','О':'O','П':'P','Р':'R',
+  'С':'S','Т':'T','У':'U','Ф':'F','Х':'Kh','Ц':'Ts','Ч':'Ch','Ш':'Sh',
+  'Щ':'Shch','Ъ':'','Ы':'Y','Ь':'','Э':'E','Ю':'Yu','Я':'Ya',
+};
+
+function slugify(text: string): string {
+  return text
+    .split('')
+    .map(c => TRANSLIT_MAP[c] ?? c)
+    .join('')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
 
 const MAX_PART_DURATION_MIN = 20;
 
@@ -19,15 +42,21 @@ class RecordingTaskManager {
     saveTarget: 'library' | 'yandex_disk' | 'beget';
   }): Promise<string> {
     const totalParts = Math.ceil(data.duration / MAX_PART_DURATION_MIN);
-    
+    const taskId = randomUUID();
+
+    const dateStr = data.scheduledTime.toISOString().slice(0, 10); // YYYY-MM-DD
+    const s3Prefix = `myepa/recordings/${data.userId}/${taskId}/`;
+    const s3Filename = `${slugify(data.title) || 'recording'}_${dateStr}`;
+
     const parts: RecordingPart[] = Array.from({ length: totalParts }, (_, i) => ({
       partNumber: i + 1,
-      fileName: '',
+      fileName: `${s3Filename}_part${String(i + 1).padStart(3, '0')}.mp4`,
       startTime: new Date(data.scheduledTime.getTime() + i * MAX_PART_DURATION_MIN * 60 * 1000).toISOString(),
       status: 'pending' as const,
     }));
 
     const [task] = await db.insert(recordingTasks).values({
+      id: taskId,
       userId: data.userId,
       title: data.title,
       description: data.description,
@@ -41,6 +70,8 @@ class RecordingTaskManager {
       currentPart: 0,
       totalParts,
       parts,
+      s3Prefix,
+      s3Filename,
     }).returning();
 
     await recordingLogger.logEvent({
@@ -181,6 +212,8 @@ class RecordingTaskManager {
       parts: (task.parts as RecordingPart[]) || [],
       playlistUrl: task.playlistUrl || undefined,
       begetUrl: task.begetUrl || undefined,
+      s3Prefix: task.s3Prefix || undefined,
+      s3Filename: task.s3Filename || undefined,
       libraryNoteId: task.libraryNoteId || undefined,
       errorMessage: task.errorMessage || undefined,
       startedAt: task.startedAt || undefined,
