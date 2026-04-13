@@ -42,6 +42,8 @@ interface AdminTask {
   attemptCount?: number | null;
   currentPart?: number | null;
   totalParts?: number | null;
+  s3Prefix?: string | null;
+  s3Filename?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -549,6 +551,26 @@ export function AdminRecordingDashboard() {
                 </ModalField>
               </ModalSection>
 
+              {(editTask.s3Filename || editTask.s3Prefix) && (
+                <ModalSection title="S3-путь (заранее запланирован)">
+                  {editTask.s3Filename && (
+                    <ModalField label="Имя файла (базовое)" full>
+                      <DarkInput value={editTask.s3Filename} readOnly mono />
+                    </ModalField>
+                  )}
+                  {editTask.s3Prefix && (
+                    <ModalField label="Папка в S3" full>
+                      <DarkInput value={editTask.s3Prefix} readOnly mono />
+                    </ModalField>
+                  )}
+                  {editTask.s3Filename && (
+                    <ModalField label="Файл (часть 1)" full>
+                      <DarkInput value={`${editTask.s3Prefix || ''}${editTask.s3Filename}_part001.mp4`} readOnly mono />
+                    </ModalField>
+                  )}
+                </ModalSection>
+              )}
+
               <ModalSection title="Системная информация (только чтение)">
                 <ModalField label="ID пользователя">
                   <DarkInput value={editTask.userId} readOnly mono />
@@ -690,8 +712,16 @@ function TaskRow({ task, onOpen, onReset, onCancel, onDelete }: {
           {task.id.slice(0, 14)}…
         </button>
       </td>
-      <td style={{ ...S.td, maxWidth: 180 }}>
+      <td style={{ ...S.td, maxWidth: 200 }}>
         <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={task.title}>{task.title}</span>
+        {task.s3Filename && (
+          <span
+            style={{ display: 'block', fontFamily: 'monospace', fontSize: 10, color: '#4a6fa5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            title={`${task.s3Prefix || ''}${task.s3Filename}_part001.mp4`}
+          >
+            📄 {task.s3Filename}
+          </span>
+        )}
       </td>
       <td style={S.td}>
         <span style={{ ...S.badge, ...badge }}>{STATUS_LABELS[task.status] || task.status}</span>
