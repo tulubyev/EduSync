@@ -172,8 +172,8 @@ export function AdminRecordingDashboard() {
   const [taskLimit, setTaskLimit]     = useState(100);
   const [stats, setStats]             = useState<Record<string, number>>({});
   const [health, setHealth]           = useState<HealthData | null>(null);
-  const [s3Data, setS3Data]           = useState<S3Data>({ prefix: 'epa/', folders: [], files: [], configured: true });
-  const [s3Prefix, setS3Prefix]       = useState('epa/');
+  const [s3Data, setS3Data]           = useState<S3Data>({ prefix: '', folders: [], files: [], configured: true });
+  const [s3Prefix, setS3Prefix]       = useState('');
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate]   = useState('');
@@ -429,9 +429,9 @@ export function AdminRecordingDashboard() {
           <span style={S.h2}>Файлы в S3</span>
           <button
             style={{ ...S.clearBtn, fontSize: 12 }}
-            onClick={() => navigateS3('epa/')}
+            onClick={() => navigateS3('')}
           >
-            ↺ Сброс
+            ↺ Корень
           </button>
         </div>
         <div style={{ padding: '8px 18px 16px' }}>
@@ -632,7 +632,6 @@ export function AdminRecordingDashboard() {
 
 /* ─── sub-components ────────────────────────────────────────── */
 function S3Breadcrumbs({ prefix, onNavigate }: { prefix: string; onNavigate: (p: string) => void }) {
-  const ROOT = 'epa/';
   const parts = prefix.replace(/\/$/, '').split('/').filter(Boolean);
   const crumbs: { label: string; path: string }[] = [];
   parts.forEach((part, i) => {
@@ -642,32 +641,43 @@ function S3Breadcrumbs({ prefix, onNavigate }: { prefix: string; onNavigate: (p:
   const parentPrefix = (): string => {
     const trimmed = prefix.replace(/\/$/, '');
     const up = trimmed.split('/').slice(0, -1).join('/');
-    const candidate = up ? up + '/' : ROOT;
-    return candidate.startsWith('epa/') ? candidate : ROOT;
+    return up ? up + '/' : '';
   };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0 12px', flexWrap: 'wrap' }}>
-      {prefix !== ROOT && (
-        <button
-          onClick={() => onNavigate(parentPrefix())}
-          title="На уровень выше"
-          style={{ background: '#1e2535', border: 'none', padding: '3px 8px', borderRadius: 5, cursor: 'pointer', fontSize: 12, color: '#94a3b8' }}
-        >
-          ⬆ Наверх
-        </button>
-      )}
+      {/* Root anchor */}
+      <button
+        onClick={() => onNavigate('')}
+        style={{ background: 'none', border: 'none', padding: '2px 4px', cursor: 'pointer', fontSize: 12, color: prefix === '' ? '#e2e8f0' : '#3b82f6' }}
+        title="Корень бакета"
+      >
+        🪣 Bucket
+      </button>
+
+      {/* Path segments */}
       {crumbs.map((c, i) => (
         <span key={c.path} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {i > 0 && <span style={{ color: '#2d3748' }}>›</span>}
+          <span style={{ color: '#2d3748' }}>›</span>
           <button
-            onClick={() => onNavigate(c.path.startsWith('epa/') ? c.path : ROOT)}
+            onClick={() => onNavigate(c.path)}
             style={{ background: 'none', border: 'none', padding: '2px 4px', borderRadius: 4, cursor: 'pointer', fontSize: 12, color: i === crumbs.length - 1 ? '#e2e8f0' : '#3b82f6', fontFamily: 'monospace' }}
           >
             {c.label}
           </button>
         </span>
       ))}
+
+      {/* Up button (hidden at root) */}
+      {prefix !== '' && (
+        <button
+          onClick={() => onNavigate(parentPrefix())}
+          title="На уровень выше"
+          style={{ background: '#1e2535', border: 'none', padding: '3px 8px', borderRadius: 5, cursor: 'pointer', fontSize: 12, color: '#94a3b8', marginLeft: 4 }}
+        >
+          ⬆ Наверх
+        </button>
+      )}
     </div>
   );
 }
