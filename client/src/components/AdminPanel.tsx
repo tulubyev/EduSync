@@ -10,7 +10,7 @@ import { PlatformsManagement } from './admin/PlatformsManagement';
 import { AnalyticsSection } from './admin/AnalyticsSection';
 import { SubscriptionPlansManagement } from './admin/SubscriptionPlansManagement';
 import { PaymentSystemsManagement } from './admin/PaymentSystemsManagement';
-import { RecordingsManagement } from './admin/RecordingsManagement';
+import { AdminRecordingDashboard } from './recording/AdminRecordingDashboard';
 
 // AdminPanel component for administrators
 function AdminPanel({ user, onBack }: any) {
@@ -193,10 +193,9 @@ function AdminPanel({ user, onBack }: any) {
         userRole={userRole}
       />
 
-      <RecordingsManagement 
-        isVisible={showRecordings}
-        userRole={userRole}
-      />
+      {showRecordings && (
+        <AdminRecordingDashboard />
+      )}
 
       {/* Управление API */}
       {showApiManagement && (

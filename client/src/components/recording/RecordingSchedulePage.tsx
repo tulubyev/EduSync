@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { 
   Video, 
@@ -13,12 +12,9 @@ import {
   HardDrive,
   RefreshCw,
   Loader,
-  ShieldCheck,
 } from 'lucide-react';
 import { RecordingTasksList } from './RecordingTasksList';
 import { RecordingModal, RecordingData } from './RecordingModal';
-import { AdminRecordingDashboard } from './AdminRecordingDashboard';
-import { useAuth } from '@/hooks/useAuth';
 
 interface DashboardStats {
   ready: number;
@@ -32,8 +28,6 @@ interface DashboardStats {
 
 
 export function RecordingSchedulePage() {
-  const { user } = useAuth();
-  const isAdmin = !!(user?.adminRole);
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [userStats, setUserStats] = useState<DashboardStats>({ ready: 0, in_progress: 0, uploading: 0, completed: 0, failed: 0, cancelled: 0, total: 0 });
@@ -122,110 +116,88 @@ export function RecordingSchedulePage() {
           <Loader className="h-8 w-8 animate-spin text-purple-600" />
         </div>
       ) : (
-        <Tabs defaultValue="tasks" className="space-y-4">
-          <TabsList className={`grid w-full lg:w-auto lg:inline-flex ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            <TabsTrigger value="tasks" className="min-h-11">
-              <Video className="h-4 w-4 mr-2" />
-              Записи
-            </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="admin" className="min-h-11">
-                <ShieldCheck className="h-4 w-4 mr-2" />
-                Администрирование
-              </TabsTrigger>
-            )}
-          </TabsList>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <StatCard 
+              title="Ожидают" 
+              value={userStats.ready} 
+              icon={Clock} 
+              color="blue" 
+              active={selectedFilter === 'ready'}
+              onClick={() => setSelectedFilter(selectedFilter === 'ready' ? null : 'ready')}
+            />
+            <StatCard 
+              title="Запись" 
+              value={userStats.in_progress} 
+              icon={Activity} 
+              color="yellow"
+              active={selectedFilter === 'in_progress'}
+              onClick={() => setSelectedFilter(selectedFilter === 'in_progress' ? null : 'in_progress')}
+            />
+            <StatCard 
+              title="Загрузка" 
+              value={userStats.uploading} 
+              icon={HardDrive} 
+              color="purple"
+              active={selectedFilter === 'uploading'}
+              onClick={() => setSelectedFilter(selectedFilter === 'uploading' ? null : 'uploading')}
+            />
+            <StatCard 
+              title="Завершено" 
+              value={userStats.completed} 
+              icon={CheckCircle} 
+              color="green"
+              active={selectedFilter === 'completed'}
+              onClick={() => setSelectedFilter(selectedFilter === 'completed' ? null : 'completed')}
+            />
+            <StatCard 
+              title="Ошибки" 
+              value={userStats.failed} 
+              icon={AlertTriangle} 
+              color="red"
+              active={selectedFilter === 'failed'}
+              onClick={() => setSelectedFilter(selectedFilter === 'failed' ? null : 'failed')}
+            />
+            <StatCard 
+              title="Всего" 
+              value={userStats.total} 
+              icon={Video} 
+              color="gray"
+              active={selectedFilter === null}
+              onClick={() => setSelectedFilter(null)}
+            />
+          </div>
 
-          <TabsContent value="tasks" className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <StatCard 
-                title="Ожидают" 
-                value={userStats.ready} 
-                icon={Clock} 
-                color="blue" 
-                active={selectedFilter === 'ready'}
-                onClick={() => setSelectedFilter(selectedFilter === 'ready' ? null : 'ready')}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center justify-between">
+                <span>Список записей</span>
+                {selectedFilter && (
+                  <Badge variant="outline" className="ml-2">
+                    Фильтр: {selectedFilter === 'ready' ? 'Ожидают' : 
+                             selectedFilter === 'in_progress' ? 'Запись' :
+                             selectedFilter === 'uploading' ? 'Загрузка' :
+                             selectedFilter === 'completed' ? 'Завершено' :
+                             selectedFilter === 'failed' ? 'Ошибки' : selectedFilter}
+                    <button 
+                      onClick={() => setSelectedFilter(null)}
+                      className="ml-1 hover:text-red-500"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RecordingTasksList 
+                statusFilter={selectedFilter}
+                refreshKey={tasksRefreshKey}
+                onTasksLoaded={computeUserStats}
               />
-              <StatCard 
-                title="Запись" 
-                value={userStats.in_progress} 
-                icon={Activity} 
-                color="yellow"
-                active={selectedFilter === 'in_progress'}
-                onClick={() => setSelectedFilter(selectedFilter === 'in_progress' ? null : 'in_progress')}
-              />
-              <StatCard 
-                title="Загрузка" 
-                value={userStats.uploading} 
-                icon={HardDrive} 
-                color="purple"
-                active={selectedFilter === 'uploading'}
-                onClick={() => setSelectedFilter(selectedFilter === 'uploading' ? null : 'uploading')}
-              />
-              <StatCard 
-                title="Завершено" 
-                value={userStats.completed} 
-                icon={CheckCircle} 
-                color="green"
-                active={selectedFilter === 'completed'}
-                onClick={() => setSelectedFilter(selectedFilter === 'completed' ? null : 'completed')}
-              />
-              <StatCard 
-                title="Ошибки" 
-                value={userStats.failed} 
-                icon={AlertTriangle} 
-                color="red"
-                active={selectedFilter === 'failed'}
-                onClick={() => setSelectedFilter(selectedFilter === 'failed' ? null : 'failed')}
-              />
-              <StatCard 
-                title="Всего" 
-                value={userStats.total} 
-                icon={Video} 
-                color="gray"
-                active={selectedFilter === null}
-                onClick={() => setSelectedFilter(null)}
-              />
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <span>Список записей</span>
-                  {selectedFilter && (
-                    <Badge variant="outline" className="ml-2">
-                      Фильтр: {selectedFilter === 'ready' ? 'Ожидают' : 
-                               selectedFilter === 'in_progress' ? 'Запись' :
-                               selectedFilter === 'uploading' ? 'Загрузка' :
-                               selectedFilter === 'completed' ? 'Завершено' :
-                               selectedFilter === 'failed' ? 'Ошибки' : selectedFilter}
-                      <button 
-                        onClick={() => setSelectedFilter(null)}
-                        className="ml-1 hover:text-red-500"
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RecordingTasksList 
-                  statusFilter={selectedFilter}
-                  refreshKey={tasksRefreshKey}
-                  onTasksLoaded={computeUserStats}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {isAdmin && (
-            <TabsContent value="admin" className="space-y-4">
-              <AdminRecordingDashboard />
-            </TabsContent>
-          )}
-
-        </Tabs>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <RecordingModal
