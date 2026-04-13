@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -209,11 +209,7 @@ export function AdminRecordingDashboard() {
 
   useEffect(() => {
     refreshAll();
-    const interval = setInterval(() => {
-      fetchStats();
-      fetchHealth();
-      fetchTasks();
-    }, 15000);
+    const interval = setInterval(refreshAll, 15000);
     return () => clearInterval(interval);
   }, [refreshAll]);
 
@@ -290,9 +286,9 @@ export function AdminRecordingDashboard() {
       fetchTasks();
       fetchStats();
       setTimeout(() => setSaveStatus('idle'), 2500);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setSaveStatus('error');
-      setSaveMessage(e.message);
+      setSaveMessage(e instanceof Error ? e.message : 'Ошибка сохранения');
     } finally {
       setIsSaving(false);
     }
@@ -688,7 +684,7 @@ export function AdminRecordingDashboard() {
   );
 }
 
-function HealthItem({ label, icon: Icon, service }: { label: string; icon: any; service?: HealthService }) {
+function HealthItem({ label, icon: Icon, service }: { label: string; icon: React.ElementType; service?: HealthService }) {
   const status = service?.status;
   const isOk = status === 'ok';
   const isNotConfigured = status === 'not_configured';
