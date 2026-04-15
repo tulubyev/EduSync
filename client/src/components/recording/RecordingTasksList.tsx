@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, TriangleAlert, XCircle, StopCircle } from 'lucide-react';
 import {
@@ -15,6 +13,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+
+const pad = (n: number) => String(n).padStart(2, '0');
+function utcToMoscow(utcStr: string): Date {
+  return new Date(new Date(utcStr).getTime() + 3 * 60 * 60 * 1000);
+}
+function fmtMoscowDate(utcStr: string): string {
+  const d = utcToMoscow(utcStr);
+  return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
+}
+function fmtMoscowTime(utcStr: string): string {
+  const d = utcToMoscow(utcStr);
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
+function moscowToInputValue(utcStr: string): string {
+  const d = utcToMoscow(utcStr);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
+function inputToUtcIso(localDatetime: string): string {
+  return new Date(localDatetime + ':00+03:00').toISOString();
+}
 
 interface ConfirmState {
   open: boolean;
@@ -235,15 +253,12 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     setEditingTask(task);
     setEditError(null);
     setEditSuccess(false);
-    const moscowOffset = 3 * 60 * 60 * 1000;
-    const moscowTime = new Date(new Date(task.scheduledTime).getTime() + moscowOffset);
-    const moscowISO = moscowTime.toISOString().substring(0, 16);
     setEditFormData({
       title: task.title,
       description: task.description || '',
       streamUrl: task.streamUrl,
       streamPassword: '',
-      scheduledTime: moscowISO,
+      scheduledTime: moscowToInputValue(task.scheduledTime),
       duration: task.duration,
     });
   };
@@ -283,7 +298,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
           description: editFormData.description.trim() || undefined,
           streamUrl: editFormData.streamUrl.trim(),
           streamPassword: editFormData.streamPassword || undefined,
-          scheduledTime: new Date(editFormData.scheduledTime + ':00+03:00').toISOString(),
+          scheduledTime: inputToUtcIso(editFormData.scheduledTime),
           duration: Number(editFormData.duration),
         }),
       });
@@ -399,10 +414,10 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             <div className="bg-gray-50 p-2 rounded">
               <span className="text-gray-500 text-xs block">Начало записи (МСК)</span>
               <p className="font-semibold text-xs leading-tight mt-0.5">
-                {format(new Date(new Date(task.scheduledTime).getTime() + 3 * 60 * 60 * 1000), 'dd.MM.yyyy', { locale: ru })}
+                {fmtMoscowDate(task.scheduledTime)}
               </p>
               <p className="text-xs text-gray-600">
-                {format(new Date(new Date(task.scheduledTime).getTime() + 3 * 60 * 60 * 1000), 'HH:mm', { locale: ru })}
+                {fmtMoscowTime(task.scheduledTime)}
               </p>
             </div>
             <div className="bg-gray-50 p-2 rounded">
