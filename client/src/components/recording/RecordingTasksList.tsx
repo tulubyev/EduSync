@@ -197,15 +197,15 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     setEditingTask(task);
     setEditError(null);
     setEditSuccess(false);
-    const localTime = new Date(task.scheduledTime);
-    const offset = localTime.getTimezoneOffset() * 60000;
-    const localISO = new Date(localTime.getTime() - offset).toISOString().substring(0, 16);
+    const moscowOffset = 3 * 60 * 60 * 1000;
+    const moscowTime = new Date(new Date(task.scheduledTime).getTime() + moscowOffset);
+    const moscowISO = moscowTime.toISOString().substring(0, 16);
     setEditFormData({
       title: task.title,
       description: task.description || '',
       streamUrl: task.streamUrl,
       streamPassword: '',
-      scheduledTime: localISO,
+      scheduledTime: moscowISO,
       duration: task.duration,
     });
   };
@@ -245,7 +245,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
           description: editFormData.description.trim() || undefined,
           streamUrl: editFormData.streamUrl.trim(),
           streamPassword: editFormData.streamPassword || undefined,
-          scheduledTime: new Date(editFormData.scheduledTime).toISOString(),
+          scheduledTime: new Date(editFormData.scheduledTime + ':00+03:00').toISOString(),
           duration: Number(editFormData.duration),
         }),
       });
@@ -359,12 +359,12 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm">
             <div className="bg-gray-50 p-2 rounded">
-              <span className="text-gray-500 text-xs block">Начало записи</span>
+              <span className="text-gray-500 text-xs block">Начало записи (МСК)</span>
               <p className="font-semibold text-xs leading-tight mt-0.5">
-                {format(new Date(task.scheduledTime), 'dd.MM.yyyy', { locale: ru })}
+                {format(new Date(new Date(task.scheduledTime).getTime() + 3 * 60 * 60 * 1000), 'dd.MM.yyyy', { locale: ru })}
               </p>
               <p className="text-xs text-gray-600">
-                {format(new Date(task.scheduledTime), 'HH:mm', { locale: ru })}
+                {format(new Date(new Date(task.scheduledTime).getTime() + 3 * 60 * 60 * 1000), 'HH:mm', { locale: ru })}
               </p>
             </div>
             <div className="bg-gray-50 p-2 rounded">
@@ -557,7 +557,10 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-time">Дата и время начала</Label>
+                <Label htmlFor="edit-time">
+                  Дата и время начала{' '}
+                  <span className="text-xs font-normal text-gray-500">(по Москве, UTC+3)</span>
+                </Label>
                 <Input
                   id="edit-time"
                   type="datetime-local"

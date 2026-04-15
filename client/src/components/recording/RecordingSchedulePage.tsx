@@ -65,7 +65,7 @@ export function RecordingSchedulePage() {
         },
         body: JSON.stringify({
           ...data,
-          scheduledTime: new Date(data.scheduledTime).toISOString(),
+          scheduledTime: new Date(data.scheduledTime + ':00+03:00').toISOString(),
         }),
       });
 

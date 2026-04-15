@@ -183,7 +183,10 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
 
           {/* Время трансляции */}
           <div className="space-y-2">
-            <Label htmlFor="scheduledTime">Время начала трансляции</Label>
+            <Label htmlFor="scheduledTime">
+              Время начала трансляции{' '}
+              <span className="text-xs font-normal text-gray-500">(по Москве, UTC+3)</span>
+            </Label>
             <Input
               id="scheduledTime"
               type="datetime-local"
