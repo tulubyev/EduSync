@@ -184,6 +184,17 @@ export function AdminRecordingDashboard() {
   const [saveStatus, setSaveStatus]   = useState<'idle' | 'ok' | 'error'>('idle');
   const [saveMessage, setSaveMessage] = useState('');
 
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean; title: string; message: string;
+    confirmLabel: string; onConfirm: () => void;
+  }>({ open: false, title: '', message: '', confirmLabel: 'Подтвердить', onConfirm: () => {} });
+
+  const showConfirm = (opts: { title: string; message: string; confirmLabel: string; onConfirm: () => void }) => {
+    setConfirmDialog({ open: true, ...opts });
+  };
+  const closeConfirm = () => setConfirmDialog(prev => ({ ...prev, open: false }));
+  const [clearResult, setClearResult] = useState<string | null>(null);
+
   const token   = () => localStorage.getItem('accessToken');
   const authHdr = () => ({ 'Authorization': `Bearer ${token()}` });
   const jsonHdr = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}` });
@@ -255,21 +266,42 @@ export function AdminRecordingDashboard() {
     await fetch(`/api/recording/admin/tasks/${id}/reset`, { method: 'PATCH', headers: jsonHdr() });
     fetchTasks(); fetchStats();
   };
-  const handleCancel = async (id: string) => {
-    if (!confirm('Отменить задачу?')) return;
-    await fetch(`/api/recording/admin/tasks/${id}/cancel`, { method: 'PATCH', headers: jsonHdr() });
-    fetchTasks(); fetchStats();
+  const handleCancel = (id: string) => {
+    showConfirm({
+      title: 'Отменить задачу?',
+      message: 'Задача будет переведена в статус "Отменена".',
+      confirmLabel: 'Отменить',
+      onConfirm: async () => {
+        closeConfirm();
+        await fetch(`/api/recording/admin/tasks/${id}/cancel`, { method: 'PATCH', headers: jsonHdr() });
+        fetchTasks(); fetchStats();
+      },
+    });
   };
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Удалить задачу "${title.slice(0, 40)}" из БД?`)) return;
-    await fetch(`/api/recording/admin/tasks/${id}`, { method: 'DELETE', headers: jsonHdr() });
-    fetchTasks(); fetchStats();
+  const handleDelete = (id: string, title: string) => {
+    showConfirm({
+      title: 'Удалить задачу?',
+      message: `Задача "${title.slice(0, 40)}" будет безвозвратно удалена из базы данных.`,
+      confirmLabel: 'Удалить',
+      onConfirm: async () => {
+        closeConfirm();
+        await fetch(`/api/recording/admin/tasks/${id}`, { method: 'DELETE', headers: jsonHdr() });
+        fetchTasks(); fetchStats();
+      },
+    });
   };
-  const handleClearFailed = async () => {
-    if (!confirm('Удалить все задачи со статусом "failed"?')) return;
-    const r = await fetch('/api/recording/admin/tasks/failed/clear', { method: 'DELETE', headers: jsonHdr() });
-    if (r.ok) { const d = await r.json(); alert(`Удалено: ${d.deleted} задач`); }
-    fetchTasks(); fetchStats();
+  const handleClearFailed = () => {
+    showConfirm({
+      title: 'Очистить ошибки?',
+      message: 'Все задачи со статусом "failed" будут удалены из базы данных.',
+      confirmLabel: 'Удалить все',
+      onConfirm: async () => {
+        closeConfirm();
+        const r = await fetch('/api/recording/admin/tasks/failed/clear', { method: 'DELETE', headers: jsonHdr() });
+        if (r.ok) { const d = await r.json(); setClearResult(`Удалено: ${d.deleted} задач`); }
+        fetchTasks(); fetchStats();
+      },
+    });
   };
 
   /* modal */
@@ -626,6 +658,38 @@ export function AdminRecordingDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ConfirmDialog */}
+      <Dialog open={confirmDialog.open} onOpenChange={closeConfirm}>
+        <DialogContent style={{ background: '#1a1f2e', border: '1px solid #2d3748', maxWidth: 420 }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: '#e2e8f0' }}>{confirmDialog.title}</DialogTitle>
+            <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 6 }}>{confirmDialog.message}</p>
+          </DialogHeader>
+          <DialogFooter style={{ gap: 10, paddingTop: 8 }}>
+            <button
+              style={{ background: '#1e2535', color: '#94a3b8', border: 'none', padding: '7px 18px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}
+              onClick={closeConfirm}
+            >
+              Отмена
+            </button>
+            <button
+              style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', padding: '7px 18px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              onClick={confirmDialog.onConfirm}
+            >
+              {confirmDialog.confirmLabel}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {clearResult && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, background: '#052e16', border: '1px solid #166534', borderRadius: 8, padding: '10px 18px', color: '#4ade80', fontSize: 13, zIndex: 9999, cursor: 'pointer' }}
+          onClick={() => setClearResult(null)}
+        >
+          ✓ {clearResult}
+        </div>
+      )}
     </div>
   );
 }

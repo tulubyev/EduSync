@@ -9,11 +9,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+
+interface ConfirmState {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  confirmVariant: 'default' | 'destructive';
+  onConfirm: () => void;
+}
 
 interface RecordingPart {
   partNumber: number;
@@ -54,6 +64,22 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
   const [tasks, setTasks] = useState<RecordingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingTask, setEditingTask] = useState<RecordingTask | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmState>({
+    open: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Подтвердить',
+    confirmVariant: 'destructive',
+    onConfirm: () => {},
+  });
+
+  const showConfirm = (opts: Omit<ConfirmState, 'open'>) => {
+    setConfirmDialog({ open: true, ...opts });
+  };
+
+  const closeConfirm = () => {
+    setConfirmDialog(prev => ({ ...prev, open: false }));
+  };
   const [editFormData, setEditFormData] = useState({
     title: '',
     description: '',
@@ -148,36 +174,48 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     );
   };
 
-  const handleDelete = async (taskId: string) => {
-    if (!confirm('Удалить эту запись?')) return;
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/recording/tasks/${taskId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
-        await fetchTasks();
-      }
-    } catch (error) {
-      console.error('Error deleting task:', error);
-    }
+  const handleDelete = (taskId: string) => {
+    showConfirm({
+      title: 'Удалить запись?',
+      message: 'Задача будет удалена безвозвратно.',
+      confirmLabel: 'Удалить',
+      confirmVariant: 'destructive',
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          const token = localStorage.getItem('accessToken');
+          const response = await fetch(`/api/recording/tasks/${taskId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (response.ok) await fetchTasks();
+        } catch (error) {
+          console.error('Error deleting task:', error);
+        }
+      },
+    });
   };
 
-  const handleCancel = async (taskId: string) => {
-    if (!confirm('Отменить эту запись? После отмены её можно будет удалить.')) return;
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/recording/tasks/${taskId}/cancel`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
-        await fetchTasks();
-      }
-    } catch (error) {
-      console.error('Error cancelling task:', error);
-    }
+  const handleCancel = (taskId: string) => {
+    showConfirm({
+      title: 'Отменить запись?',
+      message: 'Задача будет переведена в статус "Отменена". После этого её можно удалить.',
+      confirmLabel: 'Отменить запись',
+      confirmVariant: 'destructive',
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          const token = localStorage.getItem('accessToken');
+          const response = await fetch(`/api/recording/tasks/${taskId}/cancel`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (response.ok) await fetchTasks();
+        } catch (error) {
+          console.error('Error cancelling task:', error);
+        }
+      },
+    });
   };
 
   const handleRecheck = async (taskId: string) => {
@@ -604,6 +642,23 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog open={confirmDialog.open} onOpenChange={closeConfirm}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>{confirmDialog.title}</DialogTitle>
+            <DialogDescription>{confirmDialog.message}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeConfirm}>
+              Нет, отмена
+            </Button>
+            <Button variant={confirmDialog.confirmVariant} onClick={confirmDialog.onConfirm}>
+              {confirmDialog.confirmLabel}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
