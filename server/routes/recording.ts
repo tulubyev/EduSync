@@ -110,7 +110,7 @@ router.post('/tasks/:taskId/cancel', authenticateToken as any, async (req: AuthR
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
     }
 
-    if (!['ready', 'in_progress', 'uploading'].includes(task.status)) {
+    if (!['scheduled', 'ready', 'in_progress', 'uploading'].includes(task.status)) {
       return res.status(400).json({ message: 'Нельзя отменить завершённую или уже отменённую задачу' });
     }
 

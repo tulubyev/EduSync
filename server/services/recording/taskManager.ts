@@ -55,6 +55,11 @@ class RecordingTaskManager {
       status: 'pending' as const,
     }));
 
+    const READY_ADVANCE_MS = 5 * 60 * 1000; // 5 minutes before scheduled time
+    const initialStatus = data.scheduledTime.getTime() - Date.now() > READY_ADVANCE_MS
+      ? 'scheduled'
+      : 'ready';
+
     const [task] = await db.insert(recordingTasks).values({
       id: taskId,
       userId: data.userId,
@@ -65,7 +70,7 @@ class RecordingTaskManager {
       scheduledTime: data.scheduledTime,
       duration: data.duration,
       maxPartDuration: MAX_PART_DURATION_MIN,
-      status: 'ready',
+      status: initialStatus,
       saveTarget: data.saveTarget,
       currentPart: 0,
       totalParts,
@@ -157,6 +162,28 @@ class RecordingTaskManager {
         updatedAt: new Date(),
       })
       .where(eq(recordingTasks.id, taskId));
+  }
+
+  async promoteScheduledTasks(): Promise<number> {
+    const now = new Date();
+    const readyAt = new Date(now.getTime() + 5 * 60 * 1000); // promote 5 min before scheduled time
+
+    const result = await db
+      .update(recordingTasks)
+      .set({ status: 'ready', updatedAt: now })
+      .where(
+        and(
+          eq(recordingTasks.status, 'scheduled'),
+          lte(recordingTasks.scheduledTime, readyAt)
+        )
+      )
+      .returning({ id: recordingTasks.id, title: recordingTasks.title });
+
+    if (result.length > 0) {
+      result.forEach(t => logger.info(`Promoted scheduled task to ready: ${t.id} "${t.title}"`));
+    }
+
+    return result.length;
   }
 
   async cancelTask(taskId: string): Promise<void> {

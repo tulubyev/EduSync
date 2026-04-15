@@ -6,6 +6,7 @@ import { logger } from "./services/logger";
 import { yookassaService } from "./services/yookassaService";
 import { PaymentFactory } from "./services/payments/paymentFactory";
 import { courseDiscoveryService } from "./services/courseDiscoveryService";
+import { recordingTaskManager } from "./services/recording";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
@@ -153,6 +154,21 @@ app.use((req, res, next) => {
     };
 
     scheduleCourseDiscovery();
+
+    // Recording task scheduler — promotes 'scheduled' → 'ready' 5 min before start
+    const runRecordingScheduler = async () => {
+      try {
+        const promoted = await recordingTaskManager.promoteScheduledTasks();
+        if (promoted > 0) {
+          logger.info(`Recording scheduler: promoted ${promoted} task(s) to ready`);
+        }
+      } catch (err) {
+        logger.error('Error in recording task scheduler:', err);
+      }
+    };
+    setInterval(runRecordingScheduler, 60 * 1000);
+    runRecordingScheduler(); // run immediately on start
+    logger.info('Recording task scheduler started (runs every 60s)');
 
   }, 30000); // Wait 30 seconds before starting background services
 })();

@@ -16,6 +16,7 @@ import { RecordingTasksList } from './RecordingTasksList';
 import { RecordingModal, RecordingData } from './RecordingModal';
 
 interface DashboardStats {
+  scheduled: number;
   ready: number;
   in_progress: number;
   uploading: number;
@@ -29,7 +30,7 @@ interface DashboardStats {
 export function RecordingSchedulePage() {
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
-  const [userStats, setUserStats] = useState<DashboardStats>({ ready: 0, in_progress: 0, uploading: 0, completed: 0, failed: 0, cancelled: 0, total: 0 });
+  const [userStats, setUserStats] = useState<DashboardStats>({ scheduled: 0, ready: 0, in_progress: 0, uploading: 0, completed: 0, failed: 0, cancelled: 0, total: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
@@ -116,7 +117,15 @@ export function RecordingSchedulePage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+            <StatCard
+              title="Запланировано"
+              value={userStats.scheduled}
+              icon={Clock}
+              color="indigo"
+              active={selectedFilter === 'scheduled'}
+              onClick={() => setSelectedFilter(selectedFilter === 'scheduled' ? null : 'scheduled')}
+            />
             <StatCard 
               title="Ожидают" 
               value={userStats.ready} 
@@ -200,11 +209,12 @@ function StatCard({
   title: string; 
   value: number; 
   icon: React.ElementType; 
-  color: 'blue' | 'yellow' | 'purple' | 'green' | 'red' | 'gray';
+  color: 'indigo' | 'blue' | 'yellow' | 'purple' | 'green' | 'red' | 'gray';
   active?: boolean;
   onClick?: () => void;
 }) {
   const colorClasses = {
+    indigo: 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100',
     blue: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100',
     yellow: 'bg-yellow-50 text-yellow-600 border-yellow-200 hover:bg-yellow-100',
     purple: 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100',
@@ -214,6 +224,7 @@ function StatCard({
   };
 
   const activeClasses = {
+    indigo: 'ring-2 ring-indigo-500 bg-indigo-100',
     blue: 'ring-2 ring-blue-500 bg-blue-100',
     yellow: 'ring-2 ring-yellow-500 bg-yellow-100',
     purple: 'ring-2 ring-purple-500 bg-purple-100',

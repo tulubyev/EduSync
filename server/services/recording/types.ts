@@ -21,7 +21,7 @@ export interface RecordingTaskData {
   scheduledTime: Date;
   duration: number;
   maxPartDuration: number;
-  status: 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
+  status: 'scheduled' | 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
   saveTarget: 'library' | 'yandex_disk' | 'beget';
   currentPart: number;
   totalParts: number;

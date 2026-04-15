@@ -58,7 +58,7 @@ interface RecordingTask {
   streamUrl: string;
   scheduledTime: string;
   duration: number;
-  status: 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
+  status: 'scheduled' | 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
   parts: RecordingPart[];
   playlistUrl?: string;
   begetUrl?: string;
@@ -165,6 +165,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
+      scheduled: 'bg-indigo-100 text-indigo-800',
       ready: 'bg-blue-100 text-blue-800',
       in_progress: 'bg-yellow-100 text-yellow-800',
       uploading: 'bg-purple-100 text-purple-800',
@@ -174,6 +175,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     };
 
     const labels: Record<string, string> = {
+      scheduled: 'Запланировано',
       ready: 'Готова к записи',
       in_progress: 'Идёт запись',
       uploading: 'Загрузка видео',
@@ -183,11 +185,11 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     };
 
     return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${styles[status]}`}>
+      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${styles[status] ?? 'bg-gray-100 text-gray-800'}`}>
         {status === 'completed' && <CheckCircle className="h-4 w-4" />}
         {(status === 'in_progress' || status === 'uploading') && <Clock className="h-4 w-4 animate-spin" />}
         {status === 'failed' && <AlertCircle className="h-4 w-4" />}
-        {labels[status]}
+        {labels[status] ?? status}
       </span>
     );
   };
@@ -358,7 +360,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 </Button>
               )}
 
-              {(task.status === 'in_progress' || task.status === 'uploading') && (
+              {(task.status === 'scheduled' || task.status === 'in_progress' || task.status === 'uploading') && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -371,7 +373,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 </Button>
               )}
 
-              {(task.status === 'ready' || task.status === 'failed') && (
+              {(task.status === 'scheduled' || task.status === 'ready' || task.status === 'failed') && (
                 <>
                   {(task.urlCheckStatus === 'warning' || task.urlCheckStatus === 'failed') && (
                     <Button
@@ -454,6 +456,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             <div className="bg-gray-50 p-2 rounded">
               <span className="text-gray-500 text-xs block">Статус</span>
               <p className={`text-xs font-semibold mt-0.5 ${
+                task.status === 'scheduled'   ? 'text-indigo-600' :
                 task.status === 'ready'       ? 'text-blue-600' :
                 task.status === 'in_progress' ? 'text-amber-600' :
                 task.status === 'uploading'   ? 'text-purple-600' :
@@ -461,7 +464,8 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 task.status === 'failed'      ? 'text-red-600' :
                                                 'text-gray-500'
               }`}>
-                {task.status === 'ready'       ? 'Ожидает' :
+                {task.status === 'scheduled'   ? 'Запланировано' :
+                 task.status === 'ready'       ? 'Ожидает' :
                  task.status === 'in_progress' ? 'Идёт запись' :
                  task.status === 'uploading'   ? 'Загрузка' :
                  task.status === 'completed'   ? 'Завершена' :
