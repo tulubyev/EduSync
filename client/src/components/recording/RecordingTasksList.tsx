@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, TriangleAlert, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, TriangleAlert, XCircle, StopCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -164,6 +164,22 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     }
   };
 
+  const handleCancel = async (taskId: string) => {
+    if (!confirm('Отменить эту запись? После отмены её можно будет удалить.')) return;
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`/api/recording/tasks/${taskId}/cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        await fetchTasks();
+      }
+    } catch (error) {
+      console.error('Error cancelling task:', error);
+    }
+  };
+
   const handleRecheck = async (taskId: string) => {
     try {
       const token = localStorage.getItem('accessToken');
@@ -286,6 +302,19 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                   <a href={task.begetUrl || task.playlistUrl} target="_blank" rel="noopener noreferrer">
                     <Play className="h-4 w-4" />
                   </a>
+                </Button>
+              )}
+
+              {(task.status === 'in_progress' || task.status === 'uploading') && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-2 text-orange-500 hover:text-orange-700 hover:border-orange-300 text-xs gap-1"
+                  title="Отменить запись"
+                  onClick={() => handleCancel(task.id)}
+                >
+                  <StopCircle className="h-4 w-4" />
+                  Отменить
                 </Button>
               )}
 
