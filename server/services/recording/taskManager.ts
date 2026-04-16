@@ -212,6 +212,7 @@ class RecordingTaskManager {
         )
       );
 
+    let recovered = 0;
     for (const task of staleTasks) {
       try {
         await this.autoRecoverStaleTask(
@@ -221,12 +222,13 @@ class RecordingTaskManager {
           task.attemptCount ?? 0,
           task.lastHeartbeat ?? null,
         );
+        recovered++;
       } catch (err) {
         logger.error(`Error auto-recovering stale task ${task.id}:`, err);
       }
     }
 
-    return staleTasks.length;
+    return recovered;
   }
 
   private async autoRecoverStaleTask(
