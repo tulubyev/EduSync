@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { logger } from './logger';
 import { subscriptionPlans, subscriptions, payments, users } from '../../shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
@@ -48,9 +49,9 @@ class YookassaService {
     this.isConfigured = !!(this.shopId && this.secretKey);
 
     if (!this.isConfigured) {
-      console.warn('⚠️ YookassaService: Not configured. Set YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY');
+      logger.warn('YookassaService: Not configured. Set YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY');
     } else {
-      console.log('✅ YookassaService: Configured and ready');
+      logger.info('✅ YookassaService: Configured and ready');
     }
   }
 

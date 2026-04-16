@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { logger } from './logger';
 import * as https from 'https';
 import * as querystring from 'querystring';
 
@@ -82,7 +83,7 @@ class StepikService {
     this.encryptionKey = process.env.PLATFORM_TOKENS_ENCRYPTION_KEY || '';
 
     if (!this.clientId || !this.clientSecret || !this.encryptionKey) {
-      console.warn('⚠️ Stepik environment variables not fully configured');
+      logger.warn('Stepik environment variables not fully configured');
     }
   }
 

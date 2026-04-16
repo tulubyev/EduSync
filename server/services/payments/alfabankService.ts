@@ -1,4 +1,5 @@
 import { db } from '../../db';
+import { logger } from '../logger';
 import { subscriptionPlans, subscriptions, payments, users } from '../../../shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
@@ -28,9 +29,9 @@ class AlfabankService implements IPaymentGateway {
     this.isConfigured = !!(this.merchantLogin && this.merchantPassword);
 
     if (!this.isConfigured) {
-      console.warn('⚠️ AlfabankService: Not configured. Set ALFABANK_USERNAME and ALFABANK_PASSWORD');
+      logger.warn('AlfabankService: Not configured. Set ALFABANK_USERNAME and ALFABANK_PASSWORD');
     } else {
-      console.log('✅ AlfabankService: Configured and ready');
+      logger.info('✅ AlfabankService: Configured and ready');
     }
   }
 

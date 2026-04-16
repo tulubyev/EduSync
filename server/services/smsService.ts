@@ -1,4 +1,6 @@
 
+import { logger } from './logger';
+
 export interface SMSResult {
   success: boolean;
   message?: string;
@@ -20,7 +22,7 @@ export class SMSService {
     this.SMS_RU_API_KEY = process.env.SMS_RU_API_KEY || '';
     
     if (!this.SMS_RU_API_KEY) {
-      console.warn('⚠️ SMS_RU_API_KEY not configured. SMS sending will be in test mode.');
+      logger.warn('SMS_RU_API_KEY not configured. SMS sending will be in test mode.');
     }
   }
 

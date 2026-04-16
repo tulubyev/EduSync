@@ -48,7 +48,7 @@ app.use((req, res, next) => {
   try {
     validateConfig();
   } catch (error) {
-    logger.error('🚨 Ошибка валидации конфигурации:', error);
+    logger.error('Ошибка валидации конфигурации:', error);
     process.exit(1);
   }
 
