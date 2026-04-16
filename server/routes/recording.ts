@@ -409,7 +409,48 @@ const verifyInternalRequest = (req: Request, res: Response, next: any) => {
   next();
 };
 
+router.get('/logs/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+
+    const task = await recordingTaskManager.getTask(taskId);
+    if (!task) return res.status(404).json({ message: 'Задача не найдена' });
+    if (task.userId !== userId && !req.user?.adminRole) {
+      return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    }
+
+    const logs = await db
+      .select()
+      .from(recordingLogs)
+      .where(eq(recordingLogs.taskId, taskId))
+      .orderBy(recordingLogs.createdAt);
+
+    res.json({
+      taskId,
+      title: task.title,
+      status: task.status,
+      logsCount: logs.length,
+      logs: logs.map(log => ({
+        id: log.id,
+        timestamp: log.createdAt,
+        event: log.eventType,
+        part: log.partNumber,
+        message: log.message,
+        error: log.errorDetails,
+        fileSize: log.fileSize,
+        duration: log.duration,
+        metadata: log.metadata,
+      })),
+    });
+  } catch (error) {
+    logger.error('Error fetching recording logs:', error);
+    res.status(500).json({ message: 'Ошибка получения логов задачи' });
+  }
+});
+
 router.get('/monitor/dashboard', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
   try {
     const statusCounts = await db
       .select({
@@ -455,6 +496,7 @@ router.get('/monitor/dashboard', authenticateToken as any, async (req: AuthReque
 });
 
 router.get('/monitor/worker-status', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
   try {
     const workers = await db
       .select()
@@ -496,6 +538,7 @@ router.get('/monitor/worker-status', authenticateToken as any, async (req: AuthR
 });
 
 router.get('/monitor/sync-check', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
   try {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
@@ -560,17 +603,27 @@ router.get('/monitor/sync-check', authenticateToken as any, async (req: AuthRequ
 });
 
 router.get('/monitor/recent-logs', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const taskId = req.query.taskId as string | undefined;
 
     const logs = await db
-      .select()
+      .select({
+        log: recordingLogs,
+        taskTitle: recordingTasks.title,
+      })
       .from(recordingLogs)
+      .leftJoin(recordingTasks, eq(recordingLogs.taskId, recordingTasks.id))
+      .where(taskId ? eq(recordingLogs.taskId, taskId) : undefined)
       .orderBy(desc(recordingLogs.createdAt))
       .limit(limit);
 
     res.json({
-      logs,
+      logs: logs.map(({ log, taskTitle }) => ({
+        ...log,
+        taskTitle: taskTitle ?? null,
+      })),
       count: logs.length,
       timestamp: new Date().toISOString(),
     });

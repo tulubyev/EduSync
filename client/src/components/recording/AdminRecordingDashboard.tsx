@@ -47,6 +47,7 @@ interface WorkerStatusData {
 interface RecentLog {
   id: string;
   taskId: string;
+  taskTitle: string | null;
   userId: string;
   eventType: string;
   partNumber: number | null;
@@ -243,6 +244,7 @@ export function AdminRecordingDashboard() {
 
   const [workerStatus, setWorkerStatus]     = useState<WorkerStatusData | null>(null);
   const [recentLogs, setRecentLogs]         = useState<RecentLog[]>([]);
+  const [logFilterTaskId, setLogFilterTaskId] = useState<string>('');
   const [historyTaskId, setHistoryTaskId]   = useState<string | null>(null);
   const [historyTaskTitle, setHistoryTaskTitle] = useState('');
   const [historyLogs, setHistoryLogs]       = useState<TaskLog[]>([]);
@@ -317,10 +319,12 @@ export function AdminRecordingDashboard() {
     if (r.ok) setWorkerStatus(await r.json());
   }, []);
 
-  const fetchRecentLogs = useCallback(async () => {
-    const r = await fetch('/api/recording/monitor/recent-logs?limit=20', { headers: authHdr() });
+  const fetchRecentLogs = useCallback(async (taskIdFilter?: string) => {
+    const tid = taskIdFilter !== undefined ? taskIdFilter : logFilterTaskId;
+    const qs = tid ? `?limit=20&taskId=${encodeURIComponent(tid)}` : '?limit=20';
+    const r = await fetch(`/api/recording/monitor/recent-logs${qs}`, { headers: authHdr() });
     if (r.ok) { const d = await r.json(); setRecentLogs(d.logs || []); }
-  }, []);
+  }, [logFilterTaskId]);
 
   const openHistory = async (taskId: string, taskTitle: string) => {
     setHistoryTaskId(taskId);
@@ -551,30 +555,57 @@ export function AdminRecordingDashboard() {
             Последние события
             <span style={{ color: '#64748b', fontWeight: 400, marginLeft: 8 }}>({recentLogs.length})</span>
           </span>
-          <button style={{ ...S.clearBtn, fontSize: 11 }} onClick={fetchRecentLogs}>↺ Обновить</button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              value={logFilterTaskId}
+              onChange={e => { setLogFilterTaskId(e.target.value); }}
+              onBlur={() => fetchRecentLogs()}
+              onKeyDown={e => { if (e.key === 'Enter') fetchRecentLogs(); }}
+              placeholder="Фильтр по Task ID..."
+              style={{
+                background: '#0f1117', border: '1px solid #2d3748', borderRadius: 6,
+                color: '#e2e8f0', fontSize: 11, padding: '4px 10px', outline: 'none', width: 200,
+              }}
+            />
+            {logFilterTaskId && (
+              <button style={S.clearBtn} onClick={() => { setLogFilterTaskId(''); fetchRecentLogs(''); }}>✕</button>
+            )}
+            <button style={{ ...S.clearBtn, fontSize: 11 }} onClick={() => fetchRecentLogs()}>↺ Обновить</button>
+          </div>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr>
-                {['Время', 'Тип события', 'Сообщение', 'Детали'].map(h => (
+                {['Время', 'Задача', 'Тип события', 'Сообщение', 'Детали'].map(h => (
                   <th key={h} style={S.th as React.CSSProperties}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {recentLogs.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 12 }}>Нет событий</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 12 }}>Нет событий</td></tr>
               ) : recentLogs.map(log => (
                 <tr key={log.id}
                   onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'rgba(59,130,246,.04)'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'; }}
                 >
                   <td style={{ ...S.tdMuted, whiteSpace: 'nowrap' }}>{fmtDateFull(log.createdAt)}</td>
+                  <td style={{ ...S.td, maxWidth: 160 }}>
+                    <button
+                      onClick={() => openHistory(log.taskId, log.taskTitle || log.taskId.slice(0, 8))}
+                      title={log.taskId}
+                      style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', padding: 0, fontSize: 12, textAlign: 'left' }}
+                    >
+                      <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>
+                        {log.taskTitle || log.taskId.slice(0, 14) + '…'}
+                      </span>
+                    </button>
+                  </td>
                   <td style={S.td}>
                     <EventTypeBadge eventType={log.eventType} />
                   </td>
-                  <td style={{ ...S.td, maxWidth: 260 }}>
+                  <td style={{ ...S.td, maxWidth: 220 }}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }} title={log.message}>{log.message}</span>
                   </td>
                   <td style={{ ...S.tdMuted, fontSize: 11 }}>
