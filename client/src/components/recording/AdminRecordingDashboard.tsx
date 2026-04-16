@@ -206,11 +206,21 @@ const S = {
     color: active ? '#fff' : '#94a3b8',
     cursor: 'pointer', transition: 'all .15s',
   }),
-  actionBtn: (variant: 'reset' | 'cancel' | 'delete'): React.CSSProperties => ({
-    fontSize: 11, padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', transition: 'opacity .15s',
-    background: variant === 'reset' ? '#1d3461' : variant === 'cancel' ? '#3b0d0d' : '#1e2535',
-    color: variant === 'reset' ? '#60a5fa' : variant === 'cancel' ? '#f87171' : '#64748b',
-  }),
+  actionBtn: (variant: 'history' | 'retry' | 'cancel' | 'delete'): React.CSSProperties => {
+    const map: Record<string, { bg: string; color: string; border: string }> = {
+      history: { bg: '#1e3a5f', color: '#93c5fd', border: '1px solid #2563eb' },
+      retry:   { bg: '#064e3b', color: '#6ee7b7', border: '1px solid #059669' },
+      cancel:  { bg: '#431407', color: '#fdba74', border: '1px solid #ea580c' },
+      delete:  { bg: '#450a0a', color: '#fca5a5', border: '1px solid #dc2626' },
+    };
+    const v = map[variant] || map.history;
+    return {
+      fontSize: 13, padding: '4px 9px', borderRadius: 7, border: v.border,
+      cursor: 'pointer', transition: 'opacity .15s, filter .15s',
+      background: v.bg, color: v.color, fontWeight: 600,
+      display: 'inline-flex', alignItems: 'center', gap: 4, lineHeight: 1,
+    };
+  },
   refreshBtn: (spinning: boolean): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500,
     padding: '6px 14px', borderRadius: 8, border: '1px solid #3b82f6',
@@ -1215,15 +1225,23 @@ function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory }: {
         )}
       </td>
       <td style={{ ...S.td, whiteSpace: 'nowrap' }}>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button style={S.actionBtn('reset')} onClick={() => onHistory(task.id, task.title)} title="История событий">📋</button>
+        <div style={{ display: 'flex', gap: 5 }}>
+          <button style={S.actionBtn('history')} onClick={() => onHistory(task.id, task.title)} title="История событий">
+            📋 <span style={{ fontSize: 11 }}>Лог</span>
+          </button>
           {['failed', 'in_progress'].includes(task.status) && (
-            <button style={S.actionBtn('reset')} onClick={() => onReset(task.id)} title="Повторить">↺ Повтор</button>
+            <button style={S.actionBtn('retry')} onClick={() => onReset(task.id)} title="Повторить запись">
+              🔄 <span style={{ fontSize: 11 }}>Повтор</span>
+            </button>
           )}
           {['ready', 'in_progress', 'scheduled'].includes(task.status) && (
-            <button style={S.actionBtn('cancel')} onClick={() => onCancel(task.id)} title="Отменить">✕</button>
+            <button style={S.actionBtn('cancel')} onClick={() => onCancel(task.id)} title="Отменить задачу">
+              🛑 <span style={{ fontSize: 11 }}>Стоп</span>
+            </button>
           )}
-          <button style={S.actionBtn('delete')} onClick={() => onDelete(task.id, task.title)} title="Удалить из БД">🗑</button>
+          <button style={S.actionBtn('delete')} onClick={() => onDelete(task.id, task.title)} title="Удалить из БД">
+            🗑️ <span style={{ fontSize: 11 }}>Удалить</span>
+          </button>
         </div>
       </td>
     </tr>
