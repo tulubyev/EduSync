@@ -44,19 +44,6 @@ interface WorkerStatusData {
   timestamp: string;
 }
 
-interface RecentLog {
-  id: string;
-  taskId: string;
-  taskTitle: string | null;
-  userId: string;
-  eventType: string;
-  partNumber: number | null;
-  message: string;
-  errorDetails: string | null;
-  fileSize: number | null;
-  duration: number | null;
-  createdAt: string;
-}
 
 interface TaskLog {
   id: string;
@@ -254,8 +241,7 @@ export function AdminRecordingDashboard() {
   const [workerStatus, setWorkerStatus]     = useState<WorkerStatusData | null>(null);
   const [executorRunning, setExecutorRunning] = useState<boolean | null>(null);
   const [executorAction, setExecutorAction]   = useState<'start' | 'stop' | null>(null);
-  const [recentLogs, setRecentLogs]         = useState<RecentLog[]>([]);
-  const [logFilterTaskId, setLogFilterTaskId] = useState<string>('');
+  const [errorDetail, setErrorDetail] = useState<{ taskId: string; taskTitle: string; message: string } | null>(null);
   const [historyTaskId, setHistoryTaskId]   = useState<string | null>(null);
   const [historyTaskTitle, setHistoryTaskTitle] = useState('');
   const [historyLogs, setHistoryLogs]       = useState<TaskLog[]>([]);
@@ -333,12 +319,6 @@ export function AdminRecordingDashboard() {
     } finally { setExecutorAction(null); }
   };
 
-  const fetchRecentLogs = useCallback(async (taskIdFilter?: string) => {
-    const tid = taskIdFilter !== undefined ? taskIdFilter : logFilterTaskId;
-    const qs = tid ? `?limit=20&taskId=${encodeURIComponent(tid)}` : '?limit=20';
-    const r = await fetch(`/api/recording/monitor/recent-logs${qs}`, { headers: authHdr() });
-    if (r.ok) { const d = await r.json(); setRecentLogs(d.logs || []); }
-  }, [logFilterTaskId]);
 
   const openHistory = async (taskId: string, taskTitle: string) => {
     setHistoryTaskId(taskId);
@@ -366,22 +346,17 @@ export function AdminRecordingDashboard() {
 
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchWorkerStatus(), fetchRecentLogs(), fetchExecutorStatus()]);
+    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchWorkerStatus(), fetchExecutorStatus()]);
     setS3RefreshKey(k => k + 1);
     setLastUpdate(new Date().toLocaleTimeString('ru-RU'));
     setIsRefreshing(false);
-  }, [fetchStats, fetchHealth, fetchTasks, fetchWorkerStatus, fetchRecentLogs, fetchExecutorStatus]);
+  }, [fetchStats, fetchHealth, fetchTasks, fetchWorkerStatus, fetchExecutorStatus]);
 
   useEffect(() => {
     refreshAll();
     const iv = setInterval(refreshAll, 15000);
     return () => clearInterval(iv);
   }, [refreshAll]);
-
-  useEffect(() => {
-    const iv = setInterval(() => fetchRecentLogs(), 30000);
-    return () => clearInterval(iv);
-  }, [fetchRecentLogs]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
@@ -605,78 +580,6 @@ export function AdminRecordingDashboard() {
         )}
       </div>
 
-      {/* ── Recent Logs ─────────────────────────────────────────── */}
-      <div style={{ ...S.card, marginBottom: 16 }}>
-        <div style={S.cardHead}>
-          <span style={S.h2}>
-            Последние события
-            <span style={{ color: '#64748b', fontWeight: 400, marginLeft: 8 }}>({recentLogs.length})</span>
-          </span>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              value={logFilterTaskId}
-              onChange={e => { setLogFilterTaskId(e.target.value); }}
-              onBlur={() => fetchRecentLogs()}
-              onKeyDown={e => { if (e.key === 'Enter') fetchRecentLogs(); }}
-              placeholder="Фильтр по Task ID..."
-              style={{
-                background: '#0f1117', border: '1px solid #2d3748', borderRadius: 6,
-                color: '#e2e8f0', fontSize: 11, padding: '4px 10px', outline: 'none', width: 200,
-              }}
-            />
-            {logFilterTaskId && (
-              <button style={S.clearBtn} onClick={() => { setLogFilterTaskId(''); fetchRecentLogs(''); }}>✕</button>
-            )}
-            <button style={{ ...S.clearBtn, fontSize: 11 }} onClick={() => fetchRecentLogs()}>↺ Обновить</button>
-          </div>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr>
-                {['Время', 'Задача', 'Тип события', 'Сообщение', 'Детали'].map(h => (
-                  <th key={h} style={S.th as React.CSSProperties}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {recentLogs.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 12 }}>Нет событий</td></tr>
-              ) : recentLogs.map(log => (
-                <tr key={log.id}
-                  onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'rgba(59,130,246,.04)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'; }}
-                >
-                  <td style={{ ...S.tdMuted, whiteSpace: 'nowrap' }}>{fmtDateFull(log.createdAt)}</td>
-                  <td style={{ ...S.td, maxWidth: 160 }}>
-                    <button
-                      onClick={() => openHistory(log.taskId, log.taskTitle || log.taskId.slice(0, 8))}
-                      title={log.taskId}
-                      style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', padding: 0, fontSize: 12, textAlign: 'left' }}
-                    >
-                      <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>
-                        {log.taskTitle || log.taskId.slice(0, 14) + '…'}
-                      </span>
-                    </button>
-                  </td>
-                  <td style={S.td}>
-                    <EventTypeBadge eventType={log.eventType} />
-                  </td>
-                  <td style={{ ...S.td, maxWidth: 220 }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }} title={log.message}>{log.message}</span>
-                  </td>
-                  <td style={{ ...S.tdMuted, fontSize: 11 }}>
-                    {log.errorDetails ? (
-                      <span style={{ color: '#f87171' }} title={log.errorDetails}>{log.errorDetails.slice(0, 60)}…</span>
-                    ) : log.fileSize ? fmtSize(log.fileSize) : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* ── Tasks table ────────────────────────────────────────── */}
       <div style={{ ...S.card, marginBottom: 16 }}>
         <div style={S.cardHead}>
@@ -722,6 +625,7 @@ export function AdminRecordingDashboard() {
                   onCancel={handleCancel}
                   onDelete={handleDelete}
                   onHistory={(id, title) => openHistory(id, title)}
+                  onErrorClick={(taskId, taskTitle, msg) => setErrorDetail({ taskId, taskTitle, message: msg })}
                 />
               ))}
             </tbody>
@@ -979,6 +883,42 @@ export function AdminRecordingDashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Error Detail Modal ──────────────────────────────────── */}
+      <Dialog open={!!errorDetail} onOpenChange={open => { if (!open) setErrorDetail(null); }}>
+        <DialogContent style={{ background: '#1a1f2e', border: '1px solid #7f1d1d', maxWidth: 560 }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: '#fca5a5', fontSize: 15 }}>⚠ Ошибка задачи</DialogTitle>
+            <p style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontFamily: 'monospace' }}>
+              {errorDetail?.taskTitle}
+            </p>
+          </DialogHeader>
+          <div style={{
+            background: '#0f1117', borderRadius: 8, padding: 14, margin: '4px 0 12px',
+            fontFamily: 'monospace', fontSize: 12, color: '#f87171',
+            whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto',
+            border: '1px solid #450a0a',
+          }}>
+            {errorDetail?.message || '—'}
+          </div>
+          <DialogFooter style={{ gap: 10, paddingTop: 4 }}>
+            <button
+              style={{ background: '#1e3a5f', color: '#93c5fd', border: '1px solid #2563eb', padding: '7px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
+              onClick={() => {
+                if (errorDetail) { openHistory(errorDetail.taskId, errorDetail.taskTitle); setErrorDetail(null); }
+              }}
+            >
+              📋 Открыть полный лог
+            </button>
+            <button
+              style={{ background: '#1e2535', color: '#94a3b8', border: 'none', padding: '7px 18px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}
+              onClick={() => setErrorDetail(null)}
+            >
+              Закрыть
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {clearResult && (
         <div style={{ position: 'fixed', bottom: 24, right: 24, background: '#052e16', border: '1px solid #166534', borderRadius: 8, padding: '10px 18px', color: '#4ade80', fontSize: 13, zIndex: 9999, cursor: 'pointer' }}
           onClick={() => setClearResult(null)}
@@ -1168,13 +1108,14 @@ function HealthRow({ label, service }: { label: string; service?: HealthService 
   );
 }
 
-function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory }: {
+function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory, onErrorClick }: {
   task: AdminTask;
   onOpen: (id: string) => void;
   onReset: (id: string) => void;
   onCancel: (id: string) => void;
   onDelete: (id: string, title: string) => void;
   onHistory: (id: string, title: string) => void;
+  onErrorClick: (taskId: string, taskTitle: string, message: string) => void;
 }) {
   const badge = BADGE_STYLES[task.status] || { background: '#1e2535', color: '#94a3b8' };
   return (
@@ -1218,10 +1159,25 @@ function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory }: {
           : <span style={{ color: '#2d3748' }}>—</span>}
       </td>
       <td style={{ ...S.td, maxWidth: 160 }}>
-        {task.errorMessage && (
-          <span style={{ color: '#ef4444', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }} title={task.errorMessage}>
-            {task.errorMessage.slice(0, 60)}
-          </span>
+        {task.errorMessage ? (
+          <button
+            onClick={() => onErrorClick(task.id, task.title, task.errorMessage!)}
+            title="Нажмите для просмотра полной ошибки"
+            style={{
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', width: '100%',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            <span style={{ color: '#f87171', fontSize: 11, flexShrink: 0 }}>⚠</span>
+            <span style={{
+              color: '#f87171', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap', display: 'block', textDecoration: 'underline dotted',
+            }}>
+              {task.errorMessage.slice(0, 55)}{task.errorMessage.length > 55 ? '…' : ''}
+            </span>
+          </button>
+        ) : (
+          <span style={{ color: '#2d3748' }}>—</span>
         )}
       </td>
       <td style={{ ...S.td, whiteSpace: 'nowrap' }}>
