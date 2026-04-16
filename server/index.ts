@@ -170,5 +170,20 @@ app.use((req, res, next) => {
     runRecordingScheduler(); // run immediately on start
     logger.info('Recording task scheduler started (runs every 60s)');
 
+    // Recording watchdog — auto-recovers stale in_progress/uploading tasks (no heartbeat > 12 min)
+    const runRecordingWatchdog = async () => {
+      try {
+        const recovered = await recordingTaskManager.findAndAutoRecoverStaleTasks();
+        if (recovered > 0) {
+          logger.info(`Recording watchdog: auto-recovered ${recovered} stale task(s)`);
+        }
+      } catch (err) {
+        logger.error('Error in recording watchdog:', err);
+      }
+    };
+    setInterval(runRecordingWatchdog, 2 * 60 * 1000); // every 2 minutes
+    runRecordingWatchdog(); // run immediately on start
+    logger.info('Recording watchdog started (runs every 2 min, stale threshold: 12 min)');
+
   }, 30000); // Wait 30 seconds before starting background services
 })();

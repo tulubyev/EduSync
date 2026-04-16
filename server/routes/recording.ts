@@ -622,10 +622,45 @@ router.post('/monitor/worker-heartbeat', verifyInternalRequest, async (req: Requ
 
 router.post('/monitor/worker-task-complete', verifyInternalRequest, async (req: Request, res: Response) => {
   try {
-    const { workerId, success, error: errorMessage } = req.body;
+    const { workerId, taskId, success, error: errorMessage, actualDurationSeconds } = req.body;
 
     if (!workerId) {
       return res.status(400).json({ message: 'workerId обязателен' });
+    }
+
+    // Validate actual recording duration — mark as failed if too short (< 10% of expected)
+    if (success && taskId && actualDurationSeconds !== undefined) {
+      const task = await db
+        .select({ duration: recordingTasks.duration, title: recordingTasks.title, userId: recordingTasks.userId })
+        .from(recordingTasks)
+        .where(eq(recordingTasks.id, taskId))
+        .limit(1);
+
+      if (task.length > 0) {
+        const expectedSeconds = task[0].duration * 60;
+        const minAcceptableSeconds = expectedSeconds * 0.1;
+
+        if (actualDurationSeconds < minAcceptableSeconds) {
+          const shortMsg = `Запись слишком короткая: ${actualDurationSeconds} сек из ${task[0].duration} мин запланировано`;
+          await db.update(recordingTasks)
+            .set({
+              status: 'failed',
+              errorMessage: shortMsg,
+              updatedAt: new Date(),
+            })
+            .where(eq(recordingTasks.id, taskId));
+
+          await recordingLogger.logEvent({
+            taskId,
+            userId: task[0].userId,
+            eventType: 'upload_failed',
+            message: shortMsg,
+            duration: actualDurationSeconds,
+          });
+
+          logger.warn(`Short recording detected for task ${taskId}: ${actualDurationSeconds}s of ${expectedSeconds}s expected`);
+        }
+      }
     }
 
     const worker = await db

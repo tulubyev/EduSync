@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, TriangleAlert, XCircle, StopCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, RotateCcw, TriangleAlert, XCircle, StopCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -67,6 +67,7 @@ interface RecordingTask {
   lastHeartbeat?: string;
   startedAt?: string;
   completedAt?: string;
+  attemptCount?: number;
   urlCheckStatus?: 'pending' | 'ok' | 'warning' | 'failed';
   urlCheckMessage?: string;
   urlCheckedAt?: string;
@@ -251,6 +252,19 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     }
   };
 
+  const handleRecover = async (taskId: string) => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`/api/recording/tasks/${taskId}/recover`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) await fetchTasks();
+    } catch (error) {
+      console.error('Error recovering task:', error);
+    }
+  };
+
   const handleEditStart = (task: RecordingTask) => {
     setEditingTask(task);
     setEditError(null);
@@ -349,8 +363,14 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 <p className="text-sm text-gray-600 mt-0.5 line-clamp-1">{task.description}</p>
               )}
             </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
               {getStatusBadge(task.status)}
+
+              {task.attemptCount !== undefined && task.attemptCount > 0 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">
+                  Попытка {task.attemptCount} из 3
+                </span>
+              )}
 
               {task.status === 'completed' && (task.begetUrl || task.playlistUrl) && (
                 <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="Смотреть видео" asChild>
@@ -384,6 +404,18 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                       onClick={() => handleRecheck(task.id)}
                     >
                       <RefreshCw className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  {task.status === 'failed' && (task.attemptCount ?? 0) < 3 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2 text-green-600 hover:text-green-800 hover:border-green-300 text-xs gap-1"
+                      title="Повторить запись"
+                      onClick={() => handleRecover(task.id)}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      Повторить
                     </Button>
                   )}
                   <Button

@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { recordingTasks } from '@shared/schema';
-import { eq, and, lte, gte, desc } from 'drizzle-orm';
+import { eq, and, or, lte, gte, lt, desc, sql, isNull } from 'drizzle-orm';
 import { logger } from '../logger';
 import { RecordingTaskData, RecordingPart } from './types';
 import { recordingLogger } from './logger';
@@ -184,6 +184,101 @@ class RecordingTaskManager {
     }
 
     return result.length;
+  }
+
+  async findAndAutoRecoverStaleTasks(): Promise<number> {
+    const STALE_TIMEOUT_MS = 12 * 60 * 1000; // 12 minutes without heartbeat
+    const staleThreshold = new Date(Date.now() - STALE_TIMEOUT_MS);
+
+    const staleTasks = await db.select()
+      .from(recordingTasks)
+      .where(
+        and(
+          or(
+            eq(recordingTasks.status, 'in_progress'),
+            eq(recordingTasks.status, 'uploading'),
+          ),
+          or(
+            lt(recordingTasks.lastHeartbeat, staleThreshold),
+            isNull(recordingTasks.lastHeartbeat),
+          ),
+        )
+      );
+
+    for (const task of staleTasks) {
+      try {
+        await this.autoRecoverStaleTask(
+          task.id,
+          task.userId,
+          task.title,
+          task.attemptCount ?? 0,
+          task.lastHeartbeat ?? null,
+        );
+      } catch (err) {
+        logger.error(`Error auto-recovering stale task ${task.id}:`, err);
+      }
+    }
+
+    return staleTasks.length;
+  }
+
+  private async autoRecoverStaleTask(
+    taskId: string,
+    userId: string,
+    title: string,
+    attemptCount: number,
+    lastHeartbeat: Date | null,
+  ): Promise<void> {
+    const MAX_ATTEMPTS = 3;
+    const minutesSinceHeartbeat = lastHeartbeat
+      ? Math.floor((Date.now() - lastHeartbeat.getTime()) / 60000)
+      : null;
+
+    const timeoutMsg = minutesSinceHeartbeat !== null
+      ? `Таймаут: нет сигнала от воркера ${minutesSinceHeartbeat} мин`
+      : 'Таймаут: сигнал от воркера отсутствовал';
+
+    if (attemptCount < MAX_ATTEMPTS) {
+      const nextAttempt = attemptCount + 1;
+      await db.update(recordingTasks)
+        .set({
+          status: 'ready',
+          errorMessage: `${timeoutMsg}. Попытка ${nextAttempt} из ${MAX_ATTEMPTS}`,
+          workerId: null,
+          lastHeartbeat: null,
+          attemptCount: nextAttempt,
+          updatedAt: new Date(),
+        })
+        .where(eq(recordingTasks.id, taskId));
+
+      await recordingLogger.logEvent({
+        taskId,
+        userId,
+        eventType: 'auto_recovery',
+        message: `Автовосстановление: задача сброшена в ready (попытка ${nextAttempt} из ${MAX_ATTEMPTS}). ${timeoutMsg}`,
+      });
+
+      logger.info(`Auto-recovered stale task: ${taskId} "${title}" (attempt ${nextAttempt}/${MAX_ATTEMPTS})`);
+    } else {
+      await db.update(recordingTasks)
+        .set({
+          status: 'failed',
+          errorMessage: `${timeoutMsg}. Превышено максимальное число попыток (${MAX_ATTEMPTS})`,
+          workerId: null,
+          lastHeartbeat: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(recordingTasks.id, taskId));
+
+      await recordingLogger.logEvent({
+        taskId,
+        userId,
+        eventType: 'auto_recovery',
+        message: `Автовосстановление: задача переведена в failed (исчерпаны ${MAX_ATTEMPTS} попытки). ${timeoutMsg}`,
+      });
+
+      logger.warn(`Auto-failed stale task after ${MAX_ATTEMPTS} attempts: ${taskId} "${title}"`);
+    }
   }
 
   async cancelTask(taskId: string): Promise<void> {
