@@ -18,6 +18,63 @@ import {
 } from '@/components/ui/select';
 
 /* ─── types ─────────────────────────────────────────────────── */
+interface WorkerEntry {
+  workerId: string;
+  isActive: boolean | null;
+  dbConnected: boolean | null;
+  s3Connected: boolean | null;
+  activeTaskId: string | null;
+  currentTaskTitle: string | null;
+  tasksProcessed: number | null;
+  tasksSuccessful: number | null;
+  tasksFailed: number | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+  lastSeenAt: string | null;
+  startedAt: string | null;
+  buildVersion: string | null;
+  isOnline: boolean;
+  secondsAgo: number | null;
+  healthStatus: string;
+}
+
+interface WorkerStatusData {
+  workers: WorkerEntry[];
+  summary: { activeWorkers: number; totalWorkers: number; allHealthy: boolean };
+  timestamp: string;
+}
+
+interface RecentLog {
+  id: string;
+  taskId: string;
+  userId: string;
+  eventType: string;
+  partNumber: number | null;
+  message: string;
+  errorDetails: string | null;
+  fileSize: number | null;
+  duration: number | null;
+  createdAt: string;
+}
+
+interface TaskLog {
+  id: string;
+  timestamp: string;
+  event: string;
+  part: number | null;
+  message: string;
+  error: string | null;
+  fileSize: number | null;
+  duration: number | null;
+}
+
+interface SyncCheckResult {
+  healthy: boolean;
+  issueCount: number;
+  issues: Array<{ type: string; message: string; taskId?: string; workerId?: string }>;
+  timestamp: string;
+}
+
 interface AdminTask {
   id: string;
   userId: string;
@@ -184,6 +241,15 @@ export function AdminRecordingDashboard() {
   const [saveStatus, setSaveStatus]   = useState<'idle' | 'ok' | 'error'>('idle');
   const [saveMessage, setSaveMessage] = useState('');
 
+  const [workerStatus, setWorkerStatus]     = useState<WorkerStatusData | null>(null);
+  const [recentLogs, setRecentLogs]         = useState<RecentLog[]>([]);
+  const [historyTaskId, setHistoryTaskId]   = useState<string | null>(null);
+  const [historyTaskTitle, setHistoryTaskTitle] = useState('');
+  const [historyLogs, setHistoryLogs]       = useState<TaskLog[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [syncCheckResult, setSyncCheckResult]   = useState<SyncCheckResult | null>(null);
+  const [syncCheckLoading, setSyncCheckLoading] = useState(false);
+
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean; title: string; message: string;
     confirmLabel: string; onConfirm: () => void;
@@ -246,12 +312,46 @@ export function AdminRecordingDashboard() {
     fetchS3Files(newPrefix);
   }, [fetchS3Files]);
 
+  const fetchWorkerStatus = useCallback(async () => {
+    const r = await fetch('/api/recording/monitor/worker-status', { headers: authHdr() });
+    if (r.ok) setWorkerStatus(await r.json());
+  }, []);
+
+  const fetchRecentLogs = useCallback(async () => {
+    const r = await fetch('/api/recording/monitor/recent-logs?limit=20', { headers: authHdr() });
+    if (r.ok) { const d = await r.json(); setRecentLogs(d.logs || []); }
+  }, []);
+
+  const openHistory = async (taskId: string, taskTitle: string) => {
+    setHistoryTaskId(taskId);
+    setHistoryTaskTitle(taskTitle);
+    setHistoryLogs([]);
+    setHistoryLoading(true);
+    try {
+      const r = await fetch(`/api/recording/admin/tasks/${taskId}/logs`, { headers: authHdr() });
+      if (r.ok) { const d = await r.json(); setHistoryLogs(d.logs || []); }
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleSyncCheck = async () => {
+    setSyncCheckLoading(true);
+    setSyncCheckResult(null);
+    try {
+      const r = await fetch('/api/recording/monitor/sync-check', { headers: authHdr() });
+      if (r.ok) setSyncCheckResult(await r.json());
+    } finally {
+      setSyncCheckLoading(false);
+    }
+  };
+
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchS3Files()]);
+    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchS3Files(), fetchWorkerStatus(), fetchRecentLogs()]);
     setLastUpdate(new Date().toLocaleTimeString('ru-RU'));
     setIsRefreshing(false);
-  }, [fetchStats, fetchHealth, fetchTasks, fetchS3Files]);
+  }, [fetchStats, fetchHealth, fetchTasks, fetchS3Files, fetchWorkerStatus, fetchRecentLogs]);
 
   useEffect(() => {
     refreshAll();
@@ -398,6 +498,97 @@ export function AdminRecordingDashboard() {
         </div>
       </div>
 
+      {/* ── Worker Health ───────────────────────────────────────── */}
+      <div style={{ ...S.card, marginBottom: 16 }}>
+        <div style={S.cardHead}>
+          <span style={S.h2}>Здоровье воркера</span>
+          <button
+            onClick={handleSyncCheck}
+            disabled={syncCheckLoading}
+            style={{
+              fontSize: 12, padding: '4px 14px', borderRadius: 6, border: '1px solid #2d3748',
+              background: '#1a1f2e', color: '#94a3b8', cursor: syncCheckLoading ? 'default' : 'pointer',
+              opacity: syncCheckLoading ? .6 : 1,
+            }}
+          >
+            {syncCheckLoading ? '⏳ Проверка...' : '🔍 Проверить статус'}
+          </button>
+        </div>
+        <div style={{ padding: '12px 18px' }}>
+          {workerStatus && workerStatus.workers.length > 0 ? (
+            workerStatus.workers.map(w => <WorkerRow key={w.workerId} worker={w} fmtDateFull={fmtDateFull} />)
+          ) : (
+            <div style={{ color: '#64748b', fontSize: 13, padding: '10px 0' }}>
+              {workerStatus ? 'Нет зарегистрированных воркеров' : 'Загрузка...'}
+            </div>
+          )}
+          {syncCheckResult && (
+            <div style={{
+              marginTop: 12, padding: '10px 14px', borderRadius: 8,
+              background: syncCheckResult.healthy ? '#052e16' : '#1f0a0a',
+              border: `1px solid ${syncCheckResult.healthy ? '#166534' : '#7f1d1d'}`,
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: syncCheckResult.healthy ? '#4ade80' : '#f87171', marginBottom: 4 }}>
+                {syncCheckResult.healthy ? '✓ Всё в порядке' : `⚠ Найдено проблем: ${syncCheckResult.issueCount}`}
+              </div>
+              {syncCheckResult.issues.map((issue, i) => (
+                <div key={i} style={{ fontSize: 11, color: '#f87171', marginTop: 3 }}>
+                  [{issue.type}] {issue.message}
+                </div>
+              ))}
+              <div style={{ fontSize: 10, color: '#475569', marginTop: 6 }}>
+                Проверено: {fmtDateFull(syncCheckResult.timestamp)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Recent Logs ─────────────────────────────────────────── */}
+      <div style={{ ...S.card, marginBottom: 16 }}>
+        <div style={S.cardHead}>
+          <span style={S.h2}>
+            Последние события
+            <span style={{ color: '#64748b', fontWeight: 400, marginLeft: 8 }}>({recentLogs.length})</span>
+          </span>
+          <button style={{ ...S.clearBtn, fontSize: 11 }} onClick={fetchRecentLogs}>↺ Обновить</button>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr>
+                {['Время', 'Тип события', 'Сообщение', 'Детали'].map(h => (
+                  <th key={h} style={S.th as React.CSSProperties}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {recentLogs.length === 0 ? (
+                <tr><td colSpan={4} style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 12 }}>Нет событий</td></tr>
+              ) : recentLogs.map(log => (
+                <tr key={log.id}
+                  onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'rgba(59,130,246,.04)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'; }}
+                >
+                  <td style={{ ...S.tdMuted, whiteSpace: 'nowrap' }}>{fmtDateFull(log.createdAt)}</td>
+                  <td style={S.td}>
+                    <EventTypeBadge eventType={log.eventType} />
+                  </td>
+                  <td style={{ ...S.td, maxWidth: 260 }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }} title={log.message}>{log.message}</span>
+                  </td>
+                  <td style={{ ...S.tdMuted, fontSize: 11 }}>
+                    {log.errorDetails ? (
+                      <span style={{ color: '#f87171' }} title={log.errorDetails}>{log.errorDetails.slice(0, 60)}…</span>
+                    ) : log.fileSize ? fmtSize(log.fileSize) : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* ── Tasks table ────────────────────────────────────────── */}
       <div style={{ ...S.card, marginBottom: 16 }}>
         <div style={S.cardHead}>
@@ -442,6 +633,7 @@ export function AdminRecordingDashboard() {
                   onReset={handleReset}
                   onCancel={handleCancel}
                   onDelete={handleDelete}
+                  onHistory={(id, title) => openHistory(id, title)}
                 />
               ))}
             </tbody>
@@ -659,6 +851,70 @@ export function AdminRecordingDashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* ── History Modal ───────────────────────────────────────── */}
+      <Dialog open={!!historyTaskId} onOpenChange={open => { if (!open) { setHistoryTaskId(null); setHistoryLogs([]); } }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" style={{ background: '#1a1f2e', border: '1px solid #2d3748', color: '#e2e8f0' }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: '#fff', fontSize: 15 }}>История: {historyTaskTitle}</DialogTitle>
+            <p style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b', marginTop: 2 }}>{historyTaskId}</p>
+          </DialogHeader>
+          <div style={{ paddingTop: 8 }}>
+            {historyLoading ? (
+              <div style={{ textAlign: 'center', padding: 32, color: '#64748b', fontSize: 13 }}>Загрузка...</div>
+            ) : historyLogs.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 32, color: '#64748b', fontSize: 13 }}>Нет событий для этой задачи</div>
+            ) : (
+              <div style={{ position: 'relative' }}>
+                {/* Timeline vertical line */}
+                <div style={{ position: 'absolute', left: 15, top: 8, bottom: 8, width: 2, background: '#1e2535' }} />
+                {historyLogs.map((log, i) => (
+                  <div key={log.id} style={{ display: 'flex', gap: 16, marginBottom: 16, position: 'relative' }}>
+                    {/* Dot */}
+                    <div style={{ width: 32, flexShrink: 0, display: 'flex', justifyContent: 'center', paddingTop: 2 }}>
+                      <div style={{
+                        width: 10, height: 10, borderRadius: '50%', marginTop: 3,
+                        background: log.error ? '#ef4444' : i === historyLogs.length - 1 ? '#3b82f6' : '#475569',
+                        boxShadow: log.error ? '0 0 6px #ef444480' : 'none',
+                        flexShrink: 0,
+                      }} />
+                    </div>
+                    {/* Content */}
+                    <div style={{ flex: 1, background: '#0f1117', borderRadius: 8, padding: '10px 14px', border: '1px solid #1e2535' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                        <EventTypeBadge eventType={log.event} />
+                        {log.part != null && (
+                          <span style={{ fontSize: 10, color: '#64748b', background: '#1e2535', padding: '2px 7px', borderRadius: 4 }}>часть {log.part}</span>
+                        )}
+                        <span style={{ fontSize: 11, color: '#475569', marginLeft: 'auto' }}>{fmtDateFull(log.timestamp)}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#e2e8f0' }}>{log.message}</div>
+                      {log.error && (
+                        <div style={{ marginTop: 6, fontSize: 11, color: '#f87171', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                          {log.error}
+                        </div>
+                      )}
+                      {(log.fileSize || log.duration) && (
+                        <div style={{ marginTop: 4, fontSize: 11, color: '#64748b' }}>
+                          {log.fileSize ? `Размер: ${fmtSize(log.fileSize)}` : ''}{log.fileSize && log.duration ? '  •  ' : ''}{log.duration ? `Длит.: ${log.duration}s` : ''}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter style={{ borderTop: '1px solid #2d3748', paddingTop: 14 }}>
+            <button
+              style={{ background: '#1e2535', color: '#94a3b8', border: 'none', padding: '8px 20px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}
+              onClick={() => { setHistoryTaskId(null); setHistoryLogs([]); }}
+            >
+              Закрыть
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ConfirmDialog */}
       <Dialog open={confirmDialog.open} onOpenChange={closeConfirm}>
         <DialogContent style={{ background: '#1a1f2e', border: '1px solid #2d3748', maxWidth: 420 }}>
@@ -764,12 +1020,13 @@ function HealthRow({ label, service }: { label: string; service?: HealthService 
   );
 }
 
-function TaskRow({ task, onOpen, onReset, onCancel, onDelete }: {
+function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory }: {
   task: AdminTask;
   onOpen: (id: string) => void;
   onReset: (id: string) => void;
   onCancel: (id: string) => void;
   onDelete: (id: string, title: string) => void;
+  onHistory: (id: string, title: string) => void;
 }) {
   const badge = BADGE_STYLES[task.status] || { background: '#1e2535', color: '#94a3b8' };
   return (
@@ -821,6 +1078,7 @@ function TaskRow({ task, onOpen, onReset, onCancel, onDelete }: {
       </td>
       <td style={{ ...S.td, whiteSpace: 'nowrap' }}>
         <div style={{ display: 'flex', gap: 4 }}>
+          <button style={S.actionBtn('reset')} onClick={() => onHistory(task.id, task.title)} title="История событий">📋</button>
           {['failed', 'in_progress'].includes(task.status) && (
             <button style={S.actionBtn('reset')} onClick={() => onReset(task.id)} title="Повторить">↺ Повтор</button>
           )}
@@ -884,5 +1142,98 @@ function DarkTextarea({ value, onChange }: { value: string; onChange?: (v: strin
         width: '100%', resize: 'vertical', fontFamily: 'inherit',
       }}
     />
+  );
+}
+
+function WorkerRow({ worker, fmtDateFull }: { worker: WorkerEntry; fmtDateFull: (d: string | null | undefined) => string }) {
+  const online = worker.isOnline;
+  const dot = online ? '#22c55e' : '#ef4444';
+  const glow = online ? '0 0 8px #22c55e66' : '0 0 8px #ef444466';
+  const minutesAgo = worker.secondsAgo != null ? Math.floor(worker.secondsAgo / 60) : null;
+  const uptimeMs = worker.startedAt ? Date.now() - new Date(worker.startedAt).getTime() : null;
+  const uptimeH = uptimeMs ? Math.floor(uptimeMs / 3600000) : null;
+  const uptimeM = uptimeMs ? Math.floor((uptimeMs % 3600000) / 60000) : null;
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '10px 0', borderBottom: '1px solid #1e2535' }}>
+      {/* Identity & status */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: dot, boxShadow: glow }} />
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', fontFamily: 'monospace' }}>{worker.workerId.slice(-20)}</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>
+            {online ? '🟢 Online' : '🔴 Offline'}
+            {minutesAgo != null ? ` · ${minutesAgo}м назад` : ''}
+            {worker.buildVersion ? ` · v${worker.buildVersion}` : ''}
+          </div>
+          {worker.currentTaskTitle && (
+            <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 2 }}>▶ {worker.currentTaskTitle}</div>
+          )}
+        </div>
+      </div>
+
+      {/* Task counters */}
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0' }}>{worker.tasksProcessed ?? 0}</div>
+          <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Обраб.</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#22c55e' }}>{worker.tasksSuccessful ?? 0}</div>
+          <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Успешно</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444' }}>{worker.tasksFailed ?? 0}</div>
+          <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Ошибок</div>
+        </div>
+      </div>
+
+      {/* Last error & uptime */}
+      <div>
+        {uptimeH != null && (
+          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
+            Аптайм: {uptimeH}ч {uptimeM}м
+          </div>
+        )}
+        {worker.lastError ? (
+          <div style={{ fontSize: 11, color: '#f87171', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={worker.lastError}>
+            ⚠ {worker.lastError.slice(0, 80)}
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: '#22c55e' }}>✓ Нет ошибок</div>
+        )}
+        {worker.lastErrorAt && (
+          <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{fmtDateFull(worker.lastErrorAt)}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const EVENT_TYPE_COLORS: Record<string, { bg: string; color: string; label: string }> = {
+  task_created:         { bg: '#1d3461', color: '#60a5fa', label: 'Создана' },
+  task_started:         { bg: '#1d3461', color: '#60a5fa', label: 'Запущена' },
+  recording_started:    { bg: '#3d2a00', color: '#fbbf24', label: 'Запись' },
+  recording_completed:  { bg: '#052e16', color: '#4ade80', label: 'Завершена' },
+  upload_started:       { bg: '#2e1a5b', color: '#a78bfa', label: 'Загрузка' },
+  upload_completed:     { bg: '#052e16', color: '#4ade80', label: 'Загружено' },
+  upload_failed:        { bg: '#3b0d0d', color: '#f87171', label: 'Ошибка загр.' },
+  browser_error:        { bg: '#3b0d0d', color: '#f87171', label: 'Браузер' },
+  task_failed:          { bg: '#3b0d0d', color: '#f87171', label: 'Ошибка' },
+  task_cancelled:       { bg: '#1e2535', color: '#94a3b8', label: 'Отменена' },
+  auto_recovery:        { bg: '#1c2a1c', color: '#86efac', label: 'Авто-возврат' },
+};
+
+function EventTypeBadge({ eventType }: { eventType: string }) {
+  const style = EVENT_TYPE_COLORS[eventType] || { bg: '#1e2535', color: '#94a3b8', label: eventType };
+  return (
+    <span style={{
+      display: 'inline-block', fontSize: 10, fontWeight: 600,
+      padding: '2px 8px', borderRadius: 20,
+      background: style.bg, color: style.color,
+      whiteSpace: 'nowrap',
+    }}>
+      {style.label}
+    </span>
   );
 }

@@ -328,7 +328,7 @@ router.get('/tasks/:taskId/logs', authenticateToken as any, async (req: AuthRequ
       return res.status(404).json({ message: 'Задача не найдена' });
     }
 
-    if (task.userId !== userId) {
+    if (task.userId !== userId && !req.user?.adminRole) {
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
     }
 
@@ -933,6 +933,34 @@ router.delete('/admin/tasks/:taskId', authenticateToken as any, async (req: Auth
   } catch (error) {
     logger.error('Admin delete task error:', error);
     res.status(500).json({ message: 'Ошибка удаления задачи' });
+  }
+});
+
+router.get('/admin/tasks/:taskId/logs', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    const logs = await db
+      .select()
+      .from(recordingLogs)
+      .where(eq(recordingLogs.taskId, req.params.taskId))
+      .orderBy(recordingLogs.createdAt);
+    res.json({
+      success: true,
+      logs: logs.map(log => ({
+        id: log.id,
+        timestamp: log.createdAt,
+        event: log.eventType,
+        part: log.partNumber,
+        message: log.message,
+        error: log.errorDetails,
+        fileSize: log.fileSize,
+        duration: log.duration,
+        metadata: log.metadata,
+      })),
+    });
+  } catch (error) {
+    logger.error('Admin task logs error:', error);
+    res.status(500).json({ message: 'Ошибка получения логов задачи' });
   }
 });
 

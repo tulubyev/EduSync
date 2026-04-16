@@ -62,6 +62,7 @@ interface RecordingTask {
   parts: RecordingPart[];
   playlistUrl?: string;
   begetUrl?: string;
+  fileSize?: number | null;
   errorMessage?: string;
   workerId?: string;
   lastHeartbeat?: string;
@@ -369,6 +370,12 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               {task.attemptCount !== undefined && task.attemptCount > 0 && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">
                   Попытка {task.attemptCount} из 3
+                </span>
+              )}
+
+              {task.status === 'completed' && task.duration > 10 && task.fileSize != null && task.fileSize < 5 * 1024 * 1024 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700" title="Файл значительно короче ожидаемого">
+                  ⚠ Короткая
                 </span>
               )}
 
