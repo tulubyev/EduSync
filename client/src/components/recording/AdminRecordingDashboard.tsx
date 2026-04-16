@@ -688,7 +688,7 @@ export function AdminRecordingDashboard() {
           <span style={S.h2}>Файлы в S3</span>
         </div>
         <div style={{ padding: '8px 18px 16px' }}>
-          <S3TreeBrowser refreshKey={s3RefreshKey} authHdr={authHdr} />
+          <S3TreeBrowser refreshKey={s3RefreshKey} />
         </div>
       </div>
 
@@ -948,16 +948,25 @@ interface S3NodeData {
 
 const S3_ROOT = 'myepa/';
 
-function S3TreeBrowser({ refreshKey, authHdr }: { refreshKey: number; authHdr: () => Record<string, string> }) {
+function S3TreeBrowser({ refreshKey }: { refreshKey: number }) {
   const [nodes, setNodes] = React.useState<Record<string, S3NodeData>>({});
+  const nodesRef = React.useRef<Record<string, S3NodeData>>({});
+  nodesRef.current = nodes;
 
-  const loadNode = React.useCallback(async (path: string, expand = true) => {
+  // Token is read inline on each fetch — no closure dependency, no re-renders from auth changes
+  const loadNode = React.useCallback(async (path: string, expandOverride?: boolean) => {
+    const tok = localStorage.getItem('accessToken');
+    const hdrs = { 'Authorization': `Bearer ${tok}` };
+    const currentExpand = expandOverride !== undefined ? expandOverride : (nodesRef.current[path]?.isExpanded ?? true);
+
     setNodes(prev => ({
       ...prev,
-      [path]: { ...(prev[path] ?? { folders: [], files: [], isLoaded: false }), isExpanded: expand, isLoading: true },
+      [path]: { ...(prev[path] ?? { folders: [], files: [], isLoaded: false }), isExpanded: currentExpand, isLoading: true },
     }));
+
     try {
-      const r = await fetch(`/api/recording/admin/s3-files?prefix=${encodeURIComponent(path)}`, { headers: authHdr() });
+      const r = await fetch(`/api/recording/admin/s3-files?prefix=${encodeURIComponent(path)}`, { headers: hdrs });
+      const expand = nodesRef.current[path]?.isExpanded ?? currentExpand;
       if (r.ok) {
         const d = await r.json();
         setNodes(prev => ({
@@ -965,23 +974,31 @@ function S3TreeBrowser({ refreshKey, authHdr }: { refreshKey: number; authHdr: (
           [path]: { folders: d.folders || [], files: d.files || [], isExpanded: expand, isLoading: false, isLoaded: true },
         }));
       } else {
-        setNodes(prev => ({ ...prev, [path]: { folders: [], files: [], isExpanded: expand, isLoading: false, isLoaded: true } }));
+        setNodes(prev => ({ ...prev, [path]: { ...(prev[path] ?? { folders: [], files: [] }), isLoading: false, isLoaded: true } }));
       }
     } catch {
-      setNodes(prev => ({ ...prev, [path]: { folders: [], files: [], isExpanded: expand, isLoading: false, isLoaded: true } }));
+      setNodes(prev => ({ ...prev, [path]: { ...(prev[path] ?? { folders: [], files: [] }), isLoading: false, isLoaded: true } }));
     }
-  }, [authHdr]);
+  }, []); // ← no external deps: token and nodes are read via ref/localStorage each time
 
+  const isFirstRender = React.useRef(true);
   React.useEffect(() => {
-    setNodes({});
-    loadNode(S3_ROOT, true);
-  }, [refreshKey, loadNode]);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      loadNode(S3_ROOT, true);
+      return;
+    }
+    // On periodic refresh: reload only already-loaded paths, preserving expand state
+    const current = nodesRef.current;
+    const loaded = Object.keys(current).filter(p => current[p].isLoaded);
+    (loaded.length > 0 ? loaded : [S3_ROOT]).forEach(p => loadNode(p));
+  }, [refreshKey]); // ← only refreshKey triggers this, NOT loadNode
 
-  const toggle = async (path: string) => {
-    const node = nodes[path];
+  const toggle = (path: string) => {
+    const node = nodesRef.current[path];
     if (!node || !node.isLoaded) {
-      await loadNode(path, true);
-    } else {
+      loadNode(path, true);
+    } else if (!node.isLoading) {
       setNodes(prev => ({ ...prev, [path]: { ...prev[path], isExpanded: !prev[path].isExpanded } }));
     }
   };
@@ -989,34 +1006,39 @@ function S3TreeBrowser({ refreshKey, authHdr }: { refreshKey: number; authHdr: (
   const renderLevel = (path: string, depth: number): React.ReactNode => {
     const node = nodes[path];
     if (!node || !node.isLoaded) return null;
-    const indent = depth * 18;
+    const pl = depth * 20 + 4;
 
     return (
-      <>
+      <div>
         {node.folders.map(folder => {
           const label = folder.replace(path, '').replace(/\/$/, '');
           const child = nodes[folder];
           const expanded = child?.isExpanded ?? false;
           const loading  = child?.isLoading  ?? false;
           return (
-            <React.Fragment key={folder}>
+            <div key={folder}>
               <div
                 onClick={() => toggle(folder)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
-                  padding: `7px 0 7px ${indent + 4}px`,
+                  paddingTop: 7, paddingBottom: 7, paddingLeft: pl,
                   borderBottom: '1px solid #1e2535',
-                  cursor: 'pointer', userSelect: 'none',
+                  cursor: loading ? 'default' : 'pointer',
+                  userSelect: 'none',
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(59,130,246,.05)'; }}
+                onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLDivElement).style.background = 'rgba(59,130,246,.05)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
               >
-                <span style={{ fontSize: 13, flexShrink: 0 }}>{loading ? '⏳' : expanded ? '📂' : '📁'}</span>
+                <span style={{ fontSize: 13, width: 18, textAlign: 'center', flexShrink: 0 }}>
+                  {loading ? '⏳' : expanded ? '📂' : '📁'}
+                </span>
                 <span style={{ color: '#60a5fa', fontSize: 13, fontFamily: 'monospace', flex: 1 }}>{label}/</span>
-                <span style={{ color: '#334155', fontSize: 10, marginRight: 4 }}>{expanded ? '▲' : '▼'}</span>
+                <span style={{ color: '#475569', fontSize: 11, marginRight: 6 }}>
+                  {!loading && (expanded ? '▼' : '▶')}
+                </span>
               </div>
-              {expanded && renderLevel(folder, depth + 1)}
-            </React.Fragment>
+              {expanded && !loading && renderLevel(folder, depth + 1)}
+            </div>
           );
         })}
 
@@ -1027,33 +1049,31 @@ function S3TreeBrowser({ refreshKey, authHdr }: { refreshKey: number; authHdr: (
               key={f.key}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
-                padding: `7px 0 7px ${indent + 4}px`,
+                paddingTop: 6, paddingBottom: 6, paddingLeft: pl,
                 borderBottom: '1px solid #1e2535',
               }}
             >
-              <span style={{ fontSize: 13, flexShrink: 0 }}>🎬</span>
+              <span style={{ fontSize: 13, width: 18, textAlign: 'center', flexShrink: 0 }}>🎬</span>
               <span
                 style={{ color: '#94a3b8', fontSize: 12, fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                 title={f.key}
               >{name}</span>
               <span style={{ color: '#64748b', fontSize: 11, flexShrink: 0 }}>{fmtSize(f.size)}</span>
-              {f.lastModified && (
-                <span style={{ color: '#475569', fontSize: 11, flexShrink: 0 }}>{fmtDate(f.lastModified)}</span>
-              )}
+              {f.lastModified && <span style={{ color: '#475569', fontSize: 11, flexShrink: 0 }}>{fmtDate(f.lastModified)}</span>}
               <a href={f.url} target="_blank" rel="noopener noreferrer"
                 style={{ color: '#3b82f6', fontSize: 12, flexShrink: 0, textDecoration: 'none' }}
-                title="Открыть файл"
+                title="Открыть"
               >▶</a>
             </div>
           );
         })}
 
         {node.isLoaded && node.folders.length === 0 && node.files.length === 0 && (
-          <div style={{ paddingLeft: indent + 4, color: '#475569', fontSize: 12, padding: `8px 0 8px ${indent + 4}px`, borderBottom: '1px solid #1e2535' }}>
+          <div style={{ paddingLeft: pl, color: '#475569', fontSize: 12, paddingTop: 8, paddingBottom: 8, borderBottom: '1px solid #1e2535' }}>
             Пусто
           </div>
         )}
-      </>
+      </div>
     );
   };
 
@@ -1061,19 +1081,15 @@ function S3TreeBrowser({ refreshKey, authHdr }: { refreshKey: number; authHdr: (
 
   return (
     <div>
-      {/* Root row — myepa/ always shown */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        padding: '8px 0 10px', borderBottom: '1px solid #2d3748', marginBottom: 2,
+        paddingTop: 8, paddingBottom: 10, borderBottom: '1px solid #2d3748', marginBottom: 2,
       }}>
         <span style={{ fontSize: 14 }}>🪣</span>
         <span style={{ color: '#e2e8f0', fontSize: 13, fontFamily: 'monospace', fontWeight: 600 }}>myepa/</span>
         {root?.isLoading && <span style={{ color: '#64748b', fontSize: 11, marginLeft: 4 }}>загрузка...</span>}
       </div>
-
-      {!root && (
-        <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>⏳ Загрузка...</div>
-      )}
+      {!root && <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>⏳ Загрузка...</div>}
       {root?.isLoaded && renderLevel(S3_ROOT, 0)}
     </div>
   );
