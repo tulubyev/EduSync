@@ -622,14 +622,18 @@ router.post('/monitor/worker-heartbeat', verifyInternalRequest, async (req: Requ
 
 router.post('/monitor/worker-task-complete', verifyInternalRequest, async (req: Request, res: Response) => {
   try {
-    const { workerId, taskId, success, error: errorMessage, actualDurationSeconds } = req.body;
+    const { workerId, taskId, success: successRaw, error: errorMessage, actualDurationSeconds } = req.body;
 
     if (!workerId) {
       return res.status(400).json({ message: 'workerId обязателен' });
     }
 
+    // Effective success flag — can be overridden to false if recording is too short
+    let effectiveSuccess = successRaw;
+    let effectiveErrorMessage = errorMessage;
+
     // Validate actual recording duration — mark as failed if too short (< 10% of expected)
-    if (success && taskId && actualDurationSeconds !== undefined) {
+    if (successRaw && taskId && actualDurationSeconds !== undefined) {
       const task = await db
         .select({ duration: recordingTasks.duration, title: recordingTasks.title, userId: recordingTasks.userId })
         .from(recordingTasks)
@@ -659,6 +663,10 @@ router.post('/monitor/worker-task-complete', verifyInternalRequest, async (req: 
           });
 
           logger.warn(`Short recording detected for task ${taskId}: ${actualDurationSeconds}s of ${expectedSeconds}s expected`);
+
+          // Override success so worker metrics correctly count this as a failure
+          effectiveSuccess = false;
+          effectiveErrorMessage = shortMsg;
         }
       }
     }
@@ -680,11 +688,11 @@ router.post('/monitor/worker-task-complete', verifyInternalRequest, async (req: 
       lastSeenAt: new Date(),
     };
 
-    if (success) {
+    if (effectiveSuccess) {
       updates.tasksSuccessful = sql`${recordingWorkerStatus.tasksSuccessful} + 1`;
     } else {
       updates.tasksFailed = sql`${recordingWorkerStatus.tasksFailed} + 1`;
-      updates.lastError = errorMessage || 'Unknown error';
+      updates.lastError = effectiveErrorMessage || 'Unknown error';
       updates.lastErrorAt = new Date();
     }
 

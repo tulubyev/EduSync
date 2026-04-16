@@ -190,6 +190,10 @@ class RecordingTaskManager {
     const STALE_TIMEOUT_MS = 12 * 60 * 1000; // 12 minutes without heartbeat
     const staleThreshold = new Date(Date.now() - STALE_TIMEOUT_MS);
 
+    // A task is stale if:
+    // 1. heartbeat exists but is older than 12 min, OR
+    // 2. heartbeat is NULL but the task itself was last updated > 12 min ago
+    //    (prevents false positives on freshly-started tasks where worker hasn't sent first heartbeat yet)
     const staleTasks = await db.select()
       .from(recordingTasks)
       .where(
@@ -200,7 +204,10 @@ class RecordingTaskManager {
           ),
           or(
             lt(recordingTasks.lastHeartbeat, staleThreshold),
-            isNull(recordingTasks.lastHeartbeat),
+            and(
+              isNull(recordingTasks.lastHeartbeat),
+              lt(recordingTasks.updatedAt, staleThreshold),
+            ),
           ),
         )
       );
