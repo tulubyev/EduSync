@@ -169,8 +169,17 @@ export class StreamingRecorder {
         logger.warn(`[BROWSER PAGE ERROR] ${String(err).slice(0, 300)}`);
       });
 
-      logger.info(`[NAV] Navigating to ${url} (waitUntil: networkidle, timeout: 60s)`);
-      await this.page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+      // Video platforms (YouTube, Twitch, VK) never reach networkidle — they
+      // continuously stream data.  Use domcontentloaded and let the 20-second
+      // post-nav wait handle player initialisation instead.
+      // Webinar platforms (Zoom, Webinar.ru, etc.) get 'load' so their JS
+      // bundles are fully evaluated before we try to interact with the page.
+      const isVideoHosting = /youtube\.com|youtu\.be|twitch\.tv|vk\.com\/video|vk\.com\/live|rutube\.ru|ok\.ru\/video|vimeo\.com|kinescope\.io|kick\.com|boosty\.to|goodgame\.ru|trovo\.live/i.test(url);
+      const waitUntil = isVideoHosting ? 'domcontentloaded' : 'load';
+      const navTimeout = 45000;
+
+      logger.info(`[NAV] Navigating to ${url} (waitUntil: ${waitUntil}, timeout: ${navTimeout / 1000}s)`);
+      await this.page.goto(url, { waitUntil, timeout: navTimeout });
 
       const finalUrl = this.page.url();
       const title = await this.page.title().catch(() => '(no title)');
