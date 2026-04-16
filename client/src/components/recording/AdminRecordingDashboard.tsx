@@ -332,7 +332,7 @@ export function AdminRecordingDashboard() {
     setHistoryLogs([]);
     setHistoryLoading(true);
     try {
-      const r = await fetch(`/api/recording/admin/tasks/${taskId}/logs`, { headers: authHdr() });
+      const r = await fetch(`/api/recording/logs/${taskId}`, { headers: authHdr() });
       if (r.ok) { const d = await r.json(); setHistoryLogs(d.logs || []); }
     } finally {
       setHistoryLoading(false);
@@ -362,6 +362,11 @@ export function AdminRecordingDashboard() {
     const iv = setInterval(refreshAll, 15000);
     return () => clearInterval(iv);
   }, [refreshAll]);
+
+  useEffect(() => {
+    const iv = setInterval(() => fetchRecentLogs(), 30000);
+    return () => clearInterval(iv);
+  }, [fetchRecentLogs]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
