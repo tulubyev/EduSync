@@ -21,6 +21,21 @@ class PollerController {
     };
   }
 
+  getBrowserStatus() {
+    if (!this.poller) {
+      return {
+        browserAlive: false,
+        pageAlive: false,
+        currentUrl: null,
+        isRecording: false,
+        frameCount: 0,
+        elapsedMs: null,
+        taskId: null,
+      };
+    }
+    return this.poller.getBrowserStatus();
+  }
+
   async start(): Promise<{ ok: boolean; message: string }> {
     if (this.state === 'running' || this.state === 'starting') {
       return { ok: false, message: `Executor уже ${this.state === 'running' ? 'запущен' : 'запускается'}` };

@@ -114,9 +114,21 @@ interface HealthService {
   bucket?: string;
 }
 
+interface PlaywrightHealth {
+  status: 'recording' | 'idle' | 'not_launched' | 'executor_stopped' | 'error';
+  browserAlive: boolean;
+  pageAlive: boolean;
+  isRecording: boolean;
+  frameCount: number;
+  elapsedMs: number | null;
+  currentUrl: string | null;
+  taskId: string | null;
+  error?: string;
+}
+
 interface HealthData {
   timestamp: string;
-  services: { database?: HealthService; s3?: HealthService };
+  services: { database?: HealthService; s3?: HealthService; playwright?: PlaywrightHealth };
 }
 
 interface StatEntry { status: string; count: number; }
@@ -551,13 +563,14 @@ export function AdminRecordingDashboard() {
             {syncCheckLoading ? '⏳ Проверка...' : '🔍 Проверить статус'}
           </button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, padding: '14px 18px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14, padding: '14px 18px' }}>
           <HealthRow label="PostgreSQL" service={db} />
           <HealthRow label="Beget S3" service={s3} />
           <WorkerCell
             worker={workerStatus?.workers[0] ?? null}
             loading={!workerStatus}
           />
+          <PlaywrightCell playwright={health?.services?.playwright} />
         </div>
         {syncCheckResult && (
           <div style={{
@@ -1087,6 +1100,73 @@ function S3TreeBrowser({ refreshKey }: { refreshKey: number }) {
       {!root && <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>⏳ Загрузка...</div>}
       {root?.isLoaded && renderLevel(S3_ROOT, 0)}
     </div>
+  );
+}
+
+function PlaywrightCell({ playwright }: { playwright?: PlaywrightHealth }) {
+  const status = playwright?.status;
+
+  let dotColor = '#64748b';
+  let dotGlow  = 'none';
+  let dotAnim  = '';
+  let label    = '...';
+  let sub      = '';
+
+  if (!playwright) {
+    label = 'Playwright';
+    sub   = '...';
+  } else if (status === 'recording') {
+    dotColor = '#22c55e';
+    dotGlow  = '0 0 8px #22c55e99';
+    dotAnim  = 'pwPulse 1.2s ease-in-out infinite';
+    label    = 'Playwright · Запись';
+    const elMin = playwright.elapsedMs != null ? Math.floor(playwright.elapsedMs / 60000) : 0;
+    const elSec = playwright.elapsedMs != null ? Math.floor((playwright.elapsedMs % 60000) / 1000) : 0;
+    sub = `${playwright.frameCount} фреймов · ${elMin > 0 ? `${elMin}м ` : ''}${elSec}с`;
+  } else if (status === 'idle') {
+    dotColor = '#f59e0b';
+    dotGlow  = '0 0 6px #f59e0b66';
+    label    = 'Playwright · Ожидание';
+    sub      = 'Браузер запущен, задач нет';
+  } else if (status === 'not_launched') {
+    dotColor = '#64748b';
+    label    = 'Playwright';
+    sub      = 'Браузер не инициализирован';
+  } else if (status === 'executor_stopped') {
+    dotColor = '#475569';
+    label    = 'Playwright';
+    sub      = 'Воркер остановлен';
+  } else if (status === 'error') {
+    dotColor = '#ef4444';
+    dotGlow  = '0 0 8px #ef444466';
+    label    = 'Playwright · Ошибка';
+    sub      = playwright.error || 'Неизвестная ошибка';
+  }
+
+  const urlLine = playwright?.currentUrl && playwright.currentUrl !== 'about:blank'
+    ? playwright.currentUrl.replace(/^https?:\/\//, '').slice(0, 38) + (playwright.currentUrl.length > 45 ? '…' : '')
+    : null;
+
+  return (
+    <>
+      <style>{`@keyframes pwPulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }`}</style>
+      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{
+          width: 10, height: 10, borderRadius: '50%', flexShrink: 0, marginTop: 3,
+          background: dotColor, boxShadow: dotGlow,
+          animation: dotAnim || undefined,
+        }} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{sub}</div>
+          {urlLine && (
+            <div style={{ fontSize: 10, color: '#475569', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={playwright?.currentUrl ?? ''}>
+              🌐 {urlLine}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 

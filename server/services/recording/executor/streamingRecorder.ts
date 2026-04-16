@@ -128,6 +128,33 @@ export class StreamingRecorder {
     logger.info('Browser stopped');
   }
 
+  getBrowserStatus(): {
+    browserAlive: boolean;
+    pageAlive: boolean;
+    currentUrl: string | null;
+    isRecording: boolean;
+    frameCount: number;
+    elapsedMs: number | null;
+    taskId: string | null;
+  } {
+    const browserAlive = this.browser !== null;
+    const pageAlive = this.page !== null && !this.page.isClosed();
+    let currentUrl: string | null = null;
+    if (pageAlive && this.page) {
+      try { currentUrl = this.page.url(); } catch { currentUrl = null; }
+    }
+    const session = this.currentSession;
+    return {
+      browserAlive,
+      pageAlive,
+      currentUrl,
+      isRecording: session?.isActive ?? false,
+      frameCount: session?.frameCount ?? 0,
+      elapsedMs: session ? Date.now() - session.startTime : null,
+      taskId: session?.taskId ?? null,
+    };
+  }
+
   async navigateToStream(url: string, password?: string): Promise<void> {
     if (this.page) {
       try {

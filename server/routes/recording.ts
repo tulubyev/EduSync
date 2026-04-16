@@ -882,6 +882,35 @@ router.get('/admin/health', authenticateToken as any, async (req: AuthRequest, r
       health.services.s3 = { status: 'error', error: (e as Error).message };
     }
   }
+
+  // Playwright / browser health — живые данные из StreamingRecorder
+  try {
+    const executorStatus = pollerController.getStatus();
+    const browserStatus = pollerController.getBrowserStatus();
+    let playwrightStatus: string;
+    if (!executorStatus.isRunning) {
+      playwrightStatus = 'executor_stopped';
+    } else if (browserStatus.isRecording) {
+      playwrightStatus = 'recording';
+    } else if (browserStatus.browserAlive) {
+      playwrightStatus = 'idle';
+    } else {
+      playwrightStatus = 'not_launched';
+    }
+    health.services.playwright = {
+      status: playwrightStatus,
+      browserAlive: browserStatus.browserAlive,
+      pageAlive: browserStatus.pageAlive,
+      isRecording: browserStatus.isRecording,
+      frameCount: browserStatus.frameCount,
+      elapsedMs: browserStatus.elapsedMs,
+      currentUrl: browserStatus.currentUrl,
+      taskId: browserStatus.taskId,
+    };
+  } catch (e) {
+    health.services.playwright = { status: 'error', error: (e as Error).message };
+  }
+
   res.json(health);
 });
 

@@ -118,6 +118,10 @@ export class TaskPoller {
     logger.info('Recording poller stopped');
   }
 
+  getBrowserStatus() {
+    return this.recorder.getBrowserStatus();
+  }
+
   /**
    * Вызывается один раз при старте.
    * Находит задачи в статусе in_progress, которые были назначены на ЭТОТ воркер
