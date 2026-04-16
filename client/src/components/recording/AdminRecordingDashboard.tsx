@@ -1198,24 +1198,17 @@ function WorkerCell({ worker, loading }: { worker: WorkerEntry | null; loading: 
   const dotColor = online ? '#22c55e' : '#ef4444';
   const dotGlow  = online ? '0 0 8px #22c55e66' : '0 0 8px #ef444466';
   const minutesAgo = worker.secondsAgo != null ? Math.floor(worker.secondsAgo / 60) : null;
-  const subtitleParts: string[] = [online ? 'Online' : 'Offline'];
-  if (minutesAgo != null) subtitleParts.push(`${minutesAgo}м назад`);
-  if (worker.buildVersion) subtitleParts.push(`v${worker.buildVersion}`);
-  const counters = `✓${worker.tasksSuccessful ?? 0} / ✗${worker.tasksFailed ?? 0}`;
+  const parts: string[] = [online ? 'Online' : 'Offline'];
+  if (minutesAgo != null) parts.push(`${minutesAgo}м назад`);
+  parts.push(`✓${worker.tasksSuccessful ?? 0} / ✗${worker.tasksFailed ?? 0}`);
+  const subtitle = parts.join(' · ');
+  const tooltip = worker.currentTaskTitle ? `▶ ${worker.currentTaskTitle}` : undefined;
   return (
-    <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }} title={tooltip}>
       <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: dotColor, boxShadow: dotGlow }} />
-      <div style={{ minWidth: 0 }}>
+      <div>
         <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
-        <div style={{ fontSize: 11, color: online ? '#4ade80' : '#f87171', marginTop: 2 }}>
-          {subtitleParts.join(' · ')}
-        </div>
-        <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>{counters}</div>
-        {worker.currentTaskTitle && (
-          <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            ▶ {worker.currentTaskTitle}
-          </div>
-        )}
+        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>
       </div>
     </div>
   );
