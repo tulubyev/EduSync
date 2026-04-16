@@ -243,6 +243,8 @@ export function AdminRecordingDashboard() {
   const [saveMessage, setSaveMessage] = useState('');
 
   const [workerStatus, setWorkerStatus]     = useState<WorkerStatusData | null>(null);
+  const [executorRunning, setExecutorRunning] = useState<boolean | null>(null);
+  const [executorAction, setExecutorAction]   = useState<'start' | 'stop' | null>(null);
   const [recentLogs, setRecentLogs]         = useState<RecentLog[]>([]);
   const [logFilterTaskId, setLogFilterTaskId] = useState<string>('');
   const [historyTaskId, setHistoryTaskId]   = useState<string | null>(null);
@@ -319,6 +321,29 @@ export function AdminRecordingDashboard() {
     if (r.ok) setWorkerStatus(await r.json());
   }, []);
 
+  const fetchExecutorStatus = useCallback(async () => {
+    const r = await fetch('/api/recording/admin/executor/status', { headers: authHdr() });
+    if (r.ok) { const d = await r.json(); setExecutorRunning(d.executor?.isRunning ?? null); }
+  }, []);
+
+  const handleStartExecutor = async () => {
+    setExecutorAction('start');
+    try {
+      const r = await fetch('/api/recording/admin/executor/start', { method: 'POST', headers: jsonHdr() });
+      const d = await r.json();
+      setExecutorRunning(d.executor?.isRunning ?? true);
+    } finally { setExecutorAction(null); }
+  };
+
+  const handleStopExecutor = async () => {
+    setExecutorAction('stop');
+    try {
+      const r = await fetch('/api/recording/admin/executor/stop', { method: 'POST', headers: jsonHdr() });
+      const d = await r.json();
+      setExecutorRunning(d.executor?.isRunning ?? false);
+    } finally { setExecutorAction(null); }
+  };
+
   const fetchRecentLogs = useCallback(async (taskIdFilter?: string) => {
     const tid = taskIdFilter !== undefined ? taskIdFilter : logFilterTaskId;
     const qs = tid ? `?limit=20&taskId=${encodeURIComponent(tid)}` : '?limit=20';
@@ -352,10 +377,10 @@ export function AdminRecordingDashboard() {
 
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchS3Files(), fetchWorkerStatus(), fetchRecentLogs()]);
+    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchS3Files(), fetchWorkerStatus(), fetchRecentLogs(), fetchExecutorStatus()]);
     setLastUpdate(new Date().toLocaleTimeString('ru-RU'));
     setIsRefreshing(false);
-  }, [fetchStats, fetchHealth, fetchTasks, fetchS3Files, fetchWorkerStatus, fetchRecentLogs]);
+  }, [fetchStats, fetchHealth, fetchTasks, fetchS3Files, fetchWorkerStatus, fetchRecentLogs, fetchExecutorStatus]);
 
   useEffect(() => {
     refreshAll();
@@ -520,6 +545,10 @@ export function AdminRecordingDashboard() {
           <WorkerCell
             worker={workerStatus?.workers[0] ?? null}
             loading={!workerStatus}
+            executorRunning={executorRunning}
+            executorAction={executorAction}
+            onStart={handleStartExecutor}
+            onStop={handleStopExecutor}
           />
         </div>
         {syncCheckResult && (
@@ -1171,26 +1200,69 @@ function DarkTextarea({ value, onChange }: { value: string; onChange?: (v: strin
   );
 }
 
-function WorkerCell({ worker, loading }: { worker: WorkerEntry | null; loading: boolean }) {
+interface WorkerCellProps {
+  worker: WorkerEntry | null;
+  loading: boolean;
+  executorRunning: boolean | null;
+  executorAction: 'start' | 'stop' | null;
+  onStart: () => void;
+  onStop: () => void;
+}
+
+function WorkerCell({ worker, loading, executorRunning, executorAction, onStart, onStop }: WorkerCellProps) {
+  const btnBase: React.CSSProperties = {
+    fontSize: 11, padding: '3px 10px', borderRadius: 5, border: 'none',
+    cursor: executorAction ? 'default' : 'pointer', fontWeight: 600, transition: 'opacity .15s',
+    opacity: executorAction ? .5 : 1,
+  };
+
+  const ctrlButtons = (
+    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+      {executorRunning !== false ? (
+        <button
+          onClick={onStop}
+          disabled={!!executorAction}
+          style={{ ...btnBase, background: '#7f1d1d', color: '#fca5a5' }}
+        >
+          {executorAction === 'stop' ? '⏹ Останов...' : '⏹ Стоп'}
+        </button>
+      ) : (
+        <button
+          onClick={onStart}
+          disabled={!!executorAction}
+          style={{ ...btnBase, background: '#052e16', color: '#4ade80' }}
+        >
+          {executorAction === 'start' ? '▶ Запуск...' : '▶ Старт'}
+        </button>
+      )}
+    </div>
+  );
+
   if (loading) {
     return (
-      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: '#334155' }} />
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>...</div>
+      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: '#334155' }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>...</div>
+          </div>
         </div>
+        {ctrlButtons}
       </div>
     );
   }
   if (!worker) {
     return (
-      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: '#64748b' }} />
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Нет воркеров</div>
+      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: '#64748b' }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Нет воркеров</div>
+          </div>
         </div>
+        {ctrlButtons}
       </div>
     );
   }
@@ -1204,12 +1276,15 @@ function WorkerCell({ worker, loading }: { worker: WorkerEntry | null; loading: 
   const subtitle = parts.join(' · ');
   const tooltip = worker.currentTaskTitle ? `▶ ${worker.currentTaskTitle}` : undefined;
   return (
-    <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }} title={tooltip}>
-      <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: dotColor, boxShadow: dotGlow }} />
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
-        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>
+    <div style={{ background: '#0f1117', borderRadius: 8, padding: 14 }} title={tooltip}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: dotColor, boxShadow: dotGlow }} />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>
+        </div>
       </div>
+      {ctrlButtons}
     </div>
   );
 }

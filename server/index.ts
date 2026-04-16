@@ -6,7 +6,7 @@ import { logger } from "./services/logger";
 import { yookassaService } from "./services/yookassaService";
 import { PaymentFactory } from "./services/payments/paymentFactory";
 import { courseDiscoveryService } from "./services/courseDiscoveryService";
-import { recordingTaskManager, TaskPoller } from "./services/recording";
+import { recordingTaskManager, pollerController } from "./services/recording";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
@@ -188,11 +188,13 @@ app.use((req, res, next) => {
     // Recording executor poller — runs only in primary process (PM2 cluster safe)
     const isPrimaryWorker = !process.env.pm_id || process.env.pm_id === '0';
     if (isPrimaryWorker) {
-      const poller = new TaskPoller();
-      poller.start().catch((err) => {
-        logger.error('Recording executor poller crashed:', err);
+      pollerController.start().then((result) => {
+        if (result.ok) {
+          logger.info(`Recording executor poller started (worker: ${process.env.WORKER_ID || 'epa-worker-1'})`);
+        } else {
+          logger.error(`Recording executor failed to start: ${result.message}`);
+        }
       });
-      logger.info(`Recording executor poller started (worker: ${process.env.WORKER_ID || 'epa-worker-1'})`);
     } else {
       logger.info(`Recording executor poller skipped on PM2 worker #${process.env.pm_id}`);
     }

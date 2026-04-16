@@ -3,7 +3,7 @@ import { storage } from "../storage";
 import { authenticateToken } from "../middleware/auth";
 import { z } from "zod";
 import { yandexDiskService } from "../services/yandexDiskService";
-import { recordingTaskManager, recordingLogger } from "../services/recording";
+import { recordingTaskManager, recordingLogger, pollerController } from "../services/recording";
 import { logger } from "../services/logger";
 import { db } from "../db";
 import { recordingTasks, recordingWorkerStatus, recordingLogs } from "@shared/schema";
@@ -1055,6 +1055,29 @@ router.get('/admin/tasks/:taskId/logs', authenticateToken as any, async (req: Au
     logger.error('Admin task logs error:', error);
     res.status(500).json({ message: 'Ошибка получения логов задачи' });
   }
+});
+
+// ── Executor (Recording Poller) Controls ─────────────────────────────────────
+
+router.get('/admin/executor/status', authenticateToken as any, (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  res.json({ success: true, executor: pollerController.getStatus() });
+});
+
+router.post('/admin/executor/start', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const adminId = req.user!.id;
+  logger.info(`Admin ${adminId} requested executor START`);
+  const result = await pollerController.start();
+  res.status(result.ok ? 200 : 409).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
+});
+
+router.post('/admin/executor/stop', authenticateToken as any, (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const adminId = req.user!.id;
+  logger.info(`Admin ${adminId} requested executor STOP`);
+  const result = pollerController.stop();
+  res.status(result.ok ? 200 : 409).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
 });
 
 export default router;
