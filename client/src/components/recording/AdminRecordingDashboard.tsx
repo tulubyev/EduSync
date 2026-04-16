@@ -498,8 +498,10 @@ export function AdminRecordingDashboard() {
         </div>
       </div>
 
-      {/* ── Health ─────────────────────────────────────────────── */}
-      <div style={{ ...S.card, marginBottom: 16 }}>
+      {/* ── Health + Worker Health (одна строка) ────────────────── */}
+      <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'flex-start' }}>
+
+      <div style={{ ...S.card, flex: '0 0 320px' }}>
         <div style={S.cardHead}><span style={S.h2}>Состояние сервисов</span></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 18 }}>
           <HealthRow label="PostgreSQL" service={db} />
@@ -508,7 +510,7 @@ export function AdminRecordingDashboard() {
       </div>
 
       {/* ── Worker Health ───────────────────────────────────────── */}
-      <div style={{ ...S.card, marginBottom: 16 }}>
+      <div style={{ ...S.card, flex: 1 }}>
         <div style={S.cardHead}>
           <span style={S.h2}>Здоровье воркера</span>
           <button
@@ -552,6 +554,8 @@ export function AdminRecordingDashboard() {
           )}
         </div>
       </div>
+
+      </div>{/* end flex row: Состояние сервисов + Здоровье воркера */}
 
       {/* ── Recent Logs ─────────────────────────────────────────── */}
       <div style={{ ...S.card, marginBottom: 16 }}>
