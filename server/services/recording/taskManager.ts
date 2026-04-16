@@ -291,8 +291,17 @@ class RecordingTaskManager {
   }
 
   async cancelTask(taskId: string): Promise<void> {
+    const task = await this.getTask(taskId);
     await this.updateTaskStatus(taskId, 'cancelled');
     logger.info(`Task cancelled: ${taskId}`);
+    if (task) {
+      await recordingLogger.logEvent({
+        taskId,
+        userId: task.userId,
+        eventType: 'task_cancelled',
+        message: `Задача отменена пользователем`,
+      });
+    }
   }
 
   async recoverTask(taskId: string): Promise<void> {

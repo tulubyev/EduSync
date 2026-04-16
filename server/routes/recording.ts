@@ -684,6 +684,7 @@ router.post('/monitor/worker-task-complete', verifyInternalRequest, async (req: 
     // Effective success flag — can be overridden to false if recording is too short
     let effectiveSuccess = successRaw;
     let effectiveErrorMessage = errorMessage;
+    let completionLogged = false;
 
     // Validate actual recording duration — mark as failed if too short (< 10% of expected)
     if (successRaw && taskId && actualDurationSeconds !== undefined) {
@@ -720,6 +721,45 @@ router.post('/monitor/worker-task-complete', verifyInternalRequest, async (req: 
           // Override success so worker metrics correctly count this as a failure
           effectiveSuccess = false;
           effectiveErrorMessage = shortMsg;
+          completionLogged = true;
+        } else {
+          // Normal successful completion — log it from EPA side
+          await recordingLogger.logEvent({
+            taskId,
+            userId: task[0].userId,
+            eventType: 'recording_completed',
+            message: `Запись завершена воркером ${workerId}: ${actualDurationSeconds} сек`,
+            duration: actualDurationSeconds,
+          });
+          completionLogged = true;
+        }
+      }
+    }
+
+    // If taskId present but not yet logged — look up task for failure/success log
+    if (taskId && !completionLogged) {
+      const task = await db
+        .select({ userId: recordingTasks.userId })
+        .from(recordingTasks)
+        .where(eq(recordingTasks.id, taskId))
+        .limit(1);
+
+      if (task.length > 0) {
+        if (effectiveSuccess) {
+          await recordingLogger.logEvent({
+            taskId,
+            userId: task[0].userId,
+            eventType: 'recording_completed',
+            message: `Запись завершена воркером ${workerId}`,
+          });
+        } else {
+          await recordingLogger.logEvent({
+            taskId,
+            userId: task[0].userId,
+            eventType: 'task_failed',
+            message: `Воркер ${workerId} сообщил об ошибке`,
+            errorDetails: effectiveErrorMessage,
+          });
         }
       }
     }
