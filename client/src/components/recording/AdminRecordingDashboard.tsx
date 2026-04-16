@@ -461,10 +461,57 @@ export function AdminRecordingDashboard() {
         <span style={{ fontSize: 12, color: '#64748b' }}>
           {lastUpdate ? `Обновлено: ${lastUpdate}` : 'Загрузка...'}
         </span>
-        <button style={S.refreshBtn(isRefreshing)} onClick={refreshAll} disabled={isRefreshing}>
-          <span style={{ display: 'inline-block', animation: isRefreshing ? 'spin .6s linear infinite' : 'none' }}>↻</span>
-          Обновить
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* ── Executor Start/Stop ── */}
+          {executorRunning !== false ? (
+            <button
+              onClick={handleStopExecutor}
+              disabled={!!executorAction}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '9px 22px', borderRadius: 24, border: '1px solid #7f1d1d',
+                background: executorAction ? '#2d1515' : '#3b0d0d',
+                color: executorAction ? '#9ca3af' : '#fca5a5',
+                fontSize: 13, fontWeight: 700, cursor: executorAction ? 'not-allowed' : 'pointer',
+                transition: 'all .2s', letterSpacing: '.3px',
+                boxShadow: executorAction ? 'none' : '0 0 12px rgba(239,68,68,.15)',
+              }}
+            >
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                background: executorAction ? '#6b7280' : '#ef4444',
+                animation: executorAction ? 'none' : 'pulse 1.4s ease-in-out infinite',
+              }} />
+              {executorAction === 'stop' ? 'Останавливаю...' : '⏹ Остановить воркер'}
+            </button>
+          ) : (
+            <button
+              onClick={handleStartExecutor}
+              disabled={!!executorAction}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '9px 22px', borderRadius: 24, border: '1px solid #166534',
+                background: executorAction ? '#0a1a10' : '#052e16',
+                color: executorAction ? '#9ca3af' : '#4ade80',
+                fontSize: 13, fontWeight: 700, cursor: executorAction ? 'not-allowed' : 'pointer',
+                transition: 'all .2s', letterSpacing: '.3px',
+                boxShadow: executorAction ? 'none' : '0 0 12px rgba(34,197,94,.15)',
+              }}
+            >
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                background: executorAction ? '#6b7280' : '#22c55e',
+              }} />
+              {executorAction === 'start' ? 'Запускаю...' : '▶ Запустить воркер'}
+            </button>
+          )}
+
+          {/* ── Refresh ── */}
+          <button style={S.refreshBtn(isRefreshing)} onClick={refreshAll} disabled={isRefreshing}>
+            <span style={{ display: 'inline-block', animation: isRefreshing ? 'spin .6s linear infinite' : 'none' }}>↻</span>
+            Обновить
+          </button>
+        </div>
       </div>
 
       {/* ── Stats grid ─────────────────────────────────────────── */}
@@ -525,10 +572,6 @@ export function AdminRecordingDashboard() {
           <WorkerCell
             worker={workerStatus?.workers[0] ?? null}
             loading={!workerStatus}
-            executorRunning={executorRunning}
-            executorAction={executorAction}
-            onStart={handleStartExecutor}
-            onStop={handleStopExecutor}
           />
         </div>
         {syncCheckResult && (
@@ -692,8 +735,10 @@ export function AdminRecordingDashboard() {
         </div>
       </div>
 
-      {/* spin keyframe */}
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+      `}</style>
 
       {/* ── Edit Modal ─────────────────────────────────────────── */}
       <Dialog open={!!editTask} onOpenChange={open => { if (!open) setEditTask(null); }}>
@@ -1238,69 +1283,26 @@ function DarkTextarea({ value, onChange }: { value: string; onChange?: (v: strin
   );
 }
 
-interface WorkerCellProps {
-  worker: WorkerEntry | null;
-  loading: boolean;
-  executorRunning: boolean | null;
-  executorAction: 'start' | 'stop' | null;
-  onStart: () => void;
-  onStop: () => void;
-}
-
-function WorkerCell({ worker, loading, executorRunning, executorAction, onStart, onStop }: WorkerCellProps) {
-  const btnBase: React.CSSProperties = {
-    fontSize: 11, padding: '3px 10px', borderRadius: 5, border: 'none',
-    cursor: executorAction ? 'default' : 'pointer', fontWeight: 600, transition: 'opacity .15s',
-    opacity: executorAction ? .5 : 1,
-  };
-
-  const ctrlButtons = (
-    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-      {executorRunning !== false ? (
-        <button
-          onClick={onStop}
-          disabled={!!executorAction}
-          style={{ ...btnBase, background: '#7f1d1d', color: '#fca5a5' }}
-        >
-          {executorAction === 'stop' ? '⏹ Останов...' : '⏹ Стоп'}
-        </button>
-      ) : (
-        <button
-          onClick={onStart}
-          disabled={!!executorAction}
-          style={{ ...btnBase, background: '#052e16', color: '#4ade80' }}
-        >
-          {executorAction === 'start' ? '▶ Запуск...' : '▶ Старт'}
-        </button>
-      )}
-    </div>
-  );
-
+function WorkerCell({ worker, loading }: { worker: WorkerEntry | null; loading: boolean }) {
   if (loading) {
     return (
-      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: '#334155' }} />
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>...</div>
-          </div>
+      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: '#334155' }} />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>...</div>
         </div>
-        {ctrlButtons}
       </div>
     );
   }
   if (!worker) {
     return (
-      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: '#64748b' }} />
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Нет воркеров</div>
-          </div>
+      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: '#64748b' }} />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Нет воркеров</div>
         </div>
-        {ctrlButtons}
       </div>
     );
   }
@@ -1314,15 +1316,12 @@ function WorkerCell({ worker, loading, executorRunning, executorAction, onStart,
   const subtitle = parts.join(' · ');
   const tooltip = worker.currentTaskTitle ? `▶ ${worker.currentTaskTitle}` : undefined;
   return (
-    <div style={{ background: '#0f1117', borderRadius: 8, padding: 14 }} title={tooltip}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: dotColor, boxShadow: dotGlow }} />
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>
-        </div>
+    <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }} title={tooltip}>
+      <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: dotColor, boxShadow: dotGlow }} />
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
+        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>
       </div>
-      {ctrlButtons}
     </div>
   );
 }
