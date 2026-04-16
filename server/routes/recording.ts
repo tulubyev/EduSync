@@ -900,12 +900,14 @@ router.get('/admin/s3-files', authenticateToken as any, async (req: AuthRequest,
       MaxKeys: 500,
     }));
     const folders = (result.CommonPrefixes || []).map(cp => cp.Prefix!).filter(Boolean);
-    const files = (result.Contents || []).map(obj => ({
-      key: obj.Key!,
-      size: obj.Size ?? 0,
-      lastModified: obj.LastModified?.toISOString() ?? null,
-      url: s3.publicUrl ? `${s3.publicUrl}/${obj.Key}` : obj.Key!,
-    }));
+    const files = (result.Contents || [])
+      .filter(obj => obj.Key && obj.Key !== prefix)
+      .map(obj => ({
+        key: obj.Key!,
+        size: obj.Size ?? 0,
+        lastModified: obj.LastModified?.toISOString() ?? null,
+        url: s3.publicUrl ? `${s3.publicUrl}/${obj.Key}` : obj.Key!,
+      }));
     res.json({ success: true, prefix, folders, files, total: files.length, configured: true });
   } catch (error) {
     logger.error('Admin S3 files error:', error);
