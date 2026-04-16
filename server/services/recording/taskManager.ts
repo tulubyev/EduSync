@@ -45,7 +45,7 @@ class RecordingTaskManager {
     const taskId = randomUUID();
 
     const dateStr = data.scheduledTime.toISOString().slice(0, 10); // YYYY-MM-DD
-    const s3Prefix = `epa/recordings/${data.userId}/${taskId}/`;
+    const s3Prefix = `myepa/recordings/${data.userId}/${taskId}/`;
     const s3Filename = `${slugify(data.title) || 'recording'}_${dateStr}`;
 
     const parts: RecordingPart[] = Array.from({ length: totalParts }, (_, i) => ({

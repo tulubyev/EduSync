@@ -38,7 +38,7 @@ export class BegetStorage {
     try {
       const fileContent = fs.readFileSync(filePath);
       const now = new Date();
-      const key = `recordings/${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${fileName}`;
+      const key = `myepa/recordings/${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${fileName}`;
 
       await this.s3.send(
         new PutObjectCommand({
