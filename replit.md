@@ -8,7 +8,7 @@ The app targets working professionals and students who want to manage their lear
 
 Key feature areas:
 - **Unified course dashboard** across 89+ integrated platforms
-- **Recording system** (hybrid architecture: EPA manages tasks, a separate Recording Worker on VPS executes recordings via Playwright + FFmpeg)
+- **Recording system** (integrated: EPA manages tasks AND executes recordings via Playwright + FFmpeg + PulseAudio, all within the same process)
 - **Subscription management** with YooKassa and Alfabank payment gateways
 - **OAuth 2.0 integration** with external platforms (e.g., Stepik) for course/deadline sync
 - **Admin panel** with role-based access
@@ -89,18 +89,19 @@ The frontend is a SPA rooted at `client/index.html`, served by Vite in dev and b
 - **Admin Access**: Role-based (`role: admin`, `adminRole: super_admin | analytics_admin | devops_admin | finance_admin | api_admin | security_admin`)
 - **External Platform Auth**: OAuth 2.0 (e.g., Stepik) with AES-256-GCM encrypted token storage
 
-### Recording Worker (Separate Service)
+### Recording Executor (Integrated)
 
-A standalone Docker-based microservice (`recording-worker/`) deployed on a separate VPS. It:
-- Polls the `recording_tasks` table every 30 seconds for tasks with `status = 'ready'`
-- Uses Playwright (headless Chromium) to navigate to streams/webinars
-- Captures video via CDP (Chrome DevTools Protocol) + FFmpeg streaming pipeline
-- Uses PulseAudio virtual sink for audio capture
-- Chunks recordings into 20-minute segments, uploads to Beget S3
-- Updates `recording_tasks.beget_url`, `status`, `worker_id` in the shared DB
-- Exposes a REST API for n8n automation integration
+Recording execution is now fully integrated into the EPA backend (previously a separate Replit project). Code lives in `server/services/recording/executor/`:
 
-The EPA main app only creates/reads recording tasks — it does NOT run Playwright or FFmpeg.
+- **`taskPoller.ts`** — polls `recording_tasks` every 5s for `status = 'ready'`; atomically claims tasks; heartbeat every 30s; PM2-cluster-safe (runs in primary worker only)
+- **`streamingRecorder.ts`** — Playwright (headless Chromium) + CDPSession screencast → FFmpeg pipe → MP4
+- **`audioSetup.ts`** — PulseAudio virtual null-sink for browser audio capture; graceful fallback to video-only
+- **`begetStorage.ts`** — uploads finished MP4 to Beget S3; cleans up temp files
+- **`urlValidator.ts`** — HTTP HEAD check + source type detection for 89+ platforms before recording starts
+- **`config.ts`** — reads `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, `WORKER_ID`, `BEGET_S3_*`, poll/heartbeat intervals from env
+- **`previewBus.ts`** — EventEmitter for live frame preview (admin dashboard)
+
+System packages required: `chromium`, `ffmpeg`, `pulseaudio` (installed via Nix).
 
 ### Mobile Strategy
 
