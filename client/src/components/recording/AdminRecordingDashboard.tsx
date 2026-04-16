@@ -230,8 +230,7 @@ export function AdminRecordingDashboard() {
   const [taskLimit, setTaskLimit]     = useState(100);
   const [stats, setStats]             = useState<Record<string, number>>({});
   const [health, setHealth]           = useState<HealthData | null>(null);
-  const [s3Data, setS3Data]           = useState<S3Data>({ prefix: '', folders: [], files: [], configured: true });
-  const [s3Prefix, setS3Prefix]       = useState('');
+  const [s3RefreshKey, setS3RefreshKey] = useState(0);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate]   = useState('');
@@ -296,26 +295,6 @@ export function AdminRecordingDashboard() {
     }
   }, [filterStatus, taskLimit]);
 
-  const fetchS3Files = useCallback(async (prefix?: string) => {
-    const p = prefix ?? s3Prefix;
-    const r = await fetch(`/api/recording/admin/s3-files?prefix=${encodeURIComponent(p)}`, { headers: authHdr() });
-    if (r.ok) {
-      const d = await r.json();
-      setS3Data({
-        prefix: d.prefix ?? p,
-        folders: d.folders || [],
-        files: d.files || [],
-        configured: d.configured !== false,
-        message: d.message,
-      });
-    }
-  }, [s3Prefix]);
-
-  const navigateS3 = useCallback((newPrefix: string) => {
-    setS3Prefix(newPrefix);
-    fetchS3Files(newPrefix);
-  }, [fetchS3Files]);
-
   const fetchWorkerStatus = useCallback(async () => {
     const r = await fetch('/api/recording/monitor/worker-status', { headers: authHdr() });
     if (r.ok) setWorkerStatus(await r.json());
@@ -377,10 +356,11 @@ export function AdminRecordingDashboard() {
 
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchS3Files(), fetchWorkerStatus(), fetchRecentLogs(), fetchExecutorStatus()]);
+    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchWorkerStatus(), fetchRecentLogs(), fetchExecutorStatus()]);
+    setS3RefreshKey(k => k + 1);
     setLastUpdate(new Date().toLocaleTimeString('ru-RU'));
     setIsRefreshing(false);
-  }, [fetchStats, fetchHealth, fetchTasks, fetchS3Files, fetchWorkerStatus, fetchRecentLogs, fetchExecutorStatus]);
+  }, [fetchStats, fetchHealth, fetchTasks, fetchWorkerStatus, fetchRecentLogs, fetchExecutorStatus]);
 
   useEffect(() => {
     refreshAll();
@@ -706,59 +686,9 @@ export function AdminRecordingDashboard() {
       <div style={S.card}>
         <div style={S.cardHead}>
           <span style={S.h2}>Файлы в S3</span>
-          <button
-            style={{ ...S.clearBtn, fontSize: 12 }}
-            onClick={() => navigateS3('')}
-          >
-            ↺ Корень
-          </button>
         </div>
         <div style={{ padding: '8px 18px 16px' }}>
-          {!s3Data.configured ? (
-            <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>{s3Data.message || 'S3 не настроен'}</div>
-          ) : (
-            <>
-              {/* Breadcrumbs */}
-              <S3Breadcrumbs prefix={s3Data.prefix} onNavigate={navigateS3} />
-
-              {/* Folders */}
-              {s3Data.folders.map(folder => {
-                const label = folder.replace(s3Data.prefix, '').replace(/\/$/, '') || folder;
-                return (
-                  <div
-                    key={folder}
-                    onClick={() => navigateS3(folder)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #1e2535', cursor: 'pointer' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(59,130,246,.04)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-                  >
-                    <span style={{ fontSize: 14 }}>📁</span>
-                    <span style={{ color: '#60a5fa', fontSize: 13, fontFamily: 'monospace' }}>{label}/</span>
-                  </div>
-                );
-              })}
-
-              {/* Files */}
-              {s3Data.files.map(f => {
-                const name = f.key.split('/').pop() || f.key;
-                return (
-                  <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #1e2535' }}>
-                    <span style={{ fontSize: 14 }}>🎬</span>
-                    <span style={{ color: '#94a3b8', fontSize: 12, fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.key}>{name}</span>
-                    <span style={{ color: '#64748b', fontSize: 11, flexShrink: 0 }}>{fmtSize(f.size)}</span>
-                    {f.lastModified && (
-                      <span style={{ color: '#475569', fontSize: 11, flexShrink: 0 }}>{fmtDate(f.lastModified)}</span>
-                    )}
-                    <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 12, flexShrink: 0, textDecoration: 'none' }}>▶</a>
-                  </div>
-                );
-              })}
-
-              {s3Data.folders.length === 0 && s3Data.files.length === 0 && (
-                <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Папка пуста</div>
-              )}
-            </>
-          )}
+          <S3TreeBrowser refreshKey={s3RefreshKey} authHdr={authHdr} />
         </div>
       </div>
 
@@ -1006,53 +936,145 @@ export function AdminRecordingDashboard() {
 }
 
 /* ─── sub-components ────────────────────────────────────────── */
-function S3Breadcrumbs({ prefix, onNavigate }: { prefix: string; onNavigate: (p: string) => void }) {
-  const parts = prefix.replace(/\/$/, '').split('/').filter(Boolean);
-  const crumbs: { label: string; path: string }[] = [];
-  parts.forEach((part, i) => {
-    crumbs.push({ label: part, path: parts.slice(0, i + 1).join('/') + '/' });
-  });
+// ── S3 Tree Browser ────────────────────────────────────────────────────────
 
-  const parentPrefix = (): string => {
-    const trimmed = prefix.replace(/\/$/, '');
-    const up = trimmed.split('/').slice(0, -1).join('/');
-    return up ? up + '/' : '';
+interface S3NodeData {
+  folders: string[];
+  files: S3File[];
+  isExpanded: boolean;
+  isLoading: boolean;
+  isLoaded: boolean;
+}
+
+const S3_ROOT = 'myepa/';
+
+function S3TreeBrowser({ refreshKey, authHdr }: { refreshKey: number; authHdr: () => Record<string, string> }) {
+  const [nodes, setNodes] = React.useState<Record<string, S3NodeData>>({});
+
+  const loadNode = React.useCallback(async (path: string, expand = true) => {
+    setNodes(prev => ({
+      ...prev,
+      [path]: { ...(prev[path] ?? { folders: [], files: [], isLoaded: false }), isExpanded: expand, isLoading: true },
+    }));
+    try {
+      const r = await fetch(`/api/recording/admin/s3-files?prefix=${encodeURIComponent(path)}`, { headers: authHdr() });
+      if (r.ok) {
+        const d = await r.json();
+        setNodes(prev => ({
+          ...prev,
+          [path]: { folders: d.folders || [], files: d.files || [], isExpanded: expand, isLoading: false, isLoaded: true },
+        }));
+      } else {
+        setNodes(prev => ({ ...prev, [path]: { folders: [], files: [], isExpanded: expand, isLoading: false, isLoaded: true } }));
+      }
+    } catch {
+      setNodes(prev => ({ ...prev, [path]: { folders: [], files: [], isExpanded: expand, isLoading: false, isLoaded: true } }));
+    }
+  }, [authHdr]);
+
+  React.useEffect(() => {
+    setNodes({});
+    loadNode(S3_ROOT, true);
+  }, [refreshKey, loadNode]);
+
+  const toggle = async (path: string) => {
+    const node = nodes[path];
+    if (!node || !node.isLoaded) {
+      await loadNode(path, true);
+    } else {
+      setNodes(prev => ({ ...prev, [path]: { ...prev[path], isExpanded: !prev[path].isExpanded } }));
+    }
   };
 
+  const renderLevel = (path: string, depth: number): React.ReactNode => {
+    const node = nodes[path];
+    if (!node || !node.isLoaded) return null;
+    const indent = depth * 18;
+
+    return (
+      <>
+        {node.folders.map(folder => {
+          const label = folder.replace(path, '').replace(/\/$/, '');
+          const child = nodes[folder];
+          const expanded = child?.isExpanded ?? false;
+          const loading  = child?.isLoading  ?? false;
+          return (
+            <React.Fragment key={folder}>
+              <div
+                onClick={() => toggle(folder)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: `7px 0 7px ${indent + 4}px`,
+                  borderBottom: '1px solid #1e2535',
+                  cursor: 'pointer', userSelect: 'none',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(59,130,246,.05)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+              >
+                <span style={{ fontSize: 13, flexShrink: 0 }}>{loading ? '⏳' : expanded ? '📂' : '📁'}</span>
+                <span style={{ color: '#60a5fa', fontSize: 13, fontFamily: 'monospace', flex: 1 }}>{label}/</span>
+                <span style={{ color: '#334155', fontSize: 10, marginRight: 4 }}>{expanded ? '▲' : '▼'}</span>
+              </div>
+              {expanded && renderLevel(folder, depth + 1)}
+            </React.Fragment>
+          );
+        })}
+
+        {node.files.map(f => {
+          const name = f.key.split('/').pop() || f.key;
+          return (
+            <div
+              key={f.key}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: `7px 0 7px ${indent + 4}px`,
+                borderBottom: '1px solid #1e2535',
+              }}
+            >
+              <span style={{ fontSize: 13, flexShrink: 0 }}>🎬</span>
+              <span
+                style={{ color: '#94a3b8', fontSize: 12, fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                title={f.key}
+              >{name}</span>
+              <span style={{ color: '#64748b', fontSize: 11, flexShrink: 0 }}>{fmtSize(f.size)}</span>
+              {f.lastModified && (
+                <span style={{ color: '#475569', fontSize: 11, flexShrink: 0 }}>{fmtDate(f.lastModified)}</span>
+              )}
+              <a href={f.url} target="_blank" rel="noopener noreferrer"
+                style={{ color: '#3b82f6', fontSize: 12, flexShrink: 0, textDecoration: 'none' }}
+                title="Открыть файл"
+              >▶</a>
+            </div>
+          );
+        })}
+
+        {node.isLoaded && node.folders.length === 0 && node.files.length === 0 && (
+          <div style={{ paddingLeft: indent + 4, color: '#475569', fontSize: 12, padding: `8px 0 8px ${indent + 4}px`, borderBottom: '1px solid #1e2535' }}>
+            Пусто
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const root = nodes[S3_ROOT];
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0 12px', flexWrap: 'wrap' }}>
-      {/* Root anchor */}
-      <button
-        onClick={() => onNavigate('')}
-        style={{ background: 'none', border: 'none', padding: '2px 4px', cursor: 'pointer', fontSize: 12, color: prefix === '' ? '#e2e8f0' : '#3b82f6' }}
-        title="Корень бакета"
-      >
-        🪣 Bucket
-      </button>
+    <div>
+      {/* Root row — myepa/ always shown */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 0 10px', borderBottom: '1px solid #2d3748', marginBottom: 2,
+      }}>
+        <span style={{ fontSize: 14 }}>🪣</span>
+        <span style={{ color: '#e2e8f0', fontSize: 13, fontFamily: 'monospace', fontWeight: 600 }}>myepa/</span>
+        {root?.isLoading && <span style={{ color: '#64748b', fontSize: 11, marginLeft: 4 }}>загрузка...</span>}
+      </div>
 
-      {/* Path segments */}
-      {crumbs.map((c, i) => (
-        <span key={c.path} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: '#2d3748' }}>›</span>
-          <button
-            onClick={() => onNavigate(c.path)}
-            style={{ background: 'none', border: 'none', padding: '2px 4px', borderRadius: 4, cursor: 'pointer', fontSize: 12, color: i === crumbs.length - 1 ? '#e2e8f0' : '#3b82f6', fontFamily: 'monospace' }}
-          >
-            {c.label}
-          </button>
-        </span>
-      ))}
-
-      {/* Up button (hidden at root) */}
-      {prefix !== '' && (
-        <button
-          onClick={() => onNavigate(parentPrefix())}
-          title="На уровень выше"
-          style={{ background: '#1e2535', border: 'none', padding: '3px 8px', borderRadius: 5, cursor: 'pointer', fontSize: 12, color: '#94a3b8', marginLeft: 4 }}
-        >
-          ⬆ Наверх
-        </button>
+      {!root && (
+        <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>⏳ Загрузка...</div>
       )}
+      {root?.isLoaded && renderLevel(S3_ROOT, 0)}
     </div>
   );
 }
