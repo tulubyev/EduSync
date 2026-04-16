@@ -406,7 +406,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                       <RefreshCw className="h-3.5 w-3.5" />
                     </Button>
                   )}
-                  {task.status === 'failed' && (task.attemptCount ?? 0) < 3 && (
+                  {task.status === 'failed' && (
                     <Button
                       size="sm"
                       variant="outline"
