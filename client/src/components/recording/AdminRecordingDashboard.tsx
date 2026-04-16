@@ -498,64 +498,50 @@ export function AdminRecordingDashboard() {
         </div>
       </div>
 
-      {/* ── Health + Worker Health (одна строка) ────────────────── */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'flex-start' }}>
-
-      <div style={{ ...S.card, flex: '0 0 320px' }}>
-        <div style={S.cardHead}><span style={S.h2}>Состояние сервисов</span></div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 18 }}>
-          <HealthRow label="PostgreSQL" service={db} />
-          <HealthRow label="Beget S3" service={s3} />
-        </div>
-      </div>
-
-      {/* ── Worker Health ───────────────────────────────────────── */}
-      <div style={{ ...S.card, flex: 1 }}>
+      {/* ── Состояние сервисов (PostgreSQL + S3 + Worker) ────────── */}
+      <div style={{ ...S.card, marginBottom: 16 }}>
         <div style={S.cardHead}>
-          <span style={S.h2}>Здоровье воркера</span>
+          <span style={S.h2}>Состояние сервисов</span>
           <button
             onClick={handleSyncCheck}
             disabled={syncCheckLoading}
             style={{
-              fontSize: 12, padding: '4px 14px', borderRadius: 6, border: '1px solid #2d3748',
+              fontSize: 11, padding: '3px 12px', borderRadius: 6, border: '1px solid #2d3748',
               background: '#1a1f2e', color: '#94a3b8', cursor: syncCheckLoading ? 'default' : 'pointer',
               opacity: syncCheckLoading ? .6 : 1,
             }}
           >
-            {syncCheckLoading ? '⏳ Проверка...' : '🔍 Проверить статус'}
+            {syncCheckLoading ? '⏳...' : '🔍 Проверить'}
           </button>
         </div>
-        <div style={{ padding: '12px 18px' }}>
-          {workerStatus && workerStatus.workers.length > 0 ? (
-            workerStatus.workers.map(w => <WorkerRow key={w.workerId} worker={w} fmtDateFull={fmtDateFull} />)
-          ) : (
-            <div style={{ color: '#64748b', fontSize: 13, padding: '10px 0' }}>
-              {workerStatus ? 'Нет зарегистрированных воркеров' : 'Загрузка...'}
-            </div>
-          )}
-          {syncCheckResult && (
-            <div style={{
-              marginTop: 12, padding: '10px 14px', borderRadius: 8,
-              background: syncCheckResult.healthy ? '#052e16' : '#1f0a0a',
-              border: `1px solid ${syncCheckResult.healthy ? '#166534' : '#7f1d1d'}`,
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: syncCheckResult.healthy ? '#4ade80' : '#f87171', marginBottom: 4 }}>
-                {syncCheckResult.healthy ? '✓ Всё в порядке' : `⚠ Найдено проблем: ${syncCheckResult.issueCount}`}
-              </div>
-              {syncCheckResult.issues.map((issue, i) => (
-                <div key={i} style={{ fontSize: 11, color: '#f87171', marginTop: 3 }}>
-                  [{issue.type}] {issue.message}
-                </div>
-              ))}
-              <div style={{ fontSize: 10, color: '#475569', marginTop: 6 }}>
-                Проверено: {fmtDateFull(syncCheckResult.timestamp)}
-              </div>
-            </div>
-          )}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, padding: '14px 18px' }}>
+          <HealthRow label="PostgreSQL" service={db} />
+          <HealthRow label="Beget S3" service={s3} />
+          <WorkerCell
+            worker={workerStatus?.workers[0] ?? null}
+            loading={!workerStatus}
+          />
         </div>
+        {syncCheckResult && (
+          <div style={{
+            margin: '0 18px 14px', padding: '8px 12px', borderRadius: 8,
+            background: syncCheckResult.healthy ? '#052e16' : '#1f0a0a',
+            border: `1px solid ${syncCheckResult.healthy ? '#166534' : '#7f1d1d'}`,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: syncCheckResult.healthy ? '#4ade80' : '#f87171', marginBottom: 2 }}>
+              {syncCheckResult.healthy ? '✓ Всё в порядке' : `⚠ Найдено проблем: ${syncCheckResult.issueCount}`}
+            </div>
+            {syncCheckResult.issues.map((issue, i) => (
+              <div key={i} style={{ fontSize: 11, color: '#f87171', marginTop: 2 }}>
+                [{issue.type}] {issue.message}
+              </div>
+            ))}
+            <div style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>
+              Проверено: {fmtDateFull(syncCheckResult.timestamp)}
+            </div>
+          </div>
+        )}
       </div>
-
-      </div>{/* end flex row: Состояние сервисов + Здоровье воркера */}
 
       {/* ── Recent Logs ─────────────────────────────────────────── */}
       <div style={{ ...S.card, marginBottom: 16 }}>
@@ -1185,65 +1171,51 @@ function DarkTextarea({ value, onChange }: { value: string; onChange?: (v: strin
   );
 }
 
-function WorkerRow({ worker, fmtDateFull }: { worker: WorkerEntry; fmtDateFull: (d: string | null | undefined) => string }) {
-  const online = worker.isOnline;
-  const dot = online ? '#22c55e' : '#ef4444';
-  const glow = online ? '0 0 8px #22c55e66' : '0 0 8px #ef444466';
-  const minutesAgo = worker.secondsAgo != null ? Math.floor(worker.secondsAgo / 60) : null;
-  const uptimeMs = worker.startedAt ? Date.now() - new Date(worker.startedAt).getTime() : null;
-  const uptimeH = uptimeMs ? Math.floor(uptimeMs / 3600000) : null;
-  const uptimeM = uptimeMs ? Math.floor((uptimeMs % 3600000) / 60000) : null;
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '10px 0', borderBottom: '1px solid #1e2535' }}>
-      {/* Identity & status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: dot, boxShadow: glow }} />
+function WorkerCell({ worker, loading }: { worker: WorkerEntry | null; loading: boolean }) {
+  if (loading) {
+    return (
+      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: '#334155' }} />
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', fontFamily: 'monospace' }}>{worker.workerId.slice(-20)}</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>
-            {online ? '🟢 Online' : '🔴 Offline'}
-            {minutesAgo != null ? ` · ${minutesAgo}м назад` : ''}
-            {worker.buildVersion ? ` · v${worker.buildVersion}` : ''}
-          </div>
-          {worker.currentTaskTitle && (
-            <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 2 }}>▶ {worker.currentTaskTitle}</div>
-          )}
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>...</div>
         </div>
       </div>
-
-      {/* Task counters */}
-      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0' }}>{worker.tasksProcessed ?? 0}</div>
-          <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Обраб.</div>
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#22c55e' }}>{worker.tasksSuccessful ?? 0}</div>
-          <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Успешно</div>
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444' }}>{worker.tasksFailed ?? 0}</div>
-          <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase' }}>Ошибок</div>
+    );
+  }
+  if (!worker) {
+    return (
+      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: '#64748b' }} />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Нет воркеров</div>
         </div>
       </div>
-
-      {/* Last error & uptime */}
-      <div>
-        {uptimeH != null && (
-          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
-            Аптайм: {uptimeH}ч {uptimeM}м
-          </div>
-        )}
-        {worker.lastError ? (
-          <div style={{ fontSize: 11, color: '#f87171', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={worker.lastError}>
-            ⚠ {worker.lastError.slice(0, 80)}
+    );
+  }
+  const online = worker.isOnline;
+  const dotColor = online ? '#22c55e' : '#ef4444';
+  const dotGlow  = online ? '0 0 8px #22c55e66' : '0 0 8px #ef444466';
+  const minutesAgo = worker.secondsAgo != null ? Math.floor(worker.secondsAgo / 60) : null;
+  const subtitleParts: string[] = [online ? 'Online' : 'Offline'];
+  if (minutesAgo != null) subtitleParts.push(`${minutesAgo}м назад`);
+  if (worker.buildVersion) subtitleParts.push(`v${worker.buildVersion}`);
+  const counters = `✓${worker.tasksSuccessful ?? 0} / ✗${worker.tasksFailed ?? 0}`;
+  return (
+    <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: dotColor, boxShadow: dotGlow }} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
+        <div style={{ fontSize: 11, color: online ? '#4ade80' : '#f87171', marginTop: 2 }}>
+          {subtitleParts.join(' · ')}
+        </div>
+        {worker.currentTaskTitle ? (
+          <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            ▶ {worker.currentTaskTitle}
           </div>
         ) : (
-          <div style={{ fontSize: 11, color: '#22c55e' }}>✓ Нет ошибок</div>
-        )}
-        {worker.lastErrorAt && (
-          <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{fmtDateFull(worker.lastErrorAt)}</div>
+          <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>{counters}</div>
         )}
       </div>
     </div>
