@@ -511,7 +511,7 @@ export function AdminRecordingDashboard() {
               opacity: syncCheckLoading ? .6 : 1,
             }}
           >
-            {syncCheckLoading ? '⏳...' : '🔍 Проверить'}
+            {syncCheckLoading ? '⏳ Проверка...' : '🔍 Проверить статус'}
           </button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, padding: '14px 18px' }}>
@@ -1210,12 +1210,11 @@ function WorkerCell({ worker, loading }: { worker: WorkerEntry | null; loading: 
         <div style={{ fontSize: 11, color: online ? '#4ade80' : '#f87171', marginTop: 2 }}>
           {subtitleParts.join(' · ')}
         </div>
-        {worker.currentTaskTitle ? (
+        <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>{counters}</div>
+        {worker.currentTaskTitle && (
           <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             ▶ {worker.currentTaskTitle}
           </div>
-        ) : (
-          <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>{counters}</div>
         )}
       </div>
     </div>
