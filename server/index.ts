@@ -6,7 +6,7 @@ import { logger } from "./services/logger";
 import { yookassaService } from "./services/yookassaService";
 import { PaymentFactory } from "./services/payments/paymentFactory";
 import { courseDiscoveryService } from "./services/courseDiscoveryService";
-import { recordingTaskManager } from "./services/recording";
+import { recordingTaskManager, TaskPoller } from "./services/recording";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
@@ -184,6 +184,18 @@ app.use((req, res, next) => {
     setInterval(runRecordingWatchdog, 2 * 60 * 1000); // every 2 minutes
     runRecordingWatchdog(); // run immediately on start
     logger.info('Recording watchdog started (runs every 2 min, stale threshold: 12 min)');
+
+    // Recording executor poller — runs only in primary process (PM2 cluster safe)
+    const isPrimaryWorker = !process.env.pm_id || process.env.pm_id === '0';
+    if (isPrimaryWorker) {
+      const poller = new TaskPoller();
+      poller.start().catch((err) => {
+        logger.error('Recording executor poller crashed:', err);
+      });
+      logger.info(`Recording executor poller started (worker: ${process.env.WORKER_ID || 'epa-worker-1'})`);
+    } else {
+      logger.info(`Recording executor poller skipped on PM2 worker #${process.env.pm_id}`);
+    }
 
   }, 30000); // Wait 30 seconds before starting background services
 })();
