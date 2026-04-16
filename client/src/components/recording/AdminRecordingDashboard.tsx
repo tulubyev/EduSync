@@ -1131,7 +1131,7 @@ function PlaywrightCell({ playwright }: { playwright?: PlaywrightHealth }) {
   } else if (status === 'not_launched') {
     dotColor = '#64748b';
     label    = 'Playwright';
-    sub      = 'Браузер не инициализирован';
+    sub      = 'Ожидает задачи';
   } else if (status === 'executor_stopped') {
     dotColor = '#475569';
     label    = 'Playwright';
