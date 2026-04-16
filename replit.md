@@ -72,13 +72,13 @@ The frontend is a SPA rooted at `client/index.html`, served by Vite in dev and b
 | `platforms` | Supported educational platforms (89+) |
 | `deadlines` | Course deadlines and assignments |
 | `notes` | User notes attached to courses |
-| `recording_tasks` | Tasks for the Recording Worker (status: ready/in_progress/uploading/completed/failed/cancelled) |
+| `recording_tasks` | Tasks for the Recording Executor (status: ready/in_progress/uploading/completed/failed/cancelled) |
 | `subscriptions` | User subscription records |
 | `payments` | Payment transaction records |
 | `user_activities` | Activity log |
 | `system_logs` / `system_messages` | Admin/system audit logs |
 
-**File Storage**: Profile images and uploaded files are stored as base64 strings in the database (not on filesystem). Recorded videos are uploaded to Beget S3 by the Recording Worker.
+**File Storage**: Profile images and uploaded files are stored as base64 strings in the database (not on filesystem). Recorded videos are uploaded to Beget S3 by the integrated Recording Executor.
 
 ### Authentication
 
@@ -118,10 +118,10 @@ Documentation exists for a React Native mobile app (`docs/MOBILE_ARCHITECTURE.md
 - Additional platforms planned via REST/OAuth/LTI protocols
 
 ### Storage
-- **Beget S3 (Object Storage)**: Primary storage for recorded video chunks (used by Recording Worker via `aws-sdk`)
+- **Beget S3 (Object Storage)**: Primary storage for recorded video chunks (used by Recording Executor via `@aws-sdk/client-s3`)
 - **Yandex.Disk API**: Alternative storage option for video chunks
 
-### Media Processing (Recording Worker only)
+### Media Processing (Recording Executor — integrated into EPA backend)
 - **Playwright**: Headless browser automation for capturing streams
 - **FFmpeg** (`fluent-ffmpeg`): Video/audio encoding, muxing, HLS playlist generation
 - **PulseAudio**: Virtual audio sink for capturing browser audio
@@ -154,14 +154,14 @@ NODE_ENV              # development | production
 BEGET_SMTP_HOST       # SMTP host for email
 BEGET_SMTP_USER       # SMTP username
 BEGET_SMTP_PASSWORD   # SMTP password
-```
 
-Recording Worker also needs:
-```
-BEGET_S3_ENDPOINT     # S3 endpoint URL
+# Recording Executor (integrated into EPA backend)
+BEGET_S3_ENDPOINT     # S3 endpoint URL (default: https://s3.ru1.storage.beget.cloud)
 BEGET_S3_ACCESS_KEY   # S3 access key
 BEGET_S3_SECRET_KEY   # S3 secret key
 BEGET_S3_BUCKET       # Bucket name
-WORKER_ID             # Unique worker identifier
-API_SECRET            # Secret for n8n integration
+BEGET_S3_REGION       # S3 region (default: ru-1)
+WORKER_ID             # Unique worker identifier (default: epa-worker-1)
+POLL_INTERVAL_MS      # Task poll interval in ms (default: 5000)
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH  # Path to Chromium binary (auto-detected from Nix)
 ```
