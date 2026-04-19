@@ -105,6 +105,18 @@ export class StreamingRecorder {
         },
       });
 
+      this.browser.on('disconnected', () => {
+        const wasRecording = this.currentSession?.isActive ?? false;
+        logger.error(`[BROWSER] ❌ Browser disconnected unexpectedly (recording active: ${wasRecording})`);
+        if (this.currentSession?.isActive) {
+          this.currentSession.isActive = false;
+          logger.error(`[BROWSER] Recording session ${this.currentSession.taskId} aborted by browser disconnect`);
+        }
+        this.browser = null;
+        this.page = null;
+        this.cdpSession = null;
+      });
+
       logger.info('[BROWSER] ✅ Browser started successfully');
     } catch (error) {
       logger.error('[BROWSER] ❌ Failed to start browser:', error);
@@ -395,6 +407,7 @@ export class StreamingRecorder {
     });
 
     let ffmpegStderrBuf = '';
+    const ffmpegErrorLines: string[] = [];
     ffmpegProcess.stderr?.on('data', (data) => {
       ffmpegStderrBuf += data.toString();
       const lines = ffmpegStderrBuf.split('\n');
@@ -402,8 +415,13 @@ export class StreamingRecorder {
       for (const line of lines) {
         const l = line.trim();
         if (!l) continue;
-        if (l.includes('error') || l.includes('Error') || l.includes('Invalid') || l.includes('Output file does not')) {
+        if (l.includes('error') || l.includes('Error') || l.includes('Invalid') || l.includes('Output file does not') || l.includes('No such file')) {
           logger.error(`[FFMPEG] ${l}`);
+          ffmpegErrorLines.push(l);
+          // Сохраняем накопленные ошибки в сессию чтобы errorMessage попал в БД
+          if (this.currentSession) {
+            this.currentSession.ffmpegError = ffmpegErrorLines.slice(-5).join('; ');
+          }
         } else if (l.startsWith('frame=') || l.includes('fps=')) {
           logger.info(`[FFMPEG progress] ${l}`);
         } else {
@@ -414,6 +432,9 @@ export class StreamingRecorder {
 
     ffmpegProcess.on('error', (error) => {
       logger.error('[FFMPEG] ❌ Process error:', error);
+      if (this.currentSession) {
+        this.currentSession.ffmpegError = `Process error: ${(error as Error).message}`;
+      }
     });
 
     if (!ffmpegProcess.pid) {
@@ -540,39 +561,84 @@ export class StreamingRecorder {
     }
 
     const NO_FRAMES_ABORT_MS = 120_000;
+    const STALL_WARN_MS = 60_000;
     let abortedEarly = false;
+    let abortReason = '';
+    let lastFrameCount = 0;
+    let lastFrameAt = Date.now();
+
+    // Обновляем lastFrameAt по мере прихода кадров
+    const stalledFrameTracker = setInterval(() => {
+      const fc = this.currentSession?.frameCount ?? 0;
+      if (fc !== lastFrameCount) {
+        lastFrameCount = fc;
+        lastFrameAt = Date.now();
+      }
+    }, 1_000);
 
     await new Promise<void>((resolve) => {
       const progressInterval = setInterval(() => {
-        const fc = this.currentSession?.frameCount ?? 0;
-        const elapsed = this.currentSession ? Math.round((Date.now() - this.currentSession.startTime) / 1000) : 0;
+        const session = this.currentSession;
+        if (!session) { clearInterval(progressInterval); resolve(); return; }
 
-        if (fc === 0 && elapsed * 1000 >= NO_FRAMES_ABORT_MS) {
-          logger.error(`Recording aborted: 0 frames received in ${elapsed}s — CDPSession not capturing`);
+        const fc = session.frameCount;
+        const elapsed = Math.round((Date.now() - session.startTime) / 1000);
+        const msSinceLastFrame = Date.now() - lastFrameAt;
+
+        // FFmpeg завершился досрочно с ошибкой — прерываем немедленно
+        if (session.ffmpegExitCode !== null && session.isActive) {
+          if (session.ffmpegExitCode !== 0) {
+            abortReason = `FFmpeg завершился досрочно (код ${session.ffmpegExitCode})${session.ffmpegError ? ': ' + session.ffmpegError : ''}`;
+            logger.error(`[WAIT] ❌ ${abortReason} — прерываем запись`);
+          } else {
+            logger.warn(`[WAIT] FFmpeg завершился досрочно (код 0, ${elapsed}s из ${Math.round(durationMs / 1000)}s) — возможно, истёк -t лимит`);
+          }
           abortedEarly = true;
           clearInterval(progressInterval);
+          clearInterval(stalledFrameTracker);
+          resolve();
+          return;
+        }
+
+        // 0 кадров за первые 2 минуты — CDPSession не захватывает
+        if (fc === 0 && elapsed * 1000 >= NO_FRAMES_ABORT_MS) {
+          abortReason = `CDPSession не прислал ни одного кадра за ${elapsed}s — страница не рендерится`;
+          logger.error(`[WAIT] ❌ ${abortReason} — прерываем запись`);
+          abortedEarly = true;
+          clearInterval(progressInterval);
+          clearInterval(stalledFrameTracker);
           resolve();
         } else if (fc === 0) {
-          logger.warn(`Recording ${elapsed}s elapsed, 0 frames written to FFmpeg — CDPSession may not be capturing`);
+          logger.warn(`[WAIT] ${elapsed}s прошло, 0 кадров — CDPSession ещё не начал захватывать`);
+        } else if (fc > 0 && msSinceLastFrame > STALL_WARN_MS) {
+          // Кадры шли, но остановились — браузер мог упасть
+          const stallSec = Math.round(msSinceLastFrame / 1000);
+          logger.warn(`[WAIT] ⚠️ Нет новых кадров уже ${stallSec}s (всего кадров: ${fc}) — CDPSession завис или браузер упал`);
         } else {
-          logger.info(`Recording progress: ${elapsed}s elapsed, ${fc} frames written`);
+          logger.info(`[WAIT] Прогресс: ${elapsed}s, ${fc} кадров`);
         }
       }, 30_000);
 
       setTimeout(() => {
         clearInterval(progressInterval);
+        clearInterval(stalledFrameTracker);
         resolve();
       }, durationMs);
     });
 
     const result = await this.stopRecording();
 
-    if (abortedEarly && result.frameCount === 0) {
-      return {
-        ...result,
-        success: false,
-        error: 'CDPSession не прислал ни одного кадра за 2 минуты — страница не рендерится',
-      };
+    // Досрочное прерывание — определяем успех по наличию кадров
+    if (abortedEarly) {
+      if (result.frameCount === 0) {
+        return {
+          ...result,
+          success: false,
+          error: abortReason || result.error || 'Запись прервана без единого кадра',
+        };
+      }
+      // Есть кадры — видео сохранено частично, это не фатально
+      logger.warn(`[WAIT] Досрочное завершение, но ${result.frameCount} кадров записано — загружаем частичный файл`);
     }
 
     return result;
@@ -717,20 +783,27 @@ export class StreamingRecorder {
     onChunk?: (chunk: any) => Promise<void>;
   }): Promise<string> {
     await this.initialize();
-    await this.navigateToStream(options.url, options.password);
 
     const durationMs = options.duration * 60 * 1000;
     const taskId = options.taskId || `task_${Date.now()}`;
+    let result: Awaited<ReturnType<typeof this.waitForRecordingComplete>> | null = null;
 
-    const { outputPath } = await this.startStreamingRecording(taskId, 1, durationMs);
-    void outputPath;
+    try {
+      await this.navigateToStream(options.url, options.password);
 
-    const result = await this.waitForRecordingComplete(durationMs);
+      const { outputPath } = await this.startStreamingRecording(taskId, 1, durationMs);
+      void outputPath;
 
-    await this.cleanup();
+      result = await this.waitForRecordingComplete(durationMs);
+    } finally {
+      // Всегда закрываем браузер — даже если навигация или FFmpeg упали
+      await this.cleanup().catch((e) => {
+        logger.warn('[recordStream] cleanup error (non-fatal):', e);
+      });
+    }
 
-    if (!result.success) {
-      throw new Error(result.error || 'Recording failed');
+    if (!result || !result.success) {
+      throw new Error(result?.error || 'Recording failed');
     }
 
     return result.filePath;
