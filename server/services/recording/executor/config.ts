@@ -24,6 +24,7 @@ export const executorConfig = {
   },
   worker: {
     id: process.env.WORKER_ID || 'epa-worker-1',
+    maxWorkers: Math.max(1, Math.min(8, parseInt(process.env.MAX_WORKERS || '1', 10))),
     pollIntervalMs: parseInt(process.env.POLL_INTERVAL_MS || '5000', 10),
     heartbeatIntervalMs: parseInt(process.env.HEARTBEAT_INTERVAL_MS || '30000', 10),
     heartbeatTimeoutMs: parseInt(process.env.HEARTBEAT_TIMEOUT_MS || '600000', 10),

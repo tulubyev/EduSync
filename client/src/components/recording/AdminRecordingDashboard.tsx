@@ -114,6 +114,17 @@ interface HealthService {
   bucket?: string;
 }
 
+interface WorkerBrowserStatus {
+  workerId: string;
+  status: 'recording' | 'idle' | 'not_launched' | 'executor_stopped' | 'error';
+  browserAlive: boolean;
+  isRecording: boolean;
+  frameCount: number;
+  elapsedMs: number | null;
+  currentUrl: string | null;
+  taskId: string | null;
+}
+
 interface PlaywrightHealth {
   status: 'recording' | 'idle' | 'not_launched' | 'executor_stopped' | 'error';
   browserAlive: boolean;
@@ -124,6 +135,7 @@ interface PlaywrightHealth {
   currentUrl: string | null;
   taskId: string | null;
   error?: string;
+  workers?: WorkerBrowserStatus[];
 }
 
 interface HealthData {
@@ -252,7 +264,10 @@ export function AdminRecordingDashboard() {
 
   const [workerStatus, setWorkerStatus]     = useState<WorkerStatusData | null>(null);
   const [executorRunning, setExecutorRunning] = useState<boolean | null>(null);
-  const [executorAction, setExecutorAction]   = useState<'start' | 'stop' | null>(null);
+  const [executorAction, setExecutorAction]   = useState<'start' | 'stop' | 'scale-up' | null>(null);
+  const [executorWorkerCount, setExecutorWorkerCount] = useState<number>(0);
+  const [executorMaxWorkers, setExecutorMaxWorkers]   = useState<number>(1);
+  const [scalingWorkerId, setScalingWorkerId] = useState<string | null>(null);
   const [errorDetail, setErrorDetail] = useState<{ taskId: string; taskTitle: string; message: string } | null>(null);
   const [historyTaskId, setHistoryTaskId]   = useState<string | null>(null);
   const [historyTaskTitle, setHistoryTaskTitle] = useState('');
@@ -310,7 +325,12 @@ export function AdminRecordingDashboard() {
 
   const fetchExecutorStatus = useCallback(async () => {
     const r = await fetch('/api/recording/admin/executor/status', { headers: authHdr() });
-    if (r.ok) { const d = await r.json(); setExecutorRunning(d.executor?.isRunning ?? null); }
+    if (r.ok) {
+      const d = await r.json();
+      setExecutorRunning(d.executor?.isRunning ?? null);
+      setExecutorWorkerCount(d.executor?.workerCount ?? 0);
+      setExecutorMaxWorkers(d.executor?.maxWorkers ?? 1);
+    }
   }, []);
 
   const handleStartExecutor = async () => {
@@ -319,6 +339,8 @@ export function AdminRecordingDashboard() {
       const r = await fetch('/api/recording/admin/executor/start', { method: 'POST', headers: jsonHdr() });
       const d = await r.json();
       setExecutorRunning(d.executor?.isRunning ?? true);
+      setExecutorWorkerCount(d.executor?.workerCount ?? 1);
+      setExecutorMaxWorkers(d.executor?.maxWorkers ?? 1);
     } finally { setExecutorAction(null); }
   };
 
@@ -328,7 +350,31 @@ export function AdminRecordingDashboard() {
       const r = await fetch('/api/recording/admin/executor/stop', { method: 'POST', headers: jsonHdr() });
       const d = await r.json();
       setExecutorRunning(d.executor?.isRunning ?? false);
+      setExecutorWorkerCount(0);
     } finally { setExecutorAction(null); }
+  };
+
+  const handleScaleUp = async () => {
+    setExecutorAction('scale-up');
+    try {
+      const r = await fetch('/api/recording/admin/executor/scale-up', { method: 'POST', headers: jsonHdr() });
+      const d = await r.json();
+      setExecutorRunning(d.executor?.isRunning ?? true);
+      setExecutorWorkerCount(d.executor?.workerCount ?? executorWorkerCount + 1);
+      setExecutorMaxWorkers(d.executor?.maxWorkers ?? executorMaxWorkers);
+    } finally { setExecutorAction(null); }
+  };
+
+  const handleStopWorker = async (workerId: string) => {
+    setScalingWorkerId(workerId);
+    try {
+      const r = await fetch(`/api/recording/admin/executor/worker/${encodeURIComponent(workerId)}/stop`, {
+        method: 'POST', headers: jsonHdr(),
+      });
+      const d = await r.json();
+      setExecutorRunning(d.executor?.isRunning ?? false);
+      setExecutorWorkerCount(d.executor?.workerCount ?? 0);
+    } finally { setScalingWorkerId(null); }
   };
 
 
@@ -459,28 +505,48 @@ export function AdminRecordingDashboard() {
           {lastUpdate ? `Обновлено: ${lastUpdate}` : 'Загрузка...'}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* ── Executor Start/Stop ── */}
+          {/* ── Executor Start/Stop + Scale Up ── */}
           {executorRunning !== false ? (
-            <button
-              onClick={handleStopExecutor}
-              disabled={!!executorAction}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '9px 22px', borderRadius: 24, border: '1px solid #7f1d1d',
-                background: executorAction ? '#2d1515' : '#3b0d0d',
-                color: executorAction ? '#9ca3af' : '#fca5a5',
-                fontSize: 13, fontWeight: 700, cursor: executorAction ? 'not-allowed' : 'pointer',
-                transition: 'all .2s', letterSpacing: '.3px',
-                boxShadow: executorAction ? 'none' : '0 0 12px rgba(239,68,68,.15)',
-              }}
-            >
-              <span style={{
-                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                background: executorAction ? '#6b7280' : '#ef4444',
-                animation: executorAction ? 'none' : 'pulse 1.4s ease-in-out infinite',
-              }} />
-              {executorAction === 'stop' ? 'Останавливаю...' : '⏹ Остановить воркер'}
-            </button>
+            <>
+              {executorWorkerCount < executorMaxWorkers && (
+                <button
+                  onClick={handleScaleUp}
+                  disabled={!!executorAction}
+                  title={`Добавить воркер (${executorWorkerCount}/${executorMaxWorkers})`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '9px 16px', borderRadius: 24, border: '1px solid #1d4ed8',
+                    background: executorAction ? '#0d1b3e' : '#1e3a8a',
+                    color: executorAction ? '#9ca3af' : '#93c5fd',
+                    fontSize: 13, fontWeight: 700, cursor: executorAction ? 'not-allowed' : 'pointer',
+                    transition: 'all .2s',
+                  }}
+                >
+                  {executorAction === 'scale-up' ? '⏳' : '＋'} Воркер
+                  <span style={{ fontSize: 10, opacity: .7 }}>{executorWorkerCount}/{executorMaxWorkers}</span>
+                </button>
+              )}
+              <button
+                onClick={handleStopExecutor}
+                disabled={!!executorAction}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '9px 22px', borderRadius: 24, border: '1px solid #7f1d1d',
+                  background: executorAction ? '#2d1515' : '#3b0d0d',
+                  color: executorAction ? '#9ca3af' : '#fca5a5',
+                  fontSize: 13, fontWeight: 700, cursor: executorAction ? 'not-allowed' : 'pointer',
+                  transition: 'all .2s', letterSpacing: '.3px',
+                  boxShadow: executorAction ? 'none' : '0 0 12px rgba(239,68,68,.15)',
+                }}
+              >
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                  background: executorAction ? '#6b7280' : '#ef4444',
+                  animation: executorAction ? 'none' : 'pulse 1.4s ease-in-out infinite',
+                }} />
+                {executorAction === 'stop' ? 'Останавливаю...' : `⏹ Стоп (${executorWorkerCount} воркер${executorWorkerCount === 1 ? '' : 'ов'})`}
+              </button>
+            </>
           ) : (
             <button
               onClick={handleStartExecutor}
@@ -563,15 +629,18 @@ export function AdminRecordingDashboard() {
             {syncCheckLoading ? '⏳ Проверка...' : '🔍 Проверить статус'}
           </button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14, padding: '14px 18px' }}>
+        {/* DB + S3 row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: '14px 18px 0' }}>
           <HealthRow label="PostgreSQL" service={db} />
           <HealthRow label="Beget S3" service={s3} />
-          <WorkerCell
-            worker={workerStatus?.workers[0] ?? null}
-            loading={!workerStatus}
-          />
-          <PlaywrightCell playwright={health?.services?.playwright} />
         </div>
+        {/* Workers row — dynamic number of cells */}
+        <WorkerPoolGrid
+          playwright={health?.services?.playwright}
+          workerStatus={workerStatus}
+          onStopWorker={handleStopWorker}
+          stoppingWorkerId={scalingWorkerId}
+        />
         {syncCheckResult && (
           <div style={{
             margin: '0 18px 14px', padding: '8px 12px', borderRadius: 8,
@@ -1103,7 +1172,60 @@ function S3TreeBrowser({ refreshKey }: { refreshKey: number }) {
   );
 }
 
-function PlaywrightCell({ playwright }: { playwright?: PlaywrightHealth }) {
+function WorkerPoolGrid({
+  playwright,
+  workerStatus,
+  onStopWorker,
+  stoppingWorkerId,
+}: {
+  playwright?: PlaywrightHealth;
+  workerStatus: WorkerStatusData | null;
+  onStopWorker: (workerId: string) => void;
+  stoppingWorkerId: string | null;
+}) {
+  const workers = playwright?.workers ?? [];
+  if (workers.length === 0) {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: '14px 18px' }}>
+        <WorkerCell worker={workerStatus?.workers[0] ?? null} loading={!workerStatus} />
+        <PlaywrightCell playwright={playwright} />
+      </div>
+    );
+  }
+
+  // Multi-worker mode
+  const cols = Math.max(2, Math.min(4, workers.length + 1));
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(${cols}, 1fr)`,
+      gap: 14, padding: '14px 18px',
+    }}>
+      <WorkerCell worker={workerStatus?.workers[0] ?? null} loading={!workerStatus} />
+      {workers.map((w) => (
+        <PlaywrightCell
+          key={w.workerId}
+          playwright={{ ...playwright, ...w } as PlaywrightHealth}
+          workerId={w.workerId}
+          onStop={() => onStopWorker(w.workerId)}
+          stopping={stoppingWorkerId === w.workerId}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PlaywrightCell({
+  playwright,
+  workerId,
+  onStop,
+  stopping,
+}: {
+  playwright?: PlaywrightHealth;
+  workerId?: string;
+  onStop?: () => void;
+  stopping?: boolean;
+}) {
   const status = playwright?.status;
 
   let dotColor = '#64748b';
@@ -1112,35 +1234,39 @@ function PlaywrightCell({ playwright }: { playwright?: PlaywrightHealth }) {
   let label    = '...';
   let sub      = '';
 
+  const workerLabel = workerId
+    ? workerId.replace(/^epa-/, '')
+    : 'browser';
+
   if (!playwright) {
-    label = 'Playwright';
+    label = `Playwright · ${workerLabel}`;
     sub   = '...';
   } else if (status === 'recording') {
     dotColor = '#22c55e';
     dotGlow  = '0 0 8px #22c55e99';
     dotAnim  = 'pwPulse 1.2s ease-in-out infinite';
-    label    = 'Playwright · Запись';
+    label    = `${workerLabel} · Запись`;
     const elMin = playwright.elapsedMs != null ? Math.floor(playwright.elapsedMs / 60000) : 0;
     const elSec = playwright.elapsedMs != null ? Math.floor((playwright.elapsedMs % 60000) / 1000) : 0;
     sub = `${playwright.frameCount} фреймов · ${elMin > 0 ? `${elMin}м ` : ''}${elSec}с`;
   } else if (status === 'idle') {
     dotColor = '#f59e0b';
     dotGlow  = '0 0 6px #f59e0b66';
-    label    = 'Playwright · Ожидание';
+    label    = `${workerLabel} · Ожидание`;
     sub      = 'Браузер запущен, задач нет';
   } else if (status === 'not_launched') {
     dotColor = '#64748b';
-    label    = 'Playwright';
+    label    = `${workerLabel}`;
     sub      = 'Ожидает задачи';
   } else if (status === 'executor_stopped') {
     dotColor = '#475569';
-    label    = 'Playwright';
+    label    = `${workerLabel}`;
     sub      = 'Воркер остановлен';
   } else if (status === 'error') {
     dotColor = '#ef4444';
     dotGlow  = '0 0 8px #ef444466';
-    label    = 'Playwright · Ошибка';
-    sub      = playwright.error || 'Неизвестная ошибка';
+    label    = `${workerLabel} · Ошибка`;
+    sub      = (playwright as PlaywrightHealth).error || 'Неизвестная ошибка';
   }
 
   const urlLine = playwright?.currentUrl && playwright.currentUrl !== 'about:blank'
@@ -1150,13 +1276,13 @@ function PlaywrightCell({ playwright }: { playwright?: PlaywrightHealth }) {
   return (
     <>
       <style>{`@keyframes pwPulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }`}</style>
-      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'flex-start', gap: 12, position: 'relative' }}>
         <div style={{
           width: 10, height: 10, borderRadius: '50%', flexShrink: 0, marginTop: 3,
           background: dotColor, boxShadow: dotGlow,
           animation: dotAnim || undefined,
         }} />
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{sub}</div>
           {urlLine && (
@@ -1165,6 +1291,22 @@ function PlaywrightCell({ playwright }: { playwright?: PlaywrightHealth }) {
             </div>
           )}
         </div>
+        {onStop && workerId && (
+          <button
+            onClick={onStop}
+            disabled={stopping}
+            title={`Остановить ${workerId}`}
+            style={{
+              position: 'absolute', top: 8, right: 8,
+              background: 'none', border: 'none',
+              color: stopping ? '#475569' : '#64748b',
+              fontSize: 14, cursor: stopping ? 'not-allowed' : 'pointer',
+              lineHeight: 1, padding: 2,
+            }}
+          >
+            {stopping ? '⏳' : '✕'}
+          </button>
+        )}
       </div>
     </>
   );

@@ -22,8 +22,8 @@ export class TaskPoller {
   private s3Ok = false;
   private running = false;
 
-  constructor() {
-    this.workerId = executorConfig.worker.id;
+  constructor(workerId?: string) {
+    this.workerId = workerId ?? executorConfig.worker.id;
     this.pollIntervalMs = executorConfig.worker.pollIntervalMs;
     this.heartbeatTimeoutMs = executorConfig.worker.heartbeatTimeoutMs;
     this.recorder = new StreamingRecorder();

@@ -883,30 +883,69 @@ router.get('/admin/health', authenticateToken as any, async (req: AuthRequest, r
     }
   }
 
-  // Playwright / browser health — живые данные из StreamingRecorder
+  // Playwright / browser health — живые данные из StreamingRecorder (все воркеры)
   try {
     const executorStatus = pollerController.getStatus();
-    const browserStatus = pollerController.getBrowserStatus();
-    let playwrightStatus: string;
-    if (!executorStatus.isRunning) {
-      playwrightStatus = 'executor_stopped';
-    } else if (browserStatus.isRecording) {
-      playwrightStatus = 'recording';
-    } else if (browserStatus.browserAlive) {
-      playwrightStatus = 'idle';
-    } else {
-      playwrightStatus = 'not_launched';
-    }
-    health.services.playwright = {
-      status: playwrightStatus,
-      browserAlive: browserStatus.browserAlive,
-      pageAlive: browserStatus.pageAlive,
-      isRecording: browserStatus.isRecording,
-      frameCount: browserStatus.frameCount,
-      elapsedMs: browserStatus.elapsedMs,
-      currentUrl: browserStatus.currentUrl,
-      taskId: browserStatus.taskId,
+    const allWorkers = pollerController.getBrowserStatusAll();
+
+    const toPlaywrightStatus = (bs: ReturnType<typeof pollerController.getBrowserStatus>, running: boolean) => {
+      if (!running) return 'executor_stopped';
+      if (bs.isRecording) return 'recording';
+      if (bs.browserAlive) return 'idle';
+      return 'not_launched';
     };
+
+    if (allWorkers.length === 0) {
+      health.services.playwright = { status: 'executor_stopped' };
+    } else if (allWorkers.length === 1) {
+      const bs = allWorkers[0];
+      health.services.playwright = {
+        status: toPlaywrightStatus(bs, executorStatus.isRunning),
+        browserAlive: bs.browserAlive,
+        pageAlive: bs.pageAlive,
+        isRecording: bs.isRecording,
+        frameCount: bs.frameCount,
+        elapsedMs: bs.elapsedMs,
+        currentUrl: bs.currentUrl,
+        taskId: bs.taskId,
+        workers: allWorkers.map(w => ({
+          workerId: w.workerId,
+          status: toPlaywrightStatus(w, executorStatus.isRunning),
+          browserAlive: w.browserAlive,
+          isRecording: w.isRecording,
+          frameCount: w.frameCount,
+          elapsedMs: w.elapsedMs,
+          currentUrl: w.currentUrl,
+          taskId: w.taskId,
+        })),
+      };
+    } else {
+      // Multi-worker: aggregate
+      const anyRecording = allWorkers.some(w => w.isRecording);
+      const anyBrowserAlive = allWorkers.some(w => w.browserAlive);
+      const aggStatus = anyRecording ? 'recording' : anyBrowserAlive ? 'idle' : 'not_launched';
+      const totalFrames = allWorkers.reduce((s, w) => s + w.frameCount, 0);
+      health.services.playwright = {
+        status: aggStatus,
+        browserAlive: anyBrowserAlive,
+        pageAlive: allWorkers.some(w => w.pageAlive),
+        isRecording: anyRecording,
+        frameCount: totalFrames,
+        elapsedMs: null,
+        currentUrl: null,
+        taskId: null,
+        workers: allWorkers.map(w => ({
+          workerId: w.workerId,
+          status: toPlaywrightStatus(w, executorStatus.isRunning),
+          browserAlive: w.browserAlive,
+          isRecording: w.isRecording,
+          frameCount: w.frameCount,
+          elapsedMs: w.elapsedMs,
+          currentUrl: w.currentUrl,
+          taskId: w.taskId,
+        })),
+      };
+    }
   } catch (e) {
     health.services.playwright = { status: 'error', error: (e as Error).message };
   }
@@ -1098,17 +1137,35 @@ router.get('/admin/executor/status', authenticateToken as any, (req: AuthRequest
 router.post('/admin/executor/start', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
   const adminId = req.user!.id;
-  logger.info(`Admin ${adminId} requested executor START`);
-  const result = await pollerController.start();
+  const count = typeof req.body?.count === 'number' ? req.body.count : undefined;
+  logger.info(`Admin ${adminId} requested executor START (count=${count ?? 'default'})`);
+  const result = await pollerController.start(count);
   res.status(result.ok ? 200 : 409).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
 });
 
 router.post('/admin/executor/stop', authenticateToken as any, (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
   const adminId = req.user!.id;
-  logger.info(`Admin ${adminId} requested executor STOP`);
+  logger.info(`Admin ${adminId} requested executor STOP ALL`);
   const result = pollerController.stop();
   res.status(result.ok ? 200 : 409).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
+});
+
+router.post('/admin/executor/scale-up', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const adminId = req.user!.id;
+  logger.info(`Admin ${adminId} requested executor SCALE UP`);
+  const result = await pollerController.scaleUp();
+  res.status(result.ok ? 200 : 409).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
+});
+
+router.post('/admin/executor/worker/:workerId/stop', authenticateToken as any, (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const adminId = req.user!.id;
+  const { workerId } = req.params;
+  logger.info(`Admin ${adminId} requested STOP worker ${workerId}`);
+  const result = pollerController.stopWorker(workerId);
+  res.status(result.ok ? 200 : 404).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
 });
 
 export default router;

@@ -1,28 +1,50 @@
 import { TaskPoller } from './executor/taskPoller';
+import { executorConfig } from './executor/config';
 import { logger } from '../logger';
 
 export type ExecutorState = 'running' | 'stopped' | 'starting' | 'stopping';
 
+interface WorkerEntry {
+  poller: TaskPoller;
+  workerId: string;
+  startedAt: Date;
+  restartCount: number;
+}
+
 class PollerController {
-  private poller: TaskPoller | null = null;
+  private workers: Map<string, WorkerEntry> = new Map();
   private state: ExecutorState = 'stopped';
-  private startedAt: Date | null = null;
-  private stoppedAt: Date | null = null;
-  private restartCount = 0;
+  private globalStartedAt: Date | null = null;
+  private globalStoppedAt: Date | null = null;
+  private globalRestartCount = 0;
+
+  private buildWorkerId(index: number): string {
+    const base = executorConfig.worker.id; // e.g. 'epa-worker-1'
+    const prefix = base.replace(/-\d+$/, '');  // 'epa-worker'
+    return `${prefix}-${index}`;
+  }
 
   getStatus() {
+    const workers = Array.from(this.workers.values()).map((w) => ({
+      workerId: w.workerId,
+      startedAt: w.startedAt.toISOString(),
+      restartCount: w.restartCount,
+      browser: w.poller.getBrowserStatus(),
+    }));
     return {
       state: this.state,
       isRunning: this.state === 'running',
-      startedAt: this.startedAt?.toISOString() ?? null,
-      stoppedAt: this.stoppedAt?.toISOString() ?? null,
-      restartCount: this.restartCount,
-      workerId: process.env.WORKER_ID || 'epa-worker-1',
+      startedAt: this.globalStartedAt?.toISOString() ?? null,
+      stoppedAt: this.globalStoppedAt?.toISOString() ?? null,
+      restartCount: this.globalRestartCount,
+      workerCount: this.workers.size,
+      maxWorkers: executorConfig.worker.maxWorkers,
+      workers,
     };
   }
 
   getBrowserStatus() {
-    if (!this.poller) {
+    if (this.workers.size === 0) {
       return {
         browserAlive: false,
         pageAlive: false,
@@ -33,41 +55,122 @@ class PollerController {
         taskId: null,
       };
     }
-    return this.poller.getBrowserStatus();
+    // Return status of first active (recording) worker, or first worker
+    const entries = Array.from(this.workers.values());
+    for (const w of entries) {
+      const s = w.poller.getBrowserStatus();
+      if (s.isRecording) return s;
+    }
+    return entries[0].poller.getBrowserStatus();
   }
 
-  async start(): Promise<{ ok: boolean; message: string }> {
-    if (this.state === 'running' || this.state === 'starting') {
-      return { ok: false, message: `Executor уже ${this.state === 'running' ? 'запущен' : 'запускается'}` };
+  getBrowserStatusAll(): Array<ReturnType<TaskPoller['getBrowserStatus']> & { workerId: string }> {
+    return Array.from(this.workers.values()).map((w) => ({
+      workerId: w.workerId,
+      ...w.poller.getBrowserStatus(),
+    }));
+  }
+
+  private launchWorker(workerId: string): WorkerEntry {
+    const poller = new TaskPoller(workerId);
+    const entry: WorkerEntry = { poller, workerId, startedAt: new Date(), restartCount: 1 };
+    this.workers.set(workerId, entry);
+
+    poller.start().catch((err) => {
+      logger.error(`Worker ${workerId} crashed:`, err);
+      this.workers.delete(workerId);
+      if (this.workers.size === 0) {
+        this.state = 'stopped';
+        this.globalStoppedAt = new Date();
+      }
+    });
+
+    logger.info(`Worker ${workerId} started`);
+    return entry;
+  }
+
+  async start(count?: number): Promise<{ ok: boolean; message: string }> {
+    const desired = count ?? executorConfig.worker.maxWorkers;
+
+    if (this.state === 'running') {
+      // Already running — scale up if needed
+      const current = this.workers.size;
+      if (current >= desired) {
+        return { ok: false, message: `Уже запущено ${current} воркер(ов)` };
+      }
+      // Start additional workers
+      const toAdd = desired - current;
+      let added = 0;
+      for (let i = 1; i <= desired && added < toAdd; i++) {
+        const wid = this.buildWorkerId(i);
+        if (!this.workers.has(wid)) {
+          this.launchWorker(wid);
+          added++;
+        }
+      }
+      return { ok: true, message: `Запущено ${added} дополнительных воркеров. Итого: ${this.workers.size}` };
+    }
+
+    if (this.state === 'starting') {
+      return { ok: false, message: 'Executor уже запускается' };
     }
 
     this.state = 'starting';
-    logger.info('Recording executor: starting by admin request...');
+    logger.info(`Recording executor: starting ${desired} worker(s) by admin request...`);
 
     try {
-      this.poller = new TaskPoller();
+      for (let i = 1; i <= desired; i++) {
+        this.launchWorker(this.buildWorkerId(i));
+      }
+
       this.state = 'running';
-      this.startedAt = new Date();
-      this.stoppedAt = null;
-      this.restartCount++;
+      this.globalStartedAt = new Date();
+      this.globalStoppedAt = null;
+      this.globalRestartCount++;
 
-      // Запускаем асинхронно — поллер работает в бесконечном цикле
-      this.poller.start().catch((err) => {
-        logger.error('Recording executor crashed:', err);
-        this.state = 'stopped';
-        this.stoppedAt = new Date();
-        this.poller = null;
-      });
-
-      logger.info(`Recording executor started (restart #${this.restartCount})`);
-      return { ok: true, message: 'Executor запущен' };
+      logger.info(`Recording executor started (${desired} workers, restart #${this.globalRestartCount})`);
+      return { ok: true, message: `Запущено ${desired} воркер(ов)` };
     } catch (err) {
       this.state = 'stopped';
-      this.poller = null;
       const message = err instanceof Error ? err.message : String(err);
       logger.error('Recording executor failed to start:', err);
       return { ok: false, message: `Ошибка запуска: ${message}` };
     }
+  }
+
+  async scaleUp(): Promise<{ ok: boolean; message: string }> {
+    const max = executorConfig.worker.maxWorkers;
+    const current = this.workers.size;
+    if (current >= max) {
+      return { ok: false, message: `Достигнут максимум воркеров (${max})` };
+    }
+    if (this.state !== 'running') {
+      return this.start(1);
+    }
+    // Find next free slot
+    for (let i = 1; i <= max + current; i++) {
+      const wid = this.buildWorkerId(i);
+      if (!this.workers.has(wid)) {
+        this.launchWorker(wid);
+        return { ok: true, message: `Воркер ${wid} запущен. Итого: ${this.workers.size}` };
+      }
+    }
+    return { ok: false, message: 'Нет свободных слотов' };
+  }
+
+  stopWorker(workerId: string): { ok: boolean; message: string } {
+    const entry = this.workers.get(workerId);
+    if (!entry) {
+      return { ok: false, message: `Воркер ${workerId} не найден` };
+    }
+    entry.poller.stop();
+    this.workers.delete(workerId);
+    logger.info(`Worker ${workerId} stopped by admin`);
+    if (this.workers.size === 0) {
+      this.state = 'stopped';
+      this.globalStoppedAt = new Date();
+    }
+    return { ok: true, message: `Воркер ${workerId} остановлен` };
   }
 
   stop(): { ok: boolean; message: string } {
@@ -76,19 +179,16 @@ class PollerController {
     }
 
     this.state = 'stopping';
-    logger.info('Recording executor: stopping by admin request...');
+    logger.info('Recording executor: stopping all workers by admin request...');
 
-    if (this.poller) {
-      this.poller.stop();
-      this.poller = null;
-    }
+    Array.from(this.workers.values()).forEach(entry => entry.poller.stop());
+    this.workers.clear();
 
     this.state = 'stopped';
-    this.stoppedAt = new Date();
-    logger.info('Recording executor stopped');
-    return { ok: true, message: 'Executor остановлен' };
+    this.globalStoppedAt = new Date();
+    logger.info('Recording executor stopped (all workers)');
+    return { ok: true, message: `Все воркеры остановлены` };
   }
 }
 
-// Singleton — единственный экземпляр на процесс
 export const pollerController = new PollerController();
