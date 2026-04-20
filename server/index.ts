@@ -185,18 +185,24 @@ app.use((req, res, next) => {
     runRecordingWatchdog(); // run immediately on start
     logger.info('Recording watchdog started (runs every 2 min, stale threshold: 12 min)');
 
-    // Recording executor poller — runs only in primary process (PM2 cluster safe)
-    const isPrimaryWorker = !process.env.pm_id || process.env.pm_id === '0';
-    if (isPrimaryWorker) {
-      pollerController.start().then((result) => {
-        if (result.ok) {
-          logger.info(`Recording executor poller started (worker: ${process.env.WORKER_ID || 'epa-worker-1'})`);
-        } else {
-          logger.error(`Recording executor failed to start: ${result.message}`);
-        }
-      });
+    // Recording executor poller — can be disabled via env when VPS worker handles recordings
+    const disableExecutor = process.env.DISABLE_RECORDING_EXECUTOR === 'true';
+    if (disableExecutor) {
+      logger.info('Recording executor disabled (DISABLE_RECORDING_EXECUTOR=true) — VPS worker handles recordings');
     } else {
-      logger.info(`Recording executor poller skipped on PM2 worker #${process.env.pm_id}`);
+      // Runs only in primary process (PM2 cluster safe)
+      const isPrimaryWorker = !process.env.pm_id || process.env.pm_id === '0';
+      if (isPrimaryWorker) {
+        pollerController.start().then((result) => {
+          if (result.ok) {
+            logger.info(`Recording executor poller started (worker: ${process.env.WORKER_ID || 'epa-worker-1'})`);
+          } else {
+            logger.error(`Recording executor failed to start: ${result.message}`);
+          }
+        });
+      } else {
+        logger.info(`Recording executor poller skipped on PM2 worker #${process.env.pm_id}`);
+      }
     }
 
   }, 30000); // Wait 30 seconds before starting background services
