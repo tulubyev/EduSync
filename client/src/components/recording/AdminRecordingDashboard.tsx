@@ -1651,11 +1651,16 @@ function VpsWorkerGrid({ workers }: { workers: WorkerEntry[] }) {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11, color: '#94a3b8' }}>
                   <div>Видел: <span style={{ color: '#cbd5e1' }}>{fmtAgo(w.secondsAgo)}</span></div>
-                  <div>БД: <span style={{ color: w.dbConnected ? '#4ade80' : '#f87171' }}>{w.dbConnected ? '✓' : '✗'}</span>
+                  <div>
+                    БД: <span style={{ color: w.dbConnected ? '#4ade80' : '#f87171' }}>{w.dbConnected ? '✓' : '✗'}</span>
                     {'  '}S3: <span style={{ color: w.s3Connected ? '#4ade80' : '#f87171' }}>{w.s3Connected ? '✓' : '✗'}</span>
+                    {'  '}Активен: <span style={{ color: w.isActive ? '#4ade80' : '#f87171' }}>{w.isActive ? '✓' : '✗'}</span>
                   </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    Задач: <span style={{ color: '#4ade80' }}>{w.tasksProcessed ?? 0}</span>
+                  <div>Всего: <span style={{ color: '#cbd5e1' }}>{w.tasksProcessed ?? 0}</span></div>
+                  <div>
+                    <span style={{ color: '#4ade80' }}>✓{w.tasksSuccessful ?? 0}</span>
+                    {' / '}
+                    <span style={{ color: (w.tasksFailed ?? 0) > 0 ? '#f87171' : '#64748b' }}>✗{w.tasksFailed ?? 0}</span>
                   </div>
                   {w.activeTaskId && (
                     <div style={{ gridColumn: '1 / -1', color: '#fbbf24', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

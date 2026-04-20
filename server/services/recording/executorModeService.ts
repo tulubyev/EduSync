@@ -166,7 +166,9 @@ class ExecutorModeService {
       };
     }
 
-    const previous = this._mode;
+    // Step 0: Read authoritative mode from DB to avoid stale per-process cache
+    // triggering a false early-return in multi-process setups.
+    const previous = await this.getMode();
     if (previous === newMode) {
       return { ok: true, message: `Режим уже ${newMode}` };
     }

@@ -1219,10 +1219,11 @@ router.post('/admin/executor/mode', authenticateToken as any, async (req: AuthRe
 
   logger.info(`Admin ${adminId} switching executor mode to: ${mode}`);
   const result = await executorModeService.setMode(mode);
+  const authorizedMode = await executorModeService.getMode();
   res.status(result.ok ? 200 : 400).json({
     success: result.ok,
     message: result.message,
-    mode: executorModeService.mode,
+    mode: authorizedMode,
     executor: pollerController.getStatus(),
   });
 });
