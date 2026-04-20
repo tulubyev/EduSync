@@ -61,6 +61,10 @@ class ExecutorModeService {
 
   /**
    * Переключает режим.
+   * Операция транзакционна по смыслу:
+   *   1. Пишем в БД — если ошибка, возвращаем ok:false (in-memory не меняем).
+   *   2. Применяем side effect (старт/стоп pollerController).
+   *      Если side effect не удался — возвращаем ok:false, откатываем БД к предыдущему значению.
    * 'replit' → запускает pollerController
    * 'vps'    → останавливает pollerController
    */
@@ -73,9 +77,11 @@ class ExecutorModeService {
     }
 
     const previous = this._mode;
-    this._mode = newMode;
+    if (previous === newMode) {
+      return { ok: true, message: `Режим уже ${newMode}` };
+    }
 
-    // Persist to DB
+    // Step 1: Persist to DB first. If it fails — abort without changing memory state.
     try {
       await db
         .insert(systemSettings)
@@ -85,23 +91,48 @@ class ExecutorModeService {
           set: { value: newMode, updatedAt: new Date() },
         });
     } catch (e) {
-      logger.error('[ExecutorMode] Failed to persist mode to DB:', e);
+      logger.error('[ExecutorMode] Failed to persist mode to DB — aborting switch:', e);
+      return {
+        ok: false,
+        message: 'Ошибка сохранения режима в БД. Переключение отменено.',
+      };
     }
 
-    // Apply side effect
-    if (newMode === 'vps' && previous === 'replit') {
+    // Step 2: Update in-memory state.
+    this._mode = newMode;
+
+    // Step 3: Apply runtime side effect.
+    if (newMode === 'vps') {
       const result = pollerController.stop();
       logger.info(`[ExecutorMode] Switched to VPS — executor stopped: ${result.message}`);
       return { ok: true, message: `Переключено в VPS-режим. ${result.message}` };
     }
 
-    if (newMode === 'replit' && previous === 'vps') {
-      const result = await pollerController.start();
-      logger.info(`[ExecutorMode] Switched to Replit — executor started: ${result.message}`);
-      return { ok: true, message: `Переключено в Replit-режим. ${result.message}` };
+    // newMode === 'replit'
+    const result = await pollerController.start();
+    if (!result.ok) {
+      // Executor failed to start — rollback in-memory state and DB.
+      this._mode = previous;
+      try {
+        await db
+          .insert(systemSettings)
+          .values({ key: SETTING_KEY, value: previous, updatedAt: new Date() })
+          .onConflictDoUpdate({
+            target: systemSettings.key,
+            set: { value: previous, updatedAt: new Date() },
+          });
+      } catch (rollbackErr) {
+        logger.error('[ExecutorMode] Rollback DB write also failed:', rollbackErr);
+      }
+      logger.error(`[ExecutorMode] pollerController.start() failed: ${result.message}. Rolled back to ${previous}.`);
+      return {
+        ok: false,
+        message: `Не удалось запустить исполнитель: ${result.message}`,
+      };
     }
 
-    return { ok: true, message: `Режим уже ${newMode}` };
+    logger.info(`[ExecutorMode] Switched to Replit — executor started: ${result.message}`);
+    return { ok: true, message: `Переключено в Replit-режим. ${result.message}` };
   }
 
   isInitialized(): boolean {
