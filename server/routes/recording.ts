@@ -1174,7 +1174,7 @@ router.post('/admin/executor/worker/:workerId/stop', authenticateToken as any, (
 router.get('/admin/executor/mode', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
   try {
-    const mode = executorModeService.mode;
+    const mode = await executorModeService.getMode();
 
     // Fetch VPS workers from recording_worker_status
     const now = new Date();

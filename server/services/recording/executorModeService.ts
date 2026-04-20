@@ -11,6 +11,12 @@
  *   Runtime side effects (start/stop pollerController) выполняются только в primary
  *   процессе (pm_id === '0' или процесс запущен без PM2). Не-primary процессы пишут
  *   в БД; primary самостоятельно обнаруживает изменение через watchMode().
+ *
+ *   GET-запросы используют getMode() — авторитативное значение из БД — чтобы
+ *   избежать несогласованности кэша между процессами.
+ *
+ * DISABLE_RECORDING_EXECUTOR=true жёстко фиксирует VPS-режим на уровне env и не
+ *   может быть переопределён через БД ни при переключении, ни в watcher-е.
  */
 
 import { db } from '../../db';
@@ -28,21 +34,52 @@ function isPrimary(): boolean {
   return !process.env.pm_id || process.env.pm_id === '0';
 }
 
+/** True если env принудительно фиксирует VPS-режим. */
+function isEnvForcedVps(): boolean {
+  return process.env.DISABLE_RECORDING_EXECUTOR === 'true';
+}
+
 class ExecutorModeService {
   private _mode: ExecutorMode = 'replit';
   private _initialized = false;
   private _watchTimer: ReturnType<typeof setInterval> | null = null;
 
+  /** In-memory snapshot — используется только для быстрых проверок внутри процесса. */
   get mode(): ExecutorMode {
     return this._mode;
   }
 
   /**
+   * Авторитетное значение режима — всегда читает из БД.
+   * Используется в GET-эндпоинте чтобы избежать несогласованного кэша в multi-process.
+   * Если env принудительно задаёт VPS — возвращает 'vps' без обращения к БД.
+   */
+  async getMode(): Promise<ExecutorMode> {
+    if (isEnvForcedVps()) return 'vps';
+    try {
+      const rows = await db
+        .select()
+        .from(systemSettings)
+        .where(eq(systemSettings.key, SETTING_KEY))
+        .limit(1);
+      if (rows.length > 0 && (rows[0].value === 'replit' || rows[0].value === 'vps')) {
+        const dbMode = rows[0].value as ExecutorMode;
+        // Sync in-memory cache for this process.
+        this._mode = dbMode;
+        return dbMode;
+      }
+    } catch {
+      // fall through to in-memory value on transient DB error
+    }
+    return this._mode;
+  }
+
+  /**
    * Читает режим из БД при старте.
-   * Если DISABLE_RECORDING_EXECUTOR=true — всегда vps, независимо от БД.
+   * Если DISABLE_RECORDING_EXECUTOR=true — жёстко фиксирует 'vps', не читает БД.
    */
   async init(): Promise<ExecutorMode> {
-    if (process.env.DISABLE_RECORDING_EXECUTOR === 'true') {
+    if (isEnvForcedVps()) {
       this._mode = 'vps';
       this._initialized = true;
       logger.info('[ExecutorMode] Init: vps (env DISABLE_RECORDING_EXECUTOR=true)');
@@ -71,13 +108,14 @@ class ExecutorModeService {
   }
 
   /**
-   * Запускает периодическую проверку режима из БД.
-   * Вызывается только в primary-процессе.
-   * Если другой (не-primary) процесс записал новый режим в БД, primary подхватит изменение
-   * и применит side effect (start/stop pollerController).
+   * Запускает периодическую проверку режима из БД (только в primary).
+   * Если DISABLE_RECORDING_EXECUTOR=true — watcher не запускается: env-блокировка
+   * имеет приоритет и не может быть переопределена ни из БД, ни из HTTP.
    */
   startWatching(intervalMs = 10_000): void {
     if (!isPrimary()) return;
+    // Env-forced VPS cannot be overridden via DB — do not start watcher.
+    if (isEnvForcedVps()) return;
     if (this._watchTimer) return;
 
     this._watchTimer = setInterval(async () => {
@@ -118,10 +156,10 @@ class ExecutorModeService {
    *   2. Если текущий процесс — primary: немедленно применяем side effect.
    *      Если side effect не удался — откатываем БД и возвращаем ok:false.
    *   3. Если текущий процесс — не primary: сохраняем в памяти как подсказку
-   *      и ждём что primary применит изменение через watchMode().
+   *      и возвращаем успех; primary применит изменение через watchMode().
    */
   async setMode(newMode: ExecutorMode): Promise<{ ok: boolean; message: string }> {
-    if (process.env.DISABLE_RECORDING_EXECUTOR === 'true' && newMode === 'replit') {
+    if (isEnvForcedVps() && newMode === 'replit') {
       return {
         ok: false,
         message: 'Нельзя переключить в Replit: DISABLE_RECORDING_EXECUTOR=true в env',
@@ -155,8 +193,9 @@ class ExecutorModeService {
 
     // Step 3: Apply side effect only in primary process.
     if (!isPrimary()) {
-      // Non-primary: DB is updated; primary will detect via watchMode() within intervalMs.
-      logger.info(`[ExecutorMode] Non-primary process (pm_id=${process.env.pm_id}) wrote mode=${newMode} to DB; primary will apply side effect shortly.`);
+      logger.info(
+        `[ExecutorMode] Non-primary process (pm_id=${process.env.pm_id}) wrote mode=${newMode} to DB; primary will apply side effect shortly.`,
+      );
       return {
         ok: true,
         message: `Режим ${newMode} записан в БД. Основной процесс применит изменение в течение нескольких секунд.`,

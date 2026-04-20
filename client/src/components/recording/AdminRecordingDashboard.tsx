@@ -1654,11 +1654,17 @@ function VpsWorkerGrid({ workers }: { workers: WorkerEntry[] }) {
                   <div>БД: <span style={{ color: w.dbConnected ? '#4ade80' : '#f87171' }}>{w.dbConnected ? '✓' : '✗'}</span>
                     {'  '}S3: <span style={{ color: w.s3Connected ? '#4ade80' : '#f87171' }}>{w.s3Connected ? '✓' : '✗'}</span>
                   </div>
-                  <div>Успешно: <span style={{ color: '#4ade80' }}>{w.tasksSuccessful ?? 0}</span></div>
-                  <div>Ошибок: <span style={{ color: w.tasksFailed ? '#f87171' : '#94a3b8' }}>{w.tasksFailed ?? 0}</span></div>
-                  {w.currentTaskTitle && (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    Задач: <span style={{ color: '#4ade80' }}>{w.tasksProcessed ?? 0}</span>
+                  </div>
+                  {w.activeTaskId && (
                     <div style={{ gridColumn: '1 / -1', color: '#fbbf24', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      ▶ {w.currentTaskTitle}
+                      ▶ {w.currentTaskTitle || w.activeTaskId}
+                    </div>
+                  )}
+                  {!w.activeTaskId && w.currentTaskTitle && (
+                    <div style={{ gridColumn: '1 / -1', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {w.currentTaskTitle}
                     </div>
                   )}
                   {w.buildVersion && (
