@@ -1,10 +1,14 @@
 import { spawn } from 'child_process';
 import { logger } from '../../logger';
 
-const SINK_NAME = 'recording_sink';
-
-class AudioSetup {
+export class AudioSetup {
   private audioAvailable: boolean = false;
+  private sinkName: string;
+
+  constructor(workerId: string = 'default') {
+    const safeName = workerId.replace(/[^a-zA-Z0-9]/g, '_');
+    this.sinkName = `epa_sink_${safeName}`;
+  }
 
   async initialize(): Promise<boolean> {
     try {
@@ -21,7 +25,7 @@ class AudioSetup {
       this.audioAvailable = sinkExists;
 
       if (sinkExists) {
-        logger.info(`Audio ready: PulseAudio virtual sink '${SINK_NAME}' active`);
+        logger.info(`Audio ready: PulseAudio virtual sink '${this.sinkName}' active`);
       } else {
         logger.warn('Virtual sink not created - video-only recording');
       }
@@ -58,13 +62,13 @@ class AudioSetup {
       let output = '';
       list.stdout?.on('data', (d) => output += d.toString());
       list.on('close', () => {
-        if (output.includes(SINK_NAME)) {
+        if (output.includes(this.sinkName)) {
           return resolve();
         }
         const create = spawn('pactl', [
           'load-module', 'module-null-sink',
-          `sink_name=${SINK_NAME}`,
-          `sink_properties=device.description=RecordingSink`,
+          `sink_name=${this.sinkName}`,
+          `sink_properties=device.description=EPA_${this.sinkName}`,
         ], { stdio: 'ignore' });
         create.on('close', () => {
           setTimeout(resolve, 500);
@@ -75,12 +79,31 @@ class AudioSetup {
     });
   }
 
+  async unloadSink(): Promise<void> {
+    return new Promise((resolve) => {
+      const list = spawn('pactl', ['list', 'modules', 'short'], { stdio: ['ignore', 'pipe', 'ignore'] });
+      let output = '';
+      list.stdout?.on('data', (d) => output += d.toString());
+      list.on('close', () => {
+        const lines = output.split('\n');
+        const sinkLine = lines.find(l => l.includes(this.sinkName));
+        if (!sinkLine) return resolve();
+        const moduleId = sinkLine.trim().split(/\s+/)[0];
+        if (!moduleId) return resolve();
+        const unload = spawn('pactl', ['unload-module', moduleId], { stdio: 'ignore' });
+        unload.on('close', () => resolve());
+        unload.on('error', () => resolve());
+      });
+      list.on('error', () => resolve());
+    });
+  }
+
   private async checkSinkExists(): Promise<boolean> {
     return new Promise((resolve) => {
       const list = spawn('pactl', ['list', 'sinks', 'short'], { stdio: ['ignore', 'pipe', 'ignore'] });
       let output = '';
       list.stdout?.on('data', (d) => output += d.toString());
-      list.on('close', () => resolve(output.includes(SINK_NAME)));
+      list.on('close', () => resolve(output.includes(this.sinkName)));
       list.on('error', () => resolve(false));
     });
   }
@@ -100,8 +123,8 @@ class AudioSetup {
   getChromiumEnv(): Record<string, string> {
     if (!this.audioAvailable) return {};
     return {
-      PULSE_SINK: SINK_NAME,
-      PULSE_SOURCE: `${SINK_NAME}.monitor`,
+      PULSE_SINK: this.sinkName,
+      PULSE_SOURCE: `${this.sinkName}.monitor`,
     };
   }
 
@@ -110,13 +133,16 @@ class AudioSetup {
     return [
       '-use_wallclock_as_timestamps', '1',
       '-f', 'pulse',
-      '-i', `${SINK_NAME}.monitor`,
+      '-i', `${this.sinkName}.monitor`,
     ];
   }
 
   async cleanup(): Promise<void> {
-    // PulseAudio оставляем работать (системный ресурс)
+    if (this.audioAvailable) {
+      await this.unloadSink();
+      logger.info(`Audio sink '${this.sinkName}' unloaded`);
+    }
   }
 }
 
-export const audioSetup = new AudioSetup();
+export const audioSetup = new AudioSetup('default');

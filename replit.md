@@ -98,8 +98,10 @@ Recording execution is now fully integrated into the EPA backend (previously a s
 - **`audioSetup.ts`** — PulseAudio virtual null-sink for browser audio capture; graceful fallback to video-only
 - **`begetStorage.ts`** — uploads finished MP4 to Beget S3; cleans up temp files
 - **`urlValidator.ts`** — HTTP HEAD check + source type detection for 89+ platforms before recording starts
-- **`config.ts`** — reads `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, `WORKER_ID`, `BEGET_S3_*`, poll/heartbeat intervals from env
+- **`config.ts`** — reads `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`, `WORKER_ID`, `MAX_WORKERS`, `BEGET_S3_*`, poll/heartbeat intervals from env
 - **`previewBus.ts`** — EventEmitter for live frame preview (admin dashboard)
+
+**Multi-worker pool**: `PollerController` manages N `TaskPoller` instances (pool). `MAX_WORKERS` env var (default 1, max 8) controls pool size. Each worker gets its own Playwright browser + FFmpeg process + per-worker audio sink (`epa_sink_<workerId>`) + per-worker temp dir (`/tmp/recordings/<workerId>/`). DB-level atomic claiming ensures no race conditions. Admin dashboard has "＋ Воркер" button and per-worker "✕" stop buttons. RAM check (~600 MB/worker) logs warnings at startup.
 
 System packages required: `chromium`, `ffmpeg`, `pulseaudio` (installed via Nix).
 

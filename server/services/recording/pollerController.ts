@@ -1,6 +1,19 @@
+import * as os from 'os';
 import { TaskPoller } from './executor/taskPoller';
 import { executorConfig } from './executor/config';
 import { logger } from '../logger';
+
+const RAM_PER_WORKER_MB = 600;
+
+function logRamWarning(workerCount: number) {
+  const totalMB = Math.round(os.totalmem() / 1024 / 1024);
+  const freeMB  = Math.round(os.freemem()  / 1024 / 1024);
+  const neededMB = workerCount * RAM_PER_WORKER_MB;
+  logger.info(`[RAM] Всего: ${totalMB} МБ, Свободно: ${freeMB} МБ, Нужно для ${workerCount} воркер(ов): ~${neededMB} МБ`);
+  if (freeMB < neededMB) {
+    logger.warn(`[RAM] ⚠️  Недостаточно RAM для ${workerCount} воркеров! Свободно ${freeMB} МБ, нужно ~${neededMB} МБ. Возможны зависания.`);
+  }
+}
 
 export type ExecutorState = 'running' | 'stopped' | 'starting' | 'stopping';
 
@@ -117,6 +130,7 @@ class PollerController {
 
     this.state = 'starting';
     logger.info(`Recording executor: starting ${desired} worker(s) by admin request...`);
+    logRamWarning(desired);
 
     try {
       for (let i = 1; i <= desired; i++) {
@@ -148,6 +162,7 @@ class PollerController {
       return this.start(1);
     }
     // Find next free slot
+    logRamWarning(current + 1);
     for (let i = 1; i <= max + current; i++) {
       const wid = this.buildWorkerId(i);
       if (!this.workers.has(wid)) {

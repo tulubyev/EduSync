@@ -26,7 +26,7 @@ export class TaskPoller {
     this.workerId = workerId ?? executorConfig.worker.id;
     this.pollIntervalMs = executorConfig.worker.pollIntervalMs;
     this.heartbeatTimeoutMs = executorConfig.worker.heartbeatTimeoutMs;
-    this.recorder = new StreamingRecorder();
+    this.recorder = new StreamingRecorder(this.workerId);
     this.storage = new BegetStorage();
   }
 

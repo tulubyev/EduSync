@@ -4,13 +4,25 @@ import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import { logger } from '../../logger';
 import { RecordingConfig } from '../types';
-import { audioSetup } from './audioSetup';
+import { AudioSetup } from './audioSetup';
 import { executorConfig } from './config';
 import { previewBus } from './previewBus';
 
-const RECORDINGS_DIR = executorConfig.recording.outputDir;
+const BASE_RECORDINGS_DIR = executorConfig.recording.outputDir;
 const DEFAULT_VIEWPORT = executorConfig.recording.viewport;
 const FRAME_RATE = executorConfig.recording.frameRate;
+
+const MIN_FREE_DISK_MB = 500;
+
+function getFreeDiskMB(dir: string): number {
+  try {
+    const { execSync } = require('child_process');
+    const out: string = execSync(`df -m "${dir}" | tail -1 | awk '{print $4}'`, { encoding: 'utf-8' }).trim();
+    return parseInt(out, 10) || 0;
+  } catch {
+    return Infinity;
+  }
+}
 
 interface StreamingRecordingSession {
   taskId: string;
@@ -34,24 +46,36 @@ export class StreamingRecorder {
   private currentSession: StreamingRecordingSession | null = null;
   private frameBuffer: Buffer[] = [];
   private frameWriteInterval: NodeJS.Timeout | null = null;
+  private workerId: string;
+  private outputDir: string;
+  private audioSetup: AudioSetup;
 
-  private recordingConfig: RecordingConfig = {
-    maxPartDurationMs: executorConfig.recording.maxPartDurationMs,
-    outputDir: RECORDINGS_DIR,
-    chromiumPath: executorConfig.chromium.executablePath,
-    headless: executorConfig.chromium.headless,
-    viewport: DEFAULT_VIEWPORT,
-  };
+  private recordingConfig: RecordingConfig;
 
-  constructor() {
-    if (!fs.existsSync(RECORDINGS_DIR)) {
-      fs.mkdirSync(RECORDINGS_DIR, { recursive: true });
+  constructor(workerId: string = 'default') {
+    this.workerId = workerId;
+    const safeId = workerId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    this.outputDir = path.join(BASE_RECORDINGS_DIR, safeId);
+
+    if (!fs.existsSync(this.outputDir)) {
+      fs.mkdirSync(this.outputDir, { recursive: true });
     }
-    logger.info('StreamingRecorder initialized');
+
+    this.audioSetup = new AudioSetup(workerId);
+
+    this.recordingConfig = {
+      maxPartDurationMs: executorConfig.recording.maxPartDurationMs,
+      outputDir: this.outputDir,
+      chromiumPath: executorConfig.chromium.executablePath,
+      headless: executorConfig.chromium.headless,
+      viewport: DEFAULT_VIEWPORT,
+    };
+
+    logger.info(`StreamingRecorder initialized (worker: ${workerId}, dir: ${this.outputDir})`);
   }
 
   async initialize(): Promise<{ audioAvailable: boolean }> {
-    const audioAvailable = await audioSetup.initialize();
+    const audioAvailable = await this.audioSetup.initialize();
     if (!audioAvailable) {
       logger.warn('Audio capture not available - recordings will be video-only');
     }
@@ -68,7 +92,7 @@ export class StreamingRecorder {
     }
 
     try {
-      const audioFlags = audioSetup.getChromiumAudioFlags();
+      const audioFlags = this.audioSetup.getChromiumAudioFlags();
 
       const chromiumArgs = [
         '--no-sandbox',
@@ -101,7 +125,7 @@ export class StreamingRecorder {
         args: chromiumArgs,
         env: {
           ...process.env,
-          ...audioSetup.getChromiumEnv(),
+          ...this.audioSetup.getChromiumEnv(),
         },
       });
 
@@ -372,11 +396,20 @@ export class StreamingRecorder {
       throw new Error('No page available for recording');
     }
 
-    const fileName = `recording_${taskId}_part${partNumber}_${Date.now()}.mp4`;
-    const outputPath = path.join(RECORDINGS_DIR, fileName);
+    // Disk space check before recording
+    const freeMB = getFreeDiskMB(this.outputDir);
+    if (freeMB < MIN_FREE_DISK_MB) {
+      throw new Error(`Недостаточно места на диске: ${freeMB} МБ свободно (минимум ${MIN_FREE_DISK_MB} МБ). Запись отменена.`);
+    }
+    if (freeMB < MIN_FREE_DISK_MB * 2) {
+      logger.warn(`[DISK] ⚠️  Мало свободного места: ${freeMB} МБ (рекомендуется >${MIN_FREE_DISK_MB * 2} МБ)`);
+    }
 
-    const hasAudio = audioSetup.isAudioAvailable();
-    const audioArgs = hasAudio ? audioSetup.getFFmpegAudioArgs() : [];
+    const fileName = `recording_${taskId}_part${partNumber}_${Date.now()}.mp4`;
+    const outputPath = path.join(this.outputDir, fileName);
+
+    const hasAudio = this.audioSetup.isAudioAvailable();
+    const audioArgs = hasAudio ? this.audioSetup.getFFmpegAudioArgs() : [];
 
     const ffmpegArgs = [
       '-y',
@@ -757,12 +790,12 @@ export class StreamingRecorder {
   async cleanup(): Promise<void> {
     await this.stopRecording();
     await this.stopBrowser();
-    await audioSetup.cleanup();
+    await this.audioSetup.cleanup();
 
-    if (fs.existsSync(RECORDINGS_DIR)) {
-      const files = fs.readdirSync(RECORDINGS_DIR);
+    if (fs.existsSync(this.outputDir)) {
+      const files = fs.readdirSync(this.outputDir);
       for (const file of files) {
-        const filePath = path.join(RECORDINGS_DIR, file);
+        const filePath = path.join(this.outputDir, file);
         const stats = fs.statSync(filePath);
         const ageMs = Date.now() - stats.mtimeMs;
 
