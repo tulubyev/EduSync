@@ -360,12 +360,28 @@ export function AdminRecordingDashboard() {
           method: 'POST', headers: jsonHdr(), body: JSON.stringify({ mode: newMode }),
         });
         const d = await r.json();
+        if (!d.success) {
+          showConfirm({
+            title: 'Ошибка переключения режима',
+            message: d.message || 'Неизвестная ошибка при переключении режима исполнителя.',
+            confirmLabel: 'OK',
+            onConfirm: closeConfirm,
+          });
+          return;
+        }
         if (d.mode) setExecutorMode(d.mode);
         if (d.executor) {
           setExecutorRunning(d.executor.isRunning ?? null);
           setExecutorWorkerCount(d.executor.workerCount ?? 0);
         }
         await fetchExecutorMode();
+      } catch (e) {
+        showConfirm({
+          title: 'Ошибка сети',
+          message: 'Не удалось подключиться к серверу при переключении режима.',
+          confirmLabel: 'OK',
+          onConfirm: closeConfirm,
+        });
       } finally { setModeLoading(false); }
     };
 

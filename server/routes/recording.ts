@@ -1137,6 +1137,10 @@ router.get('/admin/executor/status', authenticateToken as any, (req: AuthRequest
 
 router.post('/admin/executor/start', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
+  const currentMode = await executorModeService.getMode();
+  if (currentMode === 'vps') {
+    return res.status(409).json({ success: false, message: 'Нельзя запустить встроенный исполнитель в VPS-режиме. Переключитесь в Replit-режим.' });
+  }
   const adminId = req.user!.id;
   const count = typeof req.body?.count === 'number' ? req.body.count : undefined;
   logger.info(`Admin ${adminId} requested executor START (count=${count ?? 'default'})`);
@@ -1144,8 +1148,12 @@ router.post('/admin/executor/start', authenticateToken as any, async (req: AuthR
   res.status(result.ok ? 200 : 409).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
 });
 
-router.post('/admin/executor/stop', authenticateToken as any, (req: AuthRequest, res: Response) => {
+router.post('/admin/executor/stop', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
+  const currentMode = await executorModeService.getMode();
+  if (currentMode === 'vps') {
+    return res.status(409).json({ success: false, message: 'Нельзя остановить встроенный исполнитель в VPS-режиме.' });
+  }
   const adminId = req.user!.id;
   logger.info(`Admin ${adminId} requested executor STOP ALL`);
   const result = pollerController.stop();
@@ -1154,14 +1162,22 @@ router.post('/admin/executor/stop', authenticateToken as any, (req: AuthRequest,
 
 router.post('/admin/executor/scale-up', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
+  const currentMode = await executorModeService.getMode();
+  if (currentMode === 'vps') {
+    return res.status(409).json({ success: false, message: 'Нельзя масштабировать встроенный исполнитель в VPS-режиме.' });
+  }
   const adminId = req.user!.id;
   logger.info(`Admin ${adminId} requested executor SCALE UP`);
   const result = await pollerController.scaleUp();
   res.status(result.ok ? 200 : 409).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
 });
 
-router.post('/admin/executor/worker/:workerId/stop', authenticateToken as any, (req: AuthRequest, res: Response) => {
+router.post('/admin/executor/worker/:workerId/stop', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
+  const currentMode = await executorModeService.getMode();
+  if (currentMode === 'vps') {
+    return res.status(409).json({ success: false, message: 'Нельзя остановить воркер в VPS-режиме.' });
+  }
   const adminId = req.user!.id;
   const { workerId } = req.params;
   logger.info(`Admin ${adminId} requested STOP worker ${workerId}`);
