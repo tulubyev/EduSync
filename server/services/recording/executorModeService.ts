@@ -6,6 +6,11 @@
  *
  * Значение хранится в памяти (cache) и персистируется в таблице system_settings.
  * При запуске сервера режим читается из БД (или из env DISABLE_RECORDING_EXECUTOR).
+ *
+ * PM2-cluster safety:
+ *   Runtime side effects (start/stop pollerController) выполняются только в primary
+ *   процессе (pm_id === '0' или процесс запущен без PM2). Не-primary процессы пишут
+ *   в БД; primary самостоятельно обнаруживает изменение через watchMode().
  */
 
 import { db } from '../../db';
@@ -18,9 +23,15 @@ export type ExecutorMode = 'replit' | 'vps';
 
 const SETTING_KEY = 'executor_mode';
 
+/** True если текущий процесс является первичным (единственным или PM2 primary). */
+function isPrimary(): boolean {
+  return !process.env.pm_id || process.env.pm_id === '0';
+}
+
 class ExecutorModeService {
   private _mode: ExecutorMode = 'replit';
   private _initialized = false;
+  private _watchTimer: ReturnType<typeof setInterval> | null = null;
 
   get mode(): ExecutorMode {
     return this._mode;
@@ -60,13 +71,54 @@ class ExecutorModeService {
   }
 
   /**
+   * Запускает периодическую проверку режима из БД.
+   * Вызывается только в primary-процессе.
+   * Если другой (не-primary) процесс записал новый режим в БД, primary подхватит изменение
+   * и применит side effect (start/stop pollerController).
+   */
+  startWatching(intervalMs = 10_000): void {
+    if (!isPrimary()) return;
+    if (this._watchTimer) return;
+
+    this._watchTimer = setInterval(async () => {
+      try {
+        const rows = await db
+          .select()
+          .from(systemSettings)
+          .where(eq(systemSettings.key, SETTING_KEY))
+          .limit(1);
+
+        const dbMode: ExecutorMode =
+          rows.length > 0 && (rows[0].value === 'replit' || rows[0].value === 'vps')
+            ? (rows[0].value as ExecutorMode)
+            : 'replit';
+
+        if (dbMode !== this._mode) {
+          logger.info(`[ExecutorMode] Watch detected mode change: ${this._mode} → ${dbMode}`);
+          await this._applySideEffect(this._mode, dbMode);
+          this._mode = dbMode;
+        }
+      } catch {
+        // non-critical, try again next tick
+      }
+    }, intervalMs);
+  }
+
+  stopWatching(): void {
+    if (this._watchTimer) {
+      clearInterval(this._watchTimer);
+      this._watchTimer = null;
+    }
+  }
+
+  /**
    * Переключает режим.
-   * Операция транзакционна по смыслу:
+   * Операция атомарна:
    *   1. Пишем в БД — если ошибка, возвращаем ok:false (in-memory не меняем).
-   *   2. Применяем side effect (старт/стоп pollerController).
-   *      Если side effect не удался — возвращаем ok:false, откатываем БД к предыдущему значению.
-   * 'replit' → запускает pollerController
-   * 'vps'    → останавливает pollerController
+   *   2. Если текущий процесс — primary: немедленно применяем side effect.
+   *      Если side effect не удался — откатываем БД и возвращаем ok:false.
+   *   3. Если текущий процесс — не primary: сохраняем в памяти как подсказку
+   *      и ждём что primary применит изменение через watchMode().
    */
   async setMode(newMode: ExecutorMode): Promise<{ ok: boolean; message: string }> {
     if (process.env.DISABLE_RECORDING_EXECUTOR === 'true' && newMode === 'replit') {
@@ -101,17 +153,19 @@ class ExecutorModeService {
     // Step 2: Update in-memory state.
     this._mode = newMode;
 
-    // Step 3: Apply runtime side effect.
-    if (newMode === 'vps') {
-      const result = pollerController.stop();
-      logger.info(`[ExecutorMode] Switched to VPS — executor stopped: ${result.message}`);
-      return { ok: true, message: `Переключено в VPS-режим. ${result.message}` };
+    // Step 3: Apply side effect only in primary process.
+    if (!isPrimary()) {
+      // Non-primary: DB is updated; primary will detect via watchMode() within intervalMs.
+      logger.info(`[ExecutorMode] Non-primary process (pm_id=${process.env.pm_id}) wrote mode=${newMode} to DB; primary will apply side effect shortly.`);
+      return {
+        ok: true,
+        message: `Режим ${newMode} записан в БД. Основной процесс применит изменение в течение нескольких секунд.`,
+      };
     }
 
-    // newMode === 'replit'
-    const result = await pollerController.start();
+    const result = await this._applySideEffect(previous, newMode);
     if (!result.ok) {
-      // Executor failed to start — rollback in-memory state and DB.
+      // Side effect failed — rollback in-memory state and DB.
       this._mode = previous;
       try {
         await db
@@ -124,15 +178,38 @@ class ExecutorModeService {
       } catch (rollbackErr) {
         logger.error('[ExecutorMode] Rollback DB write also failed:', rollbackErr);
       }
-      logger.error(`[ExecutorMode] pollerController.start() failed: ${result.message}. Rolled back to ${previous}.`);
-      return {
-        ok: false,
-        message: `Не удалось запустить исполнитель: ${result.message}`,
-      };
+      logger.error(`[ExecutorMode] Side effect failed: ${result.message}. Rolled back to ${previous}.`);
+      return { ok: false, message: result.message };
     }
 
-    logger.info(`[ExecutorMode] Switched to Replit — executor started: ${result.message}`);
-    return { ok: true, message: `Переключено в Replit-режим. ${result.message}` };
+    return { ok: true, message: result.message };
+  }
+
+  /**
+   * Применяет side effect при изменении режима.
+   * Всегда вызывается в primary-процессе.
+   */
+  private async _applySideEffect(
+    previous: ExecutorMode,
+    newMode: ExecutorMode,
+  ): Promise<{ ok: boolean; message: string }> {
+    if (newMode === 'vps' && previous === 'replit') {
+      const result = pollerController.stop();
+      logger.info(`[ExecutorMode] Switched to VPS — executor stopped: ${result.message}`);
+      return { ok: true, message: `Переключено в VPS-режим. ${result.message}` };
+    }
+
+    if (newMode === 'replit' && previous === 'vps') {
+      const result = await pollerController.start();
+      if (!result.ok) {
+        logger.error(`[ExecutorMode] pollerController.start() failed: ${result.message}`);
+        return { ok: false, message: `Не удалось запустить исполнитель: ${result.message}` };
+      }
+      logger.info(`[ExecutorMode] Switched to Replit — executor started: ${result.message}`);
+      return { ok: true, message: `Переключено в Replit-режим. ${result.message}` };
+    }
+
+    return { ok: true, message: `Режим уже ${newMode}` };
   }
 
   isInitialized(): boolean {

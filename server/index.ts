@@ -189,6 +189,9 @@ app.use((req, res, next) => {
     // Recording executor — mode controlled by executorModeService (DB-persisted)
     // env DISABLE_RECORDING_EXECUTOR=true forces VPS mode
     executorModeService.init().then(async (mode) => {
+      // Start DB watcher so primary detects mode changes written by non-primary processes.
+      executorModeService.startWatching(10_000);
+
       if (mode === 'vps') {
         logger.info('Recording executor: VPS mode — built-in poller disabled, external worker handles recordings');
         return;
