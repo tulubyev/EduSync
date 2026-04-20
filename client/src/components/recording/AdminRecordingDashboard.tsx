@@ -268,6 +268,9 @@ export function AdminRecordingDashboard() {
   const [executorWorkerCount, setExecutorWorkerCount] = useState<number>(0);
   const [executorMaxWorkers, setExecutorMaxWorkers]   = useState<number>(1);
   const [scalingWorkerId, setScalingWorkerId] = useState<string | null>(null);
+  const [executorMode, setExecutorMode]       = useState<'replit' | 'vps'>('replit');
+  const [vpsWorkers, setVpsWorkers]           = useState<WorkerEntry[]>([]);
+  const [modeLoading, setModeLoading]         = useState(false);
   const [errorDetail, setErrorDetail] = useState<{ taskId: string; taskTitle: string; message: string } | null>(null);
   const [historyTaskId, setHistoryTaskId]   = useState<string | null>(null);
   const [historyTaskTitle, setHistoryTaskTitle] = useState('');
@@ -332,6 +335,51 @@ export function AdminRecordingDashboard() {
       setExecutorMaxWorkers(d.executor?.maxWorkers ?? 1);
     }
   }, []);
+
+  const fetchExecutorMode = useCallback(async () => {
+    const r = await fetch('/api/recording/admin/executor/mode', { headers: authHdr() });
+    if (r.ok) {
+      const d = await r.json();
+      setExecutorMode(d.mode ?? 'replit');
+      setVpsWorkers(d.vpsWorkers ?? []);
+      if (d.executor) {
+        setExecutorRunning(d.executor.isRunning ?? null);
+        setExecutorWorkerCount(d.executor.workerCount ?? 0);
+        setExecutorMaxWorkers(d.executor.maxWorkers ?? 1);
+      }
+    }
+  }, []);
+
+  const handleSetMode = async (newMode: 'replit' | 'vps') => {
+    if (newMode === executorMode) return;
+    const inProgress = (stats['in_progress'] ?? 0) + (stats['uploading'] ?? 0);
+    const doSwitch = async () => {
+      setModeLoading(true);
+      try {
+        const r = await fetch('/api/recording/admin/executor/mode', {
+          method: 'POST', headers: jsonHdr(), body: JSON.stringify({ mode: newMode }),
+        });
+        const d = await r.json();
+        if (d.mode) setExecutorMode(d.mode);
+        if (d.executor) {
+          setExecutorRunning(d.executor.isRunning ?? null);
+          setExecutorWorkerCount(d.executor.workerCount ?? 0);
+        }
+        await fetchExecutorMode();
+      } finally { setModeLoading(false); }
+    };
+
+    if (newMode === 'vps' && inProgress > 0) {
+      showConfirm({
+        title: 'Переключить в VPS-режим?',
+        message: `Есть ${inProgress} активных задач. Встроенный воркер будет остановлен. Их продолжит внешний VPS-воркер (если подключён).`,
+        confirmLabel: 'Переключить',
+        onConfirm: async () => { closeConfirm(); await doSwitch(); },
+      });
+    } else {
+      await doSwitch();
+    }
+  };
 
   const handleStartExecutor = async () => {
     setExecutorAction('start');
@@ -404,11 +452,11 @@ export function AdminRecordingDashboard() {
 
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchWorkerStatus(), fetchExecutorStatus()]);
+    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchWorkerStatus(), fetchExecutorStatus(), fetchExecutorMode()]);
     setS3RefreshKey(k => k + 1);
     setLastUpdate(new Date().toLocaleTimeString('ru-RU'));
     setIsRefreshing(false);
-  }, [fetchStats, fetchHealth, fetchTasks, fetchWorkerStatus, fetchExecutorStatus]);
+  }, [fetchStats, fetchHealth, fetchTasks, fetchWorkerStatus, fetchExecutorStatus, fetchExecutorMode]);
 
   useEffect(() => {
     refreshAll();
@@ -505,8 +553,17 @@ export function AdminRecordingDashboard() {
           {lastUpdate ? `Обновлено: ${lastUpdate}` : 'Загрузка...'}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* ── Executor Start/Stop + Scale Up ── */}
-          {executorRunning !== false ? (
+          {/* ── Executor Start/Stop + Scale Up (Replit mode only) ── */}
+          {executorMode === 'vps' && (
+            <span style={{
+              fontSize: 11, padding: '4px 12px', borderRadius: 8,
+              background: '#1e3a5f', color: '#60a5fa',
+              border: '1px solid #2563eb', fontWeight: 600,
+            }}>
+              🖥 VPS-режим — внешний воркер
+            </span>
+          )}
+          {executorMode === 'replit' && executorRunning !== false ? (
             <>
               {executorWorkerCount < executorMaxWorkers && (
                 <button
@@ -547,7 +604,7 @@ export function AdminRecordingDashboard() {
                 {executorAction === 'stop' ? 'Останавливаю...' : `⏹ Стоп (${executorWorkerCount} воркер${executorWorkerCount === 1 ? '' : 'ов'})`}
               </button>
             </>
-          ) : (
+          ) : executorMode === 'replit' ? (
             <button
               onClick={handleStartExecutor}
               disabled={!!executorAction}
@@ -567,7 +624,7 @@ export function AdminRecordingDashboard() {
               }} />
               {executorAction === 'start' ? 'Запускаю...' : '▶ Запустить воркер'}
             </button>
-          )}
+          ) : null}
 
           {/* ── Refresh ── */}
           <button style={S.refreshBtn(isRefreshing)} onClick={refreshAll} disabled={isRefreshing}>
@@ -617,30 +674,60 @@ export function AdminRecordingDashboard() {
       <div style={{ ...S.card, marginBottom: 16 }}>
         <div style={S.cardHead}>
           <span style={S.h2}>Состояние сервисов</span>
-          <button
-            onClick={handleSyncCheck}
-            disabled={syncCheckLoading}
-            style={{
-              fontSize: 11, padding: '3px 12px', borderRadius: 6, border: '1px solid #2d3748',
-              background: '#1a1f2e', color: '#94a3b8', cursor: syncCheckLoading ? 'default' : 'pointer',
-              opacity: syncCheckLoading ? .6 : 1,
-            }}
-          >
-            {syncCheckLoading ? '⏳ Проверка...' : '🔍 Проверить статус'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* ── Mode switcher ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', borderRadius: 8,
+              border: '1px solid #2d3748', overflow: 'hidden', opacity: modeLoading ? .6 : 1,
+            }}>
+              {(['replit', 'vps'] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => handleSetMode(m)}
+                  disabled={modeLoading}
+                  style={{
+                    fontSize: 11, fontWeight: 600, padding: '4px 14px',
+                    background: executorMode === m ? (m === 'vps' ? '#1e3a5f' : '#052e16') : '#0f1117',
+                    color: executorMode === m ? (m === 'vps' ? '#60a5fa' : '#4ade80') : '#64748b',
+                    border: 'none', cursor: modeLoading ? 'not-allowed' : 'pointer',
+                    transition: 'all .15s',
+                    borderLeft: m === 'vps' ? '1px solid #2d3748' : 'none',
+                  }}
+                  title={m === 'replit' ? 'Встроенный воркер (Playwright)' : 'Внешний VPS-воркер'}
+                >
+                  {m === 'replit' ? '☁ Replit' : '🖥 VPS'}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleSyncCheck}
+              disabled={syncCheckLoading}
+              style={{
+                fontSize: 11, padding: '3px 12px', borderRadius: 6, border: '1px solid #2d3748',
+                background: '#1a1f2e', color: '#94a3b8', cursor: syncCheckLoading ? 'default' : 'pointer',
+                opacity: syncCheckLoading ? .6 : 1,
+              }}
+            >
+              {syncCheckLoading ? '⏳ Проверка...' : '🔍 Проверить'}
+            </button>
+          </div>
         </div>
         {/* DB + S3 row */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: '14px 18px 0' }}>
           <HealthRow label="PostgreSQL" service={db} />
           <HealthRow label="Beget S3" service={s3} />
         </div>
-        {/* Workers row — dynamic number of cells */}
-        <WorkerPoolGrid
-          playwright={health?.services?.playwright}
-          workerStatus={workerStatus}
-          onStopWorker={handleStopWorker}
-          stoppingWorkerId={scalingWorkerId}
-        />
+        {/* Workers row — depends on mode */}
+        {executorMode === 'vps' ? (
+          <VpsWorkerGrid workers={vpsWorkers} />
+        ) : (
+          <WorkerPoolGrid
+            playwright={health?.services?.playwright}
+            workerStatus={workerStatus}
+            onStopWorker={handleStopWorker}
+            stoppingWorkerId={scalingWorkerId}
+          />
+        )}
         {syncCheckResult && (
           <div style={{
             margin: '0 18px 14px', padding: '8px 12px', borderRadius: 8,
@@ -1518,6 +1605,71 @@ function WorkerCell({ worker, loading }: { worker: WorkerEntry | null; loading: 
         <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
         <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>
       </div>
+    </div>
+  );
+}
+
+/* ─── VPS Worker Grid ──────────────────────────────────────────────────────── */
+function VpsWorkerGrid({ workers }: { workers: WorkerEntry[] }) {
+  const fmtAgo = (secondsAgo: number | null) => {
+    if (secondsAgo == null) return '—';
+    if (secondsAgo < 60) return `${secondsAgo}с назад`;
+    if (secondsAgo < 3600) return `${Math.floor(secondsAgo / 60)}м назад`;
+    return `${Math.floor(secondsAgo / 3600)}ч назад`;
+  };
+
+  return (
+    <div style={{ padding: '12px 18px 14px' }}>
+      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.5px' }}>
+        VPS-воркеры ({workers.length})
+      </div>
+      {workers.length === 0 ? (
+        <div style={{
+          background: '#0f1117', borderRadius: 8, padding: '14px 16px',
+          border: '1px dashed #2d3748', color: '#64748b', fontSize: 12, textAlign: 'center',
+        }}>
+          Нет данных о VPS-воркерах. Убедитесь что сервис запущен и подключён к той же БД.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+          {workers.map(w => {
+            const dotColor = w.isOnline ? '#22c55e' : '#ef4444';
+            const dotGlow  = w.isOnline ? '0 0 8px #22c55e66' : '0 0 8px #ef444466';
+            return (
+              <div key={w.workerId} style={{
+                background: '#0f1117', borderRadius: 8, padding: '12px 14px',
+                border: `1px solid ${w.isOnline ? '#166534' : '#450a0a'}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <div style={{ width: 9, height: 9, borderRadius: '50%', flexShrink: 0, background: dotColor, boxShadow: dotGlow }} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', fontFamily: 'monospace' }}>
+                    {w.workerId}
+                  </span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10, color: w.isOnline ? '#4ade80' : '#f87171', fontWeight: 600 }}>
+                    {w.isOnline ? 'Online' : 'Offline'}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11, color: '#94a3b8' }}>
+                  <div>Видел: <span style={{ color: '#cbd5e1' }}>{fmtAgo(w.secondsAgo)}</span></div>
+                  <div>БД: <span style={{ color: w.dbConnected ? '#4ade80' : '#f87171' }}>{w.dbConnected ? '✓' : '✗'}</span>
+                    {'  '}S3: <span style={{ color: w.s3Connected ? '#4ade80' : '#f87171' }}>{w.s3Connected ? '✓' : '✗'}</span>
+                  </div>
+                  <div>Успешно: <span style={{ color: '#4ade80' }}>{w.tasksSuccessful ?? 0}</span></div>
+                  <div>Ошибок: <span style={{ color: w.tasksFailed ? '#f87171' : '#94a3b8' }}>{w.tasksFailed ?? 0}</span></div>
+                  {w.currentTaskTitle && (
+                    <div style={{ gridColumn: '1 / -1', color: '#fbbf24', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      ▶ {w.currentTaskTitle}
+                    </div>
+                  )}
+                  {w.buildVersion && (
+                    <div style={{ gridColumn: '1 / -1', color: '#475569' }}>v{w.buildVersion}</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

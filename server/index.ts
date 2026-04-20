@@ -7,6 +7,7 @@ import { yookassaService } from "./services/yookassaService";
 import { PaymentFactory } from "./services/payments/paymentFactory";
 import { courseDiscoveryService } from "./services/courseDiscoveryService";
 import { recordingTaskManager, pollerController } from "./services/recording";
+import { executorModeService } from "./services/recording/executorModeService";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
@@ -185,25 +186,26 @@ app.use((req, res, next) => {
     runRecordingWatchdog(); // run immediately on start
     logger.info('Recording watchdog started (runs every 2 min, stale threshold: 12 min)');
 
-    // Recording executor poller — can be disabled via env when VPS worker handles recordings
-    const disableExecutor = process.env.DISABLE_RECORDING_EXECUTOR === 'true';
-    if (disableExecutor) {
-      logger.info('Recording executor disabled (DISABLE_RECORDING_EXECUTOR=true) — VPS worker handles recordings');
-    } else {
-      // Runs only in primary process (PM2 cluster safe)
+    // Recording executor — mode controlled by executorModeService (DB-persisted)
+    // env DISABLE_RECORDING_EXECUTOR=true forces VPS mode
+    executorModeService.init().then(async (mode) => {
+      if (mode === 'vps') {
+        logger.info('Recording executor: VPS mode — built-in poller disabled, external worker handles recordings');
+        return;
+      }
+      // Replit mode: start local poller (PM2 cluster safe — only in primary)
       const isPrimaryWorker = !process.env.pm_id || process.env.pm_id === '0';
       if (isPrimaryWorker) {
-        pollerController.start().then((result) => {
-          if (result.ok) {
-            logger.info(`Recording executor poller started (worker: ${process.env.WORKER_ID || 'epa-worker-1'})`);
-          } else {
-            logger.error(`Recording executor failed to start: ${result.message}`);
-          }
-        });
+        const result = await pollerController.start();
+        if (result.ok) {
+          logger.info(`Recording executor poller started (worker: ${process.env.WORKER_ID || 'epa-worker-1'})`);
+        } else {
+          logger.error(`Recording executor failed to start: ${result.message}`);
+        }
       } else {
         logger.info(`Recording executor poller skipped on PM2 worker #${process.env.pm_id}`);
       }
-    }
+    });
 
   }, 30000); // Wait 30 seconds before starting background services
 })();

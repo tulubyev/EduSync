@@ -4,6 +4,7 @@ import { authenticateToken } from "../middleware/auth";
 import { z } from "zod";
 import { yandexDiskService } from "../services/yandexDiskService";
 import { recordingTaskManager, recordingLogger, pollerController } from "../services/recording";
+import { executorModeService } from "../services/recording/executorModeService";
 import { logger } from "../services/logger";
 import { db } from "../db";
 import { recordingTasks, recordingWorkerStatus, recordingLogs } from "@shared/schema";
@@ -1166,6 +1167,64 @@ router.post('/admin/executor/worker/:workerId/stop', authenticateToken as any, (
   logger.info(`Admin ${adminId} requested STOP worker ${workerId}`);
   const result = pollerController.stopWorker(workerId);
   res.status(result.ok ? 200 : 404).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
+});
+
+// ── Executor Mode (Replit / VPS) ──────────────────────────────────────────────
+
+router.get('/admin/executor/mode', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    const mode = executorModeService.mode;
+
+    // Fetch VPS workers from recording_worker_status
+    const now = new Date();
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    const workers = await db
+      .select()
+      .from(recordingWorkerStatus)
+      .orderBy(desc(recordingWorkerStatus.lastSeenAt));
+
+    const vpsWorkers = workers.map(w => {
+      const lastSeen = w.lastSeenAt ? new Date(w.lastSeenAt) : null;
+      const isOnline = lastSeen ? lastSeen > fiveMinutesAgo : false;
+      const secondsAgo = lastSeen ? Math.floor((now.getTime() - lastSeen.getTime()) / 1000) : null;
+      return {
+        ...w,
+        isOnline,
+        secondsAgo,
+        healthStatus: isOnline ? 'healthy' : (lastSeen ? 'offline' : 'unknown'),
+      };
+    });
+
+    res.json({
+      success: true,
+      mode,
+      vpsWorkers,
+      executor: pollerController.getStatus(),
+    });
+  } catch (error) {
+    logger.error('Admin executor mode GET error:', error);
+    res.status(500).json({ message: 'Ошибка получения режима исполнителя' });
+  }
+});
+
+router.post('/admin/executor/mode', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const adminId = req.user!.id;
+  const { mode } = req.body;
+
+  if (mode !== 'replit' && mode !== 'vps') {
+    return res.status(400).json({ message: 'Режим должен быть "replit" или "vps"' });
+  }
+
+  logger.info(`Admin ${adminId} switching executor mode to: ${mode}`);
+  const result = await executorModeService.setMode(mode);
+  res.status(result.ok ? 200 : 400).json({
+    success: result.ok,
+    message: result.message,
+    mode: executorModeService.mode,
+    executor: pollerController.getStatus(),
+  });
 });
 
 export default router;

@@ -459,6 +459,13 @@ export const recordingWorkerStatus = pgTable("recording_worker_status", {
   isActiveIdx: index("recording_worker_status_is_active_idx").on(table.isActive),
 }));
 
+// System Settings table — key-value store for system-wide configuration
+export const systemSettings = pgTable("system_settings", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Admin Logs table - Admin activity tracking
 export const adminLogs = pgTable("admin_logs", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
