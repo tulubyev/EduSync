@@ -151,7 +151,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gap: '24px'
         }}>
           {features.map((feature, index) => (
