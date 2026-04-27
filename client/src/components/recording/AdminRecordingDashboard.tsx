@@ -87,6 +87,7 @@ interface AdminTask {
   attemptCount?: number | null;
   currentPart?: number | null;
   totalParts?: number | null;
+  maxPartDuration?: number | null;
   s3Prefix?: string | null;
   s3Filename?: string | null;
   parts?: Array<{
@@ -1479,6 +1480,25 @@ function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory, onError
       </td>
       <td style={S.td}>
         <span style={{ ...S.badge, ...badge }}>{STATUS_LABELS[task.status] || task.status}</span>
+        {(['in_progress', 'uploading'].includes(task.status) && (task.currentPart ?? 0) > 0) && (() => {
+          const saved = task.currentPart!;
+          const partMin = task.maxPartDuration || 20;
+          const totalMin = task.duration || 0;
+          const plannedParts = task.totalParts && task.totalParts > saved ? task.totalParts : (totalMin > 0 ? Math.ceil(totalMin / partMin) : null);
+          const savedMin = saved * partMin;
+          return (
+            <div style={{ marginTop: 3, fontSize: 11, color: '#a78bfa', whiteSpace: 'nowrap' }}>
+              {plannedParts
+                ? `Часть ${saved} из ${plannedParts}`
+                : `Сохранено ${saved} ч.`}
+              {totalMin > 0 && (
+                <span style={{ color: '#6b7280', marginLeft: 4 }}>
+                  ({Math.min(savedMin, totalMin)}/{totalMin} мин)
+                </span>
+              )}
+            </div>
+          );
+        })()}
       </td>
       <td style={S.tdMuted}>{fmtDuration(task.duration)}</td>
       <td style={{ ...S.tdMuted, fontFamily: 'monospace', maxWidth: 120 }}>

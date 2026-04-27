@@ -377,6 +377,15 @@ export class TaskPoller {
     this.tasksProcessed++;
     await this.reportStatus();
 
+    // Set totalParts upfront based on the planned schedule so it stays authoritative
+    // and currentPart can track progress without overwriting the total.
+    const maxPartMin: number = task.maxPartDuration ?? 20;
+    const expectedParts = task.duration > 0 ? Math.ceil(task.duration / maxPartMin) : 1;
+    await db
+      .update(recordingTasks)
+      .set({ totalParts: expectedParts, currentPart: 0, updatedAt: new Date() })
+      .where(eq(recordingTasks.id, task.id));
+
     const heartbeatInterval = setInterval(async () => {
       try {
         await db
@@ -466,7 +475,7 @@ export class TaskPoller {
             .update(recordingTasks)
             .set({
               parts: partsPayload,
-              totalParts: uploadedChunks.length,
+              currentPart: uploadedChunks.length,
               // begetUrl — первый загруженный чанк (обратная совместимость)
               begetUrl: uploadedChunks[0].publicUrl,
               lastHeartbeat: new Date(),
@@ -523,6 +532,7 @@ export class TaskPoller {
             status: 'failed',
             errorMessage: `Частичная запись (${uploadedChunks.length} чанк(ов) сохранено): ${errMsg}`,
             parts: partsPayload,
+            currentPart: uploadedChunks.length,
             totalParts: uploadedChunks.length,
             begetUrl: uploadedChunks[0].publicUrl,
             completedAt: new Date(),
