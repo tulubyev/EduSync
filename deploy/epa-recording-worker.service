@@ -1,0 +1,27 @@
+[Unit]
+Description=EPA Recording Worker
+After=network.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=epa
+WorkingDirectory=/opt/epa
+
+EnvironmentFile=/opt/epa/.env.worker
+
+ExecStart=/usr/bin/node dist/recording-worker.js
+Restart=always
+RestartSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=epa-worker
+
+KillMode=process
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
