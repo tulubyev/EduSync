@@ -813,33 +813,75 @@ export class StreamingRecorder {
     title: string;
     taskId?: string;
     password?: string;
-    onChunk?: (chunk: any) => Promise<void>;
+    onChunk?: (chunk: {
+      partNumber: number;
+      filePath: string;
+      frameCount: number;
+      durationMs: number;
+      isFinal: boolean;
+    }) => Promise<void>;
+    chunkDurationMs?: number;
   }): Promise<string> {
     await this.initialize();
 
-    const durationMs = options.duration * 60 * 1000;
+    const totalDurationMs = options.duration * 60 * 1000;
+    const chunkDurationMs = options.chunkDurationMs ?? executorConfig.recording.maxPartDurationMs;
     const taskId = options.taskId || `task_${Date.now()}`;
-    let result: Awaited<ReturnType<typeof this.waitForRecordingComplete>> | null = null;
+
+    let partNumber = 1;
+    let remainingMs = totalDurationMs;
+    let lastFilePath = '';
 
     try {
       await this.navigateToStream(options.url, options.password);
 
-      const { outputPath } = await this.startStreamingRecording(taskId, 1, durationMs);
-      void outputPath;
+      while (remainingMs > 0) {
+        const thisChunkMs = Math.min(chunkDurationMs, remainingMs);
+        const isFinal = thisChunkMs >= remainingMs;
 
-      result = await this.waitForRecordingComplete(durationMs);
+        logger.info(`[CHUNK] Starting part ${partNumber} (${Math.round(thisChunkMs / 60000)} min, final=${isFinal})`);
+
+        await this.startStreamingRecording(taskId, partNumber, thisChunkMs);
+        const result = await this.waitForRecordingComplete(thisChunkMs);
+
+        if (!result.success && result.frameCount === 0) {
+          // Браузер упал, нет смысла продолжать
+          throw new Error(result.error || `Part ${partNumber} recording failed with 0 frames`);
+        }
+
+        lastFilePath = result.filePath;
+
+        if (options.onChunk && result.filePath) {
+          try {
+            await options.onChunk({
+              partNumber,
+              filePath: result.filePath,
+              frameCount: result.frameCount,
+              durationMs: result.actualDuration,
+              isFinal,
+            });
+          } catch (chunkErr) {
+            logger.error(`[CHUNK] onChunk error for part ${partNumber}:`, chunkErr);
+            // не прерываем запись — продолжаем следующий чанк
+          }
+        }
+
+        partNumber++;
+        remainingMs -= thisChunkMs;
+
+        // Если страница закрылась или браузер отвалился — выходим из цикла
+        if (!this.page || this.page.isClosed() || !this.browser) {
+          logger.warn('[CHUNK] Browser/page gone — stopping chunked recording early');
+          break;
+        }
+      }
     } finally {
-      // Всегда закрываем браузер — даже если навигация или FFmpeg упали
       await this.cleanup().catch((e) => {
         logger.warn('[recordStream] cleanup error (non-fatal):', e);
       });
     }
 
-    if (!result || !result.success) {
-      throw new Error(result?.error || 'Recording failed');
-    }
-
-    return result.filePath;
+    return lastFilePath;
   }
 }
 

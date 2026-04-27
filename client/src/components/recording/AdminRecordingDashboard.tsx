@@ -89,6 +89,15 @@ interface AdminTask {
   totalParts?: number | null;
   s3Prefix?: string | null;
   s3Filename?: string | null;
+  parts?: Array<{
+    partNumber: number;
+    fileName: string;
+    startTime: string;
+    duration?: number;
+    status: string;
+    publicUrl?: string;
+    error?: string;
+  }> | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1479,9 +1488,28 @@ function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory, onError
       </td>
       <td style={S.tdMuted}>{fmtDate(task.lastHeartbeat)}</td>
       <td style={S.td}>
-        {task.begetUrl
-          ? <a href={task.begetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 12, textDecoration: 'none' }}>▶ Открыть</a>
-          : <span style={{ color: '#2d3748' }}>—</span>}
+        {task.parts && task.parts.length > 1 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {task.parts.map((p) => p.publicUrl ? (
+              <a
+                key={p.partNumber}
+                href={p.publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#3b82f6', fontSize: 11, textDecoration: 'none', whiteSpace: 'nowrap' }}
+              >
+                ▶ Часть {p.partNumber}
+                {p.duration ? ` (${Math.round(p.duration / 60000)} мин)` : ''}
+              </a>
+            ) : (
+              <span key={p.partNumber} style={{ color: '#6b7280', fontSize: 11 }}>Часть {p.partNumber}: {p.status}</span>
+            ))}
+          </div>
+        ) : task.begetUrl ? (
+          <a href={task.begetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 12, textDecoration: 'none' }}>▶ Открыть</a>
+        ) : (
+          <span style={{ color: '#2d3748' }}>—</span>
+        )}
       </td>
       <td style={{ ...S.td, maxWidth: 160 }}>
         {task.errorMessage ? (

@@ -388,6 +388,17 @@ export class TaskPoller {
       }
     }, executorConfig.worker.heartbeatIntervalMs);
 
+    // Накапливаем загруженные чанки
+    const uploadedChunks: Array<{
+      partNumber: number;
+      publicUrl: string;
+      durationMs: number;
+      frameCount: number;
+      status: 'completed';
+    }> = [];
+
+    const safeTitle = (task.title as string).replace(/[^a-zA-Z0-9а-яА-ЯёЁ._-]/g, '_').slice(0, 60);
+
     try {
       logger.info(`Validating URL: ${task.streamUrl}`);
       const urlCheck = await validateStreamUrl(task.streamUrl);
@@ -412,31 +423,74 @@ export class TaskPoller {
         throw new Error(`URL недоступен: ${urlCheck.error ?? 'неизвестная ошибка'}`);
       }
 
-      const recordingPath = await this.recorder.recordStream({
+      await this.recorder.recordStream({
         url: task.streamUrl,
         duration: task.duration,
         title: task.title,
         taskId: task.id,
         password: task.streamPassword,
+
+        onChunk: async (chunk) => {
+          logger.info(`[CHUNK] Part ${chunk.partNumber} ready (${chunk.frameCount} frames, ${Math.round(chunk.durationMs / 1000)}s) — uploading to S3...`);
+
+          // Переходим в статус uploading при первом чанке
+          if (uploadedChunks.length === 0) {
+            await db
+              .update(recordingTasks)
+              .set({ status: 'uploading', lastHeartbeat: new Date(), updatedAt: new Date() })
+              .where(eq(recordingTasks.id, task.id));
+          }
+
+          const partFileName = `${task.id}_part${chunk.partNumber}_${safeTitle}.mp4`;
+          const publicUrl = await this.storage.uploadVideo(chunk.filePath, partFileName);
+
+          uploadedChunks.push({
+            partNumber: chunk.partNumber,
+            publicUrl,
+            durationMs: chunk.durationMs,
+            frameCount: chunk.frameCount,
+            status: 'completed',
+          });
+
+          // Сохраняем прогресс в БД после каждого чанка
+          const partsPayload = uploadedChunks.map((c) => ({
+            partNumber: c.partNumber,
+            fileName: `${task.id}_part${c.partNumber}_${safeTitle}.mp4`,
+            startTime: new Date().toISOString(),
+            duration: c.durationMs,
+            status: 'completed' as const,
+            publicUrl: c.publicUrl,
+          }));
+
+          await db
+            .update(recordingTasks)
+            .set({
+              parts: partsPayload,
+              totalParts: uploadedChunks.length,
+              // begetUrl — первый загруженный чанк (обратная совместимость)
+              begetUrl: uploadedChunks[0].publicUrl,
+              lastHeartbeat: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(recordingTasks.id, task.id));
+
+          logger.info(`[CHUNK] ✅ Part ${chunk.partNumber} uploaded: ${publicUrl} (total saved: ${uploadedChunks.length})`);
+        },
       });
 
       clearInterval(heartbeatInterval);
 
-      await db
-        .update(recordingTasks)
-        .set({ status: 'uploading', lastHeartbeat: new Date(), updatedAt: new Date() })
-        .where(eq(recordingTasks.id, task.id));
+      if (uploadedChunks.length === 0) {
+        throw new Error('Запись завершена, но ни один чанк не был загружен в S3');
+      }
 
-      const begetUrl = await this.storage.uploadVideo(
-        recordingPath,
-        `${task.id}_${task.title}.mp4`
-      );
-
+      // Все чанки уже в S3 — помечаем задачу выполненной
       await db
         .update(recordingTasks)
         .set({
           status: 'completed',
-          begetUrl,
+          begetUrl: uploadedChunks[0].publicUrl,
+          totalParts: uploadedChunks.length,
           completedAt: new Date(),
           lastHeartbeat: new Date(),
           updatedAt: new Date(),
@@ -444,22 +498,50 @@ export class TaskPoller {
         .where(eq(recordingTasks.id, task.id));
 
       this.tasksSuccessful++;
-      logger.info(`Completed task ${task.id}: ${begetUrl}`);
+      logger.info(`✅ Task ${task.id} completed: ${uploadedChunks.length} chunk(s) in S3, first URL: ${uploadedChunks[0].publicUrl}`);
     } catch (error) {
       clearInterval(heartbeatInterval);
       this.tasksFailed++;
 
-      logger.error(`Failed task ${task.id}:`, error);
-      await db
-        .update(recordingTasks)
-        .set({
-          status: 'failed',
-          errorMessage: (error as Error).message,
-          completedAt: new Date(),
-          lastHeartbeat: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(recordingTasks.id, task.id));
+      const errMsg = (error as Error).message;
+      logger.error(`Failed task ${task.id}: ${errMsg}`);
+
+      // Если часть чанков уже загружена — не теряем их, помечаем задачу с частичным успехом
+      if (uploadedChunks.length > 0) {
+        logger.warn(`[CHUNK] Task failed mid-recording but ${uploadedChunks.length} chunk(s) already saved to S3`);
+        const partsPayload = uploadedChunks.map((c) => ({
+          partNumber: c.partNumber,
+          fileName: `${task.id}_part${c.partNumber}_${safeTitle}.mp4`,
+          startTime: new Date().toISOString(),
+          duration: c.durationMs,
+          status: 'completed' as const,
+          publicUrl: c.publicUrl,
+        }));
+        await db
+          .update(recordingTasks)
+          .set({
+            status: 'failed',
+            errorMessage: `Частичная запись (${uploadedChunks.length} чанк(ов) сохранено): ${errMsg}`,
+            parts: partsPayload,
+            totalParts: uploadedChunks.length,
+            begetUrl: uploadedChunks[0].publicUrl,
+            completedAt: new Date(),
+            lastHeartbeat: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(recordingTasks.id, task.id));
+      } else {
+        await db
+          .update(recordingTasks)
+          .set({
+            status: 'failed',
+            errorMessage: errMsg,
+            completedAt: new Date(),
+            lastHeartbeat: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(recordingTasks.id, task.id));
+      }
     } finally {
       this.activeTaskId = null;
       this.activeTaskTitle = null;
