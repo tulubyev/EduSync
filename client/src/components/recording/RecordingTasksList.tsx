@@ -466,16 +466,16 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               <div className="flex items-center gap-1 mt-0.5">
                 <p className="font-semibold text-xs">{getDomain(task.streamUrl)}</p>
                 {task.urlCheckStatus === 'pending' && (
-                  <Loader className="h-3 w-3 text-gray-400 animate-spin flex-shrink-0" title="Проверяется доступность..." />
+                  <span title="Проверяется доступность..."><Loader className="h-3 w-3 text-gray-400 animate-spin flex-shrink-0" /></span>
                 )}
                 {task.urlCheckStatus === 'ok' && (
-                  <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" title="URL доступен" />
+                  <span title="URL доступен"><CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" /></span>
                 )}
                 {task.urlCheckStatus === 'warning' && (
-                  <TriangleAlert className="h-3 w-3 text-amber-500 flex-shrink-0" title={task.urlCheckMessage} />
+                  <span title={task.urlCheckMessage ?? undefined}><TriangleAlert className="h-3 w-3 text-amber-500 flex-shrink-0" /></span>
                 )}
                 {task.urlCheckStatus === 'failed' && (
-                  <XCircle className="h-3 w-3 text-red-500 flex-shrink-0" title={task.urlCheckMessage} />
+                  <span title={task.urlCheckMessage ?? undefined}><XCircle className="h-3 w-3 text-red-500 flex-shrink-0" /></span>
                 )}
               </div>
               <a

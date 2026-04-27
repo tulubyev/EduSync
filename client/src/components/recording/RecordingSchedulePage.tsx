@@ -37,7 +37,7 @@ export function RecordingSchedulePage() {
   const [tasksRefreshKey, setTasksRefreshKey] = useState(0);
 
   const computeUserStats = (tasks: Array<{ status: string }>) => {
-    const stats: DashboardStats = { ready: 0, in_progress: 0, uploading: 0, completed: 0, failed: 0, cancelled: 0, total: tasks.length };
+    const stats: DashboardStats = { scheduled: 0, ready: 0, in_progress: 0, uploading: 0, completed: 0, failed: 0, cancelled: 0, total: tasks.length };
     tasks.forEach(t => {
       if (t.status in stats) (stats as any)[t.status]++;
     });
