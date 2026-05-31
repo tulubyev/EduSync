@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ interface RecordingModalProps {
   onClose: () => void;
   onSubmit: (data: RecordingData) => void;
   isLoading?: boolean;
+  error?: string | null;
 }
 
 export interface RecordingData {
@@ -36,7 +37,7 @@ export interface RecordingData {
   saveTarget: 'yandex_disk' | 'library' | 'beget';
 }
 
-export function RecordingModal({ open, onClose, onSubmit, isLoading }: RecordingModalProps) {
+export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: RecordingModalProps) {
   const [formData, setFormData] = useState<RecordingData>({
     title: '',
     description: '',
@@ -47,6 +48,13 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
     saveTarget: 'beget',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!open) {
+      setFormData({ title: '', description: '', streamUrl: '', streamPassword: '', scheduledTime: '', duration: 60, saveTarget: 'beget' });
+      setErrors({});
+    }
+  }, [open]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -85,17 +93,6 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
   const handleSubmit = () => {
     if (validateForm()) {
       onSubmit(formData);
-      setFormData({
-        title: '',
-        description: '',
-        streamUrl: '',
-        streamPassword: '',
-        scheduledTime: '',
-        duration: 60,
-        saveTarget: 'beget',
-      });
-      setErrors({});
-      onClose();
     }
   };
 
@@ -248,6 +245,14 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
               {formData.saveTarget === 'yandex_disk' && ' Файлы будут загружены на ваш Яндекс.Диск.'}
             </p>
           </div>
+
+          {/* Ошибка от сервера */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

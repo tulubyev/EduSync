@@ -101,41 +101,44 @@ export class ClientAuthService {
    * Выполняет authenticated запрос с автоматическим refresh
    */
   async authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
-    const token = this.getToken();
+    let token = this.getToken();
+
+    // Если токена нет — сразу пробуем refresh через cookie
     if (!token) {
-      throw new Error('TOKEN_MISSING');
+      const refreshed = await this.refreshToken();
+      if (!refreshed) {
+        throw new Error('TOKEN_MISSING');
+      }
+      token = this.getToken();
     }
 
     // Добавляем токен в заголовки
     const headers = {
       ...options.headers,
-      'Authorization': `Bearer ${token}`,
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       'Content-Type': 'application/json',
     };
 
-    const response = await fetch(url, { ...options, headers });
+    const response = await fetch(url, { ...options, credentials: 'include', headers });
 
-    // Если токен истек, пытаемся обновить
+    // Если токен недействителен или отсутствует — пытаемся обновить
     if (response.status === 401) {
       try {
-        const errorData = await response.clone().json();
-        if (errorData.shouldRefresh) {
-          const refreshed = await this.refreshToken();
-          if (refreshed) {
-            // Повторяем запрос с новым токеном
-            const newToken = this.getToken();
-            return fetch(url, {
-              ...options,
-              headers: {
-                ...options.headers,
-                'Authorization': `Bearer ${newToken}`,
-                'Content-Type': 'application/json',
-              }
-            });
-          }
+        const refreshed = await this.refreshToken();
+        if (refreshed) {
+          const newToken = this.getToken();
+          return fetch(url, {
+            ...options,
+            credentials: 'include',
+            headers: {
+              ...options.headers,
+              ...(newToken ? { 'Authorization': `Bearer ${newToken}` } : {}),
+              'Content-Type': 'application/json',
+            }
+          });
         }
-      } catch (error) {
-        // Если не удалось получить данные ошибки, просто пробрасываем response
+      } catch {
+        // Refresh не удался — возвращаем исходный 401
       }
     }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, RotateCcw, TriangleAlert, XCircle, StopCircle } from 'lucide-react';
 import {
@@ -118,18 +119,25 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
   const fetchTasks = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/recording/tasks', {
-        headers: { 'Authorization': `Bearer ${token}` },
+      const response = await authService.authenticatedFetch('/api/recording/tasks', {
+        method: 'GET',
       });
 
       if (response.ok) {
         const data = await response.json();
         setTasks(data);
         onTasksLoaded?.(data);
+      } else if (response.status === 401) {
+        console.warn('Recording tasks: сессия истекла, требуется повторный вход');
+      } else {
+        console.error('Recording tasks: HTTP', response.status);
       }
     } catch (error) {
-      console.error('Error fetching recording tasks:', error);
+      if (error instanceof Error && error.message === 'TOKEN_MISSING') {
+        console.warn('Recording tasks: токен не найден');
+      } else {
+        console.error('Recording tasks error:', error instanceof Error ? error.message : error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -205,11 +213,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       onConfirm: async () => {
         closeConfirm();
         try {
-          const token = localStorage.getItem('accessToken');
-          const response = await fetch(`/api/recording/tasks/${taskId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
+          const response = await authService.authenticatedFetch(`/api/recording/tasks/${taskId}`, { method: 'DELETE' });
           if (response.ok) await fetchTasks();
         } catch (error) {
           console.error('Error deleting task:', error);
@@ -227,11 +231,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       onConfirm: async () => {
         closeConfirm();
         try {
-          const token = localStorage.getItem('accessToken');
-          const response = await fetch(`/api/recording/tasks/${taskId}/cancel`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
+          const response = await authService.authenticatedFetch(`/api/recording/tasks/${taskId}/cancel`, { method: 'POST' });
           if (response.ok) await fetchTasks();
         } catch (error) {
           console.error('Error cancelling task:', error);
@@ -242,11 +242,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
   const handleRecheck = async (taskId: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
-      await fetch(`/api/recording/tasks/${taskId}/recheck`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      await authService.authenticatedFetch(`/api/recording/tasks/${taskId}/recheck`, { method: 'POST' });
       await fetchTasks();
     } catch (error) {
       console.error('Error requesting recheck:', error);
@@ -255,11 +251,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
   const handleRecover = async (taskId: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/recording/tasks/${taskId}/recover`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      const response = await authService.authenticatedFetch(`/api/recording/tasks/${taskId}/recover`, { method: 'POST' });
       if (response.ok) await fetchTasks();
     } catch (error) {
       console.error('Error recovering task:', error);
@@ -303,13 +295,8 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
     try {
       setIsUpdating(true);
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/recording/tasks/${editingTask.id}`, {
+      const response = await authService.authenticatedFetch(`/api/recording/tasks/${editingTask.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({
           title: editFormData.title.trim(),
           description: editFormData.description.trim() || undefined,
