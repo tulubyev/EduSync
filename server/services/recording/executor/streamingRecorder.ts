@@ -232,14 +232,16 @@ export class StreamingRecorder {
         logger.warn(`[BROWSER PAGE ERROR] ${String(err).slice(0, 300)}`);
       });
 
-      // Video platforms (YouTube, Twitch, VK) never reach networkidle — they
-      // continuously stream data.  Use domcontentloaded and let the 20-second
-      // post-nav wait handle player initialisation instead.
-      // Webinar platforms (Zoom, Webinar.ru, etc.) get 'load' so their JS
-      // bundles are fully evaluated before we try to interact with the page.
-      const isVideoHosting = /youtube\.com|youtu\.be|twitch\.tv|vk\.com\/video|vk\.com\/live|rutube\.ru|ok\.ru\/video|vimeo\.com|kinescope\.io|kick\.com|boosty\.to|goodgame\.ru|trovo\.live/i.test(url);
-      const waitUntil = isVideoHosting ? 'domcontentloaded' : 'load';
-      const navTimeout = 45000;
+      // All streaming, webinar, and video platforms use domcontentloaded —
+      // they never fire the 'load' event within a reasonable timeout because
+      // they continuously stream data or are heavy SPAs with WebRTC.
+      // The 20-second post-nav wait handles player initialisation instead.
+      // Simple non-streaming websites that are unlikely to be recorded are
+      // the only case where 'load' might be preferable, but domcontentloaded
+      // is safe for all cases here.
+      const isStreamingOrWebinar = /youtube\.com|youtu\.be|twitch\.tv|vk\.com\/video|vk\.com\/live|rutube\.ru|ok\.ru\/video|vimeo\.com|kinescope\.io|kick\.com|boosty\.to|goodgame\.ru|trovo\.live|zoom\.us|webinar\.ru|bizon365\.ru|getcourse\.ru|webinarjam\.com|gotomeeting\.com|teams\.microsoft\.com|meet\.google\.com|bigmarker\.com|demio\.com|livestorm\.co|on24\.com|webex\.com|whereby\.com|miro\.com|prezi\.com|streamyard\.com|restream\.io|castr\.com|dacast\.com/i.test(url);
+      const waitUntil = isStreamingOrWebinar ? 'domcontentloaded' : 'load';
+      const navTimeout = 60000;
 
       logger.info(`[NAV] Navigating to ${url} (waitUntil: ${waitUntil}, timeout: ${navTimeout / 1000}s)`);
       await this.page.goto(url, { waitUntil, timeout: navTimeout });
