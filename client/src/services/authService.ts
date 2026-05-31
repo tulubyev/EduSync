@@ -165,7 +165,7 @@ export class ClientAuthService {
     try {
       const response = await fetch('/api/auth/refresh', {
         method: 'POST',
-        credentials: 'include', // Для отправки cookies
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -173,13 +173,11 @@ export class ClientAuthService {
         this.setAuthData(data.accessToken, data.user);
         return true;
       }
-      
-      // Refresh не удался - выходим из системы
-      this.clearAuthData();
+
+      // Refresh не удался — просто возвращаем false, не трогаем состояние
       return false;
     } catch (error) {
       console.error('Ошибка refresh токена:', error);
-      this.clearAuthData();
       return false;
     }
   }
@@ -197,11 +195,14 @@ export class ClientAuthService {
         localStorage.setItem('currentUser', JSON.stringify(normalizedUser));
         return normalizedUser;
       }
-      
+
+      // Токен недействителен — сбрасываем данные авторизации
+      this.clearAuthData();
       return null;
     } catch (error) {
+      // Сетевая ошибка или TOKEN_MISSING — не сбрасываем состояние,
+      // чтобы не разлогинивать пользователя при временных проблемах
       console.error('Ошибка верификации токена:', error);
-      this.clearAuthData();
       return null;
     }
   }
