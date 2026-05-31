@@ -510,13 +510,16 @@ export class TaskPoller {
       logger.info(`✅ Task ${task.id} completed: ${uploadedChunks.length} chunk(s) in S3, first URL: ${uploadedChunks[0].publicUrl}`);
     } catch (error) {
       clearInterval(heartbeatInterval);
-      this.tasksFailed++;
 
       const errMsg = (error as Error).message;
-      logger.error(`Failed task ${task.id}: ${errMsg}`);
+      const attemptsDone = task.attemptCount ?? 1;
+      const MAX_ATTEMPTS = 3;
 
-      // Если часть чанков уже загружена — не теряем их, помечаем задачу с частичным успехом
+      logger.error(`Failed task ${task.id} (attempt ${attemptsDone}/${MAX_ATTEMPTS}): ${errMsg}`);
+
+      // Если хоть один чанк уже загружен — сохраняем частичный результат, не повторяем
       if (uploadedChunks.length > 0) {
+        this.tasksFailed++;
         logger.warn(`[CHUNK] Task failed mid-recording but ${uploadedChunks.length} chunk(s) already saved to S3`);
         const partsPayload = uploadedChunks.map((c) => ({
           partNumber: c.partNumber,
@@ -540,12 +543,58 @@ export class TaskPoller {
             updatedAt: new Date(),
           })
           .where(eq(recordingTasks.id, task.id));
+
+      } else if (attemptsDone < MAX_ATTEMPTS) {
+        // Нет сохранённых чанков + есть ещё попытки — выжидаем паузу (задача остаётся
+        // in_progress чтобы другой воркер не подхватил), затем сбрасываем в ready.
+        const retryDelayMs = attemptsDone * 60 * 1000; // 1 мин после 1-й, 2 мин после 2-й
+        const retryDelaySec = retryDelayMs / 1000;
+        logger.warn(`[RETRY] Waiting ${retryDelaySec}s before retry (attempt ${attemptsDone}/${MAX_ATTEMPTS})...`);
+
+        // Обновляем сообщение об ошибке и поддерживаем heartbeat во время паузы
+        await db
+          .update(recordingTasks)
+          .set({
+            errorMessage: `Попытка ${attemptsDone}/${MAX_ATTEMPTS} не удалась: ${errMsg}. Повтор через ${retryDelaySec}с...`,
+            lastHeartbeat: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(recordingTasks.id, task.id));
+
+        const retryHeartbeat = setInterval(async () => {
+          try {
+            await db
+              .update(recordingTasks)
+              .set({ lastHeartbeat: new Date(), updatedAt: new Date() })
+              .where(eq(recordingTasks.id, task.id));
+          } catch (_e) {}
+        }, executorConfig.worker.heartbeatIntervalMs);
+
+        await this.sleep(retryDelayMs);
+        clearInterval(retryHeartbeat);
+
+        // Сбрасываем в ready — следующий цикл поллера подберёт задачу
+        await db
+          .update(recordingTasks)
+          .set({
+            status: 'ready',
+            workerId: null,
+            errorMessage: `Попытка ${attemptsDone}/${MAX_ATTEMPTS} не удалась: ${errMsg}`,
+            lastHeartbeat: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(recordingTasks.id, task.id));
+        logger.warn(`[RETRY] Task ${task.id} reset to 'ready' — attempt ${attemptsDone + 1}/${MAX_ATTEMPTS} will start shortly`);
+
       } else {
+        // Исчерпаны все попытки — окончательный провал
+        this.tasksFailed++;
+        logger.error(`[RETRY] Task ${task.id} exhausted all ${MAX_ATTEMPTS} attempts — marking failed`);
         await db
           .update(recordingTasks)
           .set({
             status: 'failed',
-            errorMessage: errMsg,
+            errorMessage: `Все ${MAX_ATTEMPTS} попытки не удались. Последняя ошибка: ${errMsg}`,
             completedAt: new Date(),
             lastHeartbeat: new Date(),
             updatedAt: new Date(),
