@@ -646,8 +646,17 @@ export class StreamingRecorder {
         } else if (fc === 0) {
           logger.warn(`[WAIT] ${elapsed}s прошло, 0 кадров — CDPSession ещё не начал захватывать`);
         } else if (fc > 0 && msSinceLastFrame > STALL_WARN_MS) {
-          // Кадры шли, но остановились — браузер мог упасть
           const stallSec = Math.round(msSinceLastFrame / 1000);
+          const STALL_ABORT_MS = 3 * 60 * 1000; // 3 мин без кадров → браузер упал
+          if (msSinceLastFrame >= STALL_ABORT_MS) {
+            abortReason = `Нет новых кадров ${stallSec}s — браузер завис или упал (CDPSession stall)`;
+            logger.error(`[WAIT] ❌ ${abortReason} — прерываем запись досрочно`);
+            abortedEarly = true;
+            clearInterval(progressInterval);
+            clearInterval(stalledFrameTracker);
+            resolve();
+            return;
+          }
           logger.warn(`[WAIT] ⚠️ Нет новых кадров уже ${stallSec}s (всего кадров: ${fc}) — CDPSession завис или браузер упал`);
         } else {
           logger.info(`[WAIT] Прогресс: ${elapsed}s, ${fc} кадров`);

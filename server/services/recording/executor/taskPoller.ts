@@ -386,15 +386,19 @@ export class TaskPoller {
       .set({ totalParts: expectedParts, currentPart: 0, updatedAt: new Date() })
       .where(eq(recordingTasks.id, task.id));
 
-    const heartbeatInterval = setInterval(async () => {
-      try {
-        await db
-          .update(recordingTasks)
-          .set({ lastHeartbeat: new Date(), updatedAt: new Date() })
-          .where(eq(recordingTasks.id, task.id));
-      } catch (_e) {
-        logger.warn('Failed to update heartbeat:', _e);
-      }
+    const HEARTBEAT_DB_TIMEOUT_MS = 5000;
+    const heartbeatInterval = setInterval(() => {
+      const updatePromise = db
+        .update(recordingTasks)
+        .set({ lastHeartbeat: new Date(), updatedAt: new Date() })
+        .where(eq(recordingTasks.id, task.id))
+        .then(() => {});
+      const timeoutPromise = new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error(`heartbeat DB timeout (${HEARTBEAT_DB_TIMEOUT_MS}ms)`)), HEARTBEAT_DB_TIMEOUT_MS)
+      );
+      Promise.race([updatePromise, timeoutPromise]).catch((_e) => {
+        logger.warn(`Heartbeat update failed for task ${task.id}: ${(_e as Error).message}`);
+      });
     }, executorConfig.worker.heartbeatIntervalMs);
 
     // Накапливаем загруженные чанки
