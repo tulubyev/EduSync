@@ -18,6 +18,9 @@ export interface RecordingTaskData {
   description?: string;
   streamUrl: string;
   streamPassword?: string;
+  joinName?: string;
+  joinEmail?: string;
+  joinPhone?: string;
   scheduledTime: Date;
   duration: number;
   maxPartDuration: number;

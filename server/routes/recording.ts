@@ -22,6 +22,9 @@ const recordingSchema = z.object({
   description: z.string().optional(),
   streamUrl: z.string().url("Некорректная ссылка"),
   streamPassword: z.string().optional(),
+  joinName: z.string().optional(),
+  joinEmail: z.string().email("Некорректный email").optional().or(z.literal('')),
+  joinPhone: z.string().optional(),
   scheduledTime: z.string().datetime("Некорректное время"),
   duration: z.number().int().min(1).max(1440).default(60),
   saveTarget: z.enum(['yandex_disk', 'library', 'beget']).default('beget'),
@@ -38,6 +41,9 @@ router.post('/schedule', authenticateToken as any, async (req: AuthRequest, res:
       description: validData.description,
       streamUrl: validData.streamUrl,
       streamPassword: validData.streamPassword,
+      joinName: validData.joinName || undefined,
+      joinEmail: validData.joinEmail || undefined,
+      joinPhone: validData.joinPhone || undefined,
       scheduledTime: new Date(validData.scheduledTime),
       duration: validData.duration,
       saveTarget: validData.saveTarget,
@@ -150,7 +156,7 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
   try {
     const { taskId } = req.params;
     const userId = req.user!.id;
-    const { title, description, streamUrl, streamPassword, scheduledTime, duration } = req.body;
+    const { title, description, streamUrl, streamPassword, joinName, joinEmail, joinPhone, scheduledTime, duration } = req.body;
 
     const task = await recordingTaskManager.getTask(taskId);
     
@@ -162,8 +168,8 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
     }
 
-    if (task.status !== 'ready' && task.status !== 'failed') {
-      return res.status(400).json({ message: 'Редактировать можно только задачи в статусе «Готова к записи» или «Ошибка»' });
+    if (!['ready', 'failed', 'scheduled', 'cancelled'].includes(task.status)) {
+      return res.status(400).json({ message: 'Редактировать можно только задачи в статусе «Готова к записи», «Запланирована», «Отменена» или «Ошибка»' });
     }
 
     // Validate input
@@ -181,6 +187,9 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
       description: description?.trim() || null,
       streamUrl: streamUrl.trim(),
       streamPassword: streamPassword?.trim() || null,
+      joinName: joinName?.trim() || null,
+      joinEmail: joinEmail?.trim() || null,
+      joinPhone: joinPhone?.trim() || null,
       scheduledTime: new Date(scheduledTime),
       duration: durationNum,
       updatedAt: new Date(),
@@ -1020,7 +1029,7 @@ router.patch('/admin/tasks/:taskId', authenticateToken as any, async (req: AuthR
   if (!requireAdminRole(req, res)) return;
   try {
     const body = req.body;
-    const allowed = ['title', 'description', 'streamUrl', 'streamPassword', 'duration', 'scheduledTime', 'saveTarget', 'status', 'begetUrl', 'errorMessage'] as const;
+    const allowed = ['title', 'description', 'streamUrl', 'streamPassword', 'joinName', 'joinEmail', 'joinPhone', 'duration', 'scheduledTime', 'saveTarget', 'status', 'begetUrl', 'errorMessage'] as const;
     const update: Record<string, any> = { updatedAt: new Date() };
     for (const key of allowed) {
       if (key in body) {

@@ -374,6 +374,9 @@ export const recordingTasks = pgTable("recording_tasks", {
   description: text("description"),
   streamUrl: varchar("stream_url", { length: 1000 }).notNull(),
   streamPassword: varchar("stream_password", { length: 255 }),
+  joinName: varchar("join_name", { length: 255 }),
+  joinEmail: varchar("join_email", { length: 255 }),
+  joinPhone: varchar("join_phone", { length: 50 }),
   scheduledTime: timestamp("scheduled_time").notNull(),
   duration: integer("duration").notNull(), // in minutes
   maxPartDuration: integer("max_part_duration").default(20), // minutes per part (Replit limit)

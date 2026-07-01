@@ -101,10 +101,11 @@ export class StreamingRecorder {
         '--use-gl=swiftshader',
         '--ignore-gpu-blocklist',
         '--enable-unsafe-swiftshader',
+        '--disable-accelerated-video-decode',
+        '--disable-accelerated-video-encode',
         '--disable-extensions',
         '--disable-background-networking',
         '--autoplay-policy=no-user-gesture-required',
-        '--disable-features=VizDisplayCompositor',
         '--use-fake-ui-for-media-stream',
         '--enable-features=WebRtcHideLocalIpsWithMdns',
         '--disable-rtc-smoothness-algorithm',
@@ -191,7 +192,7 @@ export class StreamingRecorder {
     };
   }
 
-  async navigateToStream(url: string, password?: string): Promise<void> {
+  async navigateToStream(url: string, password?: string, joinName?: string, joinEmail?: string, joinPhone?: string): Promise<void> {
     if (this.page) {
       try {
         await this.page.close().catch(() => {});
@@ -241,7 +242,7 @@ export class StreamingRecorder {
       // is safe for all cases here.
       const isStreamingOrWebinar = /youtube\.com|youtu\.be|twitch\.tv|vk\.com\/video|vk\.com\/live|rutube\.ru|ok\.ru\/video|vimeo\.com|kinescope\.io|kick\.com|boosty\.to|goodgame\.ru|trovo\.live|zoom\.us|webinar\.ru|bizon365\.ru|getcourse\.ru|webinarjam\.com|gotomeeting\.com|teams\.microsoft\.com|meet\.google\.com|bigmarker\.com|demio\.com|livestorm\.co|on24\.com|webex\.com|whereby\.com|miro\.com|prezi\.com|streamyard\.com|restream\.io|castr\.com|dacast\.com/i.test(url);
       const waitUntil = isStreamingOrWebinar ? 'domcontentloaded' : 'load';
-      const navTimeout = 60000;
+      const navTimeout = 120000;
 
       logger.info(`[NAV] Navigating to ${url} (waitUntil: ${waitUntil}, timeout: ${navTimeout / 1000}s)`);
       await this.page.goto(url, { waitUntil, timeout: navTimeout });
@@ -254,8 +255,14 @@ export class StreamingRecorder {
         await this.enterPassword(password);
       }
 
+      // Try to fill a join/registration form before waiting for player
+      await this.tryFillJoinForm(url, joinName, joinEmail, joinPhone);
+
       logger.info('[NAV] Waiting 20s for players to initialise...');
       await this.page.waitForTimeout(20000);
+
+      // YouTube-specific: hide chat, ensure video plays
+      await this.handleYouTubePage(url);
 
       await this.page.mouse.click(
         this.recordingConfig.viewport.width / 2,
@@ -382,6 +389,108 @@ export class StreamingRecorder {
       }
     } catch (error) {
       logger.warn('Could not enter password automatically:', error);
+    }
+  }
+
+  private async tryFillJoinForm(url: string, joinName?: string, joinEmail?: string, joinPhone?: string): Promise<boolean> {
+    if (!this.page) return false;
+    const isWebinar = /bizon365\.ru|webinar\.ru|webinarjam\.com|bigmarker\.com|demio\.com|livestorm\.co|on24\.com|whereby\.com/i.test(url);
+    if (!isWebinar) return false;
+
+    try {
+      const nameSelectors = ['input[name="name"]', 'input[name="username"]', 'input[placeholder*="имя"]', 'input[placeholder*="name" i]', 'input[placeholder*="Name"]', '#name', '#username'];
+      const emailSelectors = ['input[name="email"]', 'input[type="email"]', 'input[placeholder*="email" i]', 'input[placeholder*="Email"]', '#email'];
+      const phoneSelectors = ['input[name="phone"]', 'input[type="tel"]', 'input[placeholder*="телефон"]', 'input[placeholder*="phone" i]', '#phone'];
+
+      let filled = false;
+
+      const fillFirst = async (selectors: string[], value?: string): Promise<boolean> => {
+        if (!value) return false;
+        for (const sel of selectors) {
+          const el = await this.page!.$(sel).catch(() => null);
+          if (el) { await el.fill(value); return true; }
+        }
+        return false;
+      };
+
+      const nameVal = joinName || process.env.RECORDING_JOIN_NAME || 'Слушатель';
+      const emailVal = joinEmail || process.env.RECORDING_JOIN_EMAIL || '';
+      const phoneVal = joinPhone || process.env.RECORDING_JOIN_PHONE || '';
+
+      const nameOk = await fillFirst(nameSelectors, nameVal);
+      const emailOk = await fillFirst(emailSelectors, emailVal);
+      const phoneOk = await fillFirst(phoneSelectors, phoneVal);
+      filled = nameOk || emailOk || phoneOk;
+
+      if (!filled) {
+        logger.info('[JOIN] No registration form fields found on page');
+        return false;
+      }
+
+      logger.info(`[JOIN] Filled form: name=${nameOk}, email=${emailOk}, phone=${phoneOk}`);
+
+      const submitSelectors = [
+        'button[type="submit"]',
+        'input[type="submit"]',
+        'button:has-text("Войти")',
+        'button:has-text("Войти в комнату")',
+        'button:has-text("Присоединиться")',
+        'button:has-text("Начать")',
+        'button:has-text("Продолжить")',
+        'button:has-text("Enter")',
+        'button:has-text("Join")',
+      ];
+      for (const sel of submitSelectors) {
+        const btn = await this.page!.$(sel).catch(() => null);
+        if (btn) {
+          await btn.click();
+          logger.info(`[JOIN] ✅ Submitted join form via "${sel}" — waiting for room to open...`);
+          await this.page!.waitForTimeout(5000);
+          return true;
+        }
+      }
+      // Fallback: press Enter
+      const emailEl = await this.page!.$('input[type="email"]').catch(() => null);
+      if (emailEl) { await emailEl.press('Enter'); await this.page!.waitForTimeout(5000); return true; }
+      const nameEl = await this.page!.$('input[name="name"]').catch(() => null);
+      if (nameEl) { await nameEl.press('Enter'); await this.page!.waitForTimeout(5000); return true; }
+    } catch (e) {
+      logger.warn(`[JOIN] Form fill error: ${(e as Error).message}`);
+    }
+    return false;
+  }
+
+  private async handleYouTubePage(url: string): Promise<void> {
+    if (!this.page || !/youtube\.com|youtu\.be/i.test(url)) return;
+    try {
+      // Hide chat sidebar on live streams to maximize video area
+      await this.page.evaluate(() => {
+        const selectors = [
+          '#chat-container',
+          'ytd-live-chat-frame',
+          '#show-hide-button',
+          'ytd-watch-flexy[is-live-now-mode]',
+        ];
+        selectors.forEach(sel => {
+          const el = document.querySelector(sel) as HTMLElement | null;
+          if (el) el.style.display = 'none';
+        });
+        // Expand video to full width
+        const player = document.querySelector('#player-container-inner') as HTMLElement | null;
+        if (player) { player.style.maxWidth = '100%'; player.style.width = '100%'; }
+      }).catch(() => {});
+      logger.info('[YT] Applied YouTube chat/sidebar hide');
+
+      // Ensure the video is playing
+      const videoPlaying = await this.page.evaluate(() => {
+        const v = document.querySelector('video') as HTMLVideoElement | null;
+        if (!v) return false;
+        if (v.paused) v.play().catch(() => {});
+        return !v.paused;
+      }).catch(() => false);
+      logger.info(`[YT] Video playing: ${videoPlaying}`);
+    } catch (e) {
+      logger.warn(`[YT] YouTube page handling error: ${(e as Error).message}`);
     }
   }
 
@@ -824,6 +933,9 @@ export class StreamingRecorder {
     title: string;
     taskId?: string;
     password?: string;
+    joinName?: string;
+    joinEmail?: string;
+    joinPhone?: string;
     onChunk?: (chunk: {
       partNumber: number;
       filePath: string;
@@ -844,7 +956,7 @@ export class StreamingRecorder {
     let lastFilePath = '';
 
     try {
-      await this.navigateToStream(options.url, options.password);
+      await this.navigateToStream(options.url, options.password, options.joinName, options.joinEmail, options.joinPhone);
 
       while (remainingMs > 0) {
         const thisChunkMs = Math.min(chunkDurationMs, remainingMs);

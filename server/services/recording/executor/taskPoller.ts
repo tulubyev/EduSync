@@ -442,6 +442,9 @@ export class TaskPoller {
         title: task.title,
         taskId: task.id,
         password: task.streamPassword,
+        joinName: task.joinName ?? undefined,
+        joinEmail: task.joinEmail ?? undefined,
+        joinPhone: task.joinPhone ?? undefined,
 
         onChunk: async (chunk) => {
           logger.info(`[CHUNK] Part ${chunk.partNumber} ready (${chunk.frameCount} frames, ${Math.round(chunk.durationMs / 1000)}s) — uploading to S3...`);

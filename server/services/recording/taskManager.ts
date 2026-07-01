@@ -37,6 +37,9 @@ class RecordingTaskManager {
     description?: string;
     streamUrl: string;
     streamPassword?: string;
+    joinName?: string;
+    joinEmail?: string;
+    joinPhone?: string;
     scheduledTime: Date;
     duration: number;
     saveTarget: 'library' | 'yandex_disk' | 'beget';
@@ -67,6 +70,9 @@ class RecordingTaskManager {
       description: data.description,
       streamUrl: data.streamUrl,
       streamPassword: data.streamPassword,
+      joinName: data.joinName,
+      joinEmail: data.joinEmail,
+      joinPhone: data.joinPhone,
       scheduledTime: data.scheduledTime,
       duration: data.duration,
       maxPartDuration: MAX_PART_DURATION_MIN,

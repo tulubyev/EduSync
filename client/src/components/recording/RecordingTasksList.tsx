@@ -57,6 +57,9 @@ interface RecordingTask {
   title: string;
   description?: string;
   streamUrl: string;
+  joinName?: string;
+  joinEmail?: string;
+  joinPhone?: string;
   scheduledTime: string;
   duration: number;
   status: 'scheduled' | 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
@@ -106,6 +109,9 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     description: '',
     streamUrl: '',
     streamPassword: '',
+    joinName: '',
+    joinEmail: '',
+    joinPhone: '',
     scheduledTime: '',
     duration: 60,
   });
@@ -267,6 +273,9 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       description: task.description || '',
       streamUrl: task.streamUrl,
       streamPassword: '',
+      joinName: task.joinName || '',
+      joinEmail: task.joinEmail || '',
+      joinPhone: task.joinPhone || '',
       scheduledTime: moscowToInputValue(task.scheduledTime),
       duration: task.duration,
     });
@@ -302,6 +311,9 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
           description: editFormData.description.trim() || undefined,
           streamUrl: editFormData.streamUrl.trim(),
           streamPassword: editFormData.streamPassword || undefined,
+          joinName: editFormData.joinName.trim() || undefined,
+          joinEmail: editFormData.joinEmail.trim() || undefined,
+          joinPhone: editFormData.joinPhone.trim() || undefined,
           scheduledTime: inputToUtcIso(editFormData.scheduledTime),
           duration: Number(editFormData.duration),
         }),
@@ -627,7 +639,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
               <div className="space-y-2">
                 <Label htmlFor="edit-password">
-                  Пароль {editingTask.status === 'failed' ? '(оставьте пустым, если не изменился)' : '(опционально)'}
+                  Пароль трансляции {editingTask.status === 'failed' ? '(оставьте пустым, если не изменился)' : '(опционально)'}
                 </Label>
                 <Input
                   id="edit-password"
@@ -637,6 +649,44 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                   onChange={(e) => setEditFormData({ ...editFormData, streamPassword: e.target.value })}
                   disabled={isUpdating || editSuccess}
                 />
+              </div>
+
+              <div className="border-t pt-3">
+                <p className="text-xs text-gray-500 mb-3">Данные для входа в вебинарную комнату (автологин)</p>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-join-name">Имя участника</Label>
+                    <Input
+                      id="edit-join-name"
+                      placeholder="Например: Иван Петров"
+                      value={editFormData.joinName}
+                      onChange={(e) => setEditFormData({ ...editFormData, joinName: e.target.value })}
+                      disabled={isUpdating || editSuccess}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-join-email">Email участника <span className="text-gray-400 font-normal">(опционально)</span></Label>
+                    <Input
+                      id="edit-join-email"
+                      type="email"
+                      placeholder="example@mail.ru"
+                      value={editFormData.joinEmail}
+                      onChange={(e) => setEditFormData({ ...editFormData, joinEmail: e.target.value })}
+                      disabled={isUpdating || editSuccess}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-join-phone">Телефон участника <span className="text-gray-400 font-normal">(опционально)</span></Label>
+                    <Input
+                      id="edit-join-phone"
+                      type="tel"
+                      placeholder="+79001234567"
+                      value={editFormData.joinPhone}
+                      onChange={(e) => setEditFormData({ ...editFormData, joinPhone: e.target.value })}
+                      disabled={isUpdating || editSuccess}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
