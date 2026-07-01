@@ -84,9 +84,19 @@ interface RecordingTasksListProps {
   onTasksLoaded?: (tasks: RecordingTask[]) => void;
 }
 
+function useNow(intervalMs = 5000) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
+
 export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: RecordingTasksListProps) {
   const [tasks, setTasks] = useState<RecordingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const now = useNow(5000);
   const [editingTask, setEditingTask] = useState<RecordingTask | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState>({
     open: false,
@@ -493,23 +503,56 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             </div>
             <div className="bg-gray-50 p-2 rounded">
               <span className="text-gray-500 text-xs block">Статус</span>
-              <p className={`text-xs font-semibold mt-0.5 ${
-                task.status === 'scheduled'   ? 'text-indigo-600' :
-                task.status === 'ready'       ? 'text-blue-600' :
-                task.status === 'in_progress' ? 'text-amber-600' :
-                task.status === 'uploading'   ? 'text-purple-600' :
-                task.status === 'completed'   ? 'text-green-600' :
-                task.status === 'failed'      ? 'text-red-600' :
-                                                'text-gray-500'
-              }`}>
-                {task.status === 'scheduled'   ? 'Запланировано' :
-                 task.status === 'ready'       ? 'Ожидает' :
-                 task.status === 'in_progress' ? 'Идёт запись' :
-                 task.status === 'uploading'   ? 'Загрузка' :
-                 task.status === 'completed'   ? 'Завершена' :
-                 task.status === 'failed'      ? 'Ошибка' :
-                                                'Отменена'}
-              </p>
+              {(() => {
+                const isActive = task.status === 'in_progress' || task.status === 'uploading';
+                let pct = 0;
+                if (isActive && task.startedAt && task.duration) {
+                  const elapsed = now - new Date(task.startedAt).getTime();
+                  pct = Math.min(99, Math.round(elapsed / (task.duration * 60 * 1000) * 100));
+                } else if (task.status === 'completed') {
+                  pct = 100;
+                }
+                const label =
+                  task.status === 'scheduled'   ? 'Запланировано' :
+                  task.status === 'ready'       ? 'Ожидает' :
+                  task.status === 'in_progress' ? 'Идёт запись' :
+                  task.status === 'uploading'   ? 'Загрузка' :
+                  task.status === 'completed'   ? 'Завершена' :
+                  task.status === 'failed'      ? 'Ошибка' : 'Отменена';
+                const color =
+                  task.status === 'scheduled'   ? 'text-indigo-600' :
+                  task.status === 'ready'       ? 'text-blue-600' :
+                  task.status === 'in_progress' ? 'text-amber-600' :
+                  task.status === 'uploading'   ? 'text-purple-600' :
+                  task.status === 'completed'   ? 'text-green-600' :
+                  task.status === 'failed'      ? 'text-red-600' : 'text-gray-500';
+                const barColor =
+                  task.status === 'in_progress' ? 'bg-amber-400' :
+                  task.status === 'uploading'   ? 'bg-purple-400' : 'bg-green-500';
+                return (
+                  <>
+                    <p className={`text-xs font-semibold mt-0.5 ${color}`}>{label}</p>
+                    {(isActive || task.status === 'completed') && (
+                      <div className="mt-1.5">
+                        <div className="flex justify-between items-center mb-0.5">
+                          <span className="text-xs text-gray-400">{pct}%</span>
+                          {isActive && task.startedAt && task.duration && (
+                            <span className="text-xs text-gray-400">
+                              {Math.max(0, Math.round((task.duration * 60 * 1000 - (now - new Date(task.startedAt).getTime())) / 60000))} мин
+                            </span>
+                          )}
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-1.5 rounded-full transition-all duration-1000 ${barColor}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="bg-gray-50 p-2 rounded col-span-2 sm:col-span-1">
               <span className="text-gray-500 text-xs block">URL записи</span>
@@ -535,6 +578,29 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               )}
             </div>
           </div>
+
+          {(task.joinName || task.joinEmail || task.joinPhone) && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 px-1">
+              {task.joinName && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <span className="text-gray-400">👤</span>
+                  {task.joinName}
+                </span>
+              )}
+              {task.joinEmail && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <span className="text-gray-400">✉</span>
+                  {task.joinEmail}
+                </span>
+              )}
+              {task.joinPhone && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <span className="text-gray-400">📞</span>
+                  {task.joinPhone}
+                </span>
+              )}
+            </div>
+          )}
 
           {task.urlCheckStatus === 'warning' && task.urlCheckMessage && (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded p-2 mt-2">
