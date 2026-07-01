@@ -168,8 +168,8 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
     }
 
-    if (!['ready', 'failed', 'scheduled', 'cancelled'].includes(task.status)) {
-      return res.status(400).json({ message: 'Редактировать можно только задачи в статусе «Готова к записи», «Запланирована», «Отменена» или «Ошибка»' });
+    if (!['ready', 'failed', 'scheduled', 'cancelled', 'in_progress'].includes(task.status)) {
+      return res.status(400).json({ message: 'Редактировать можно только задачи в статусе «Готова к записи», «Запланирована», «В процессе», «Отменена» или «Ошибка»' });
     }
 
     // Validate input
@@ -182,6 +182,9 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
       return res.status(400).json({ message: 'Длительность должна быть от 1 до 1440 минут' });
     }
 
+    const newScheduledTime = new Date(scheduledTime);
+    const READY_ADVANCE_MS = 5 * 60 * 1000;
+
     const updateData: Record<string, any> = {
       title: title.trim(),
       description: description?.trim() || null,
@@ -190,18 +193,31 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
       joinName: joinName?.trim() || null,
       joinEmail: joinEmail?.trim() || null,
       joinPhone: joinPhone?.trim() || null,
-      scheduledTime: new Date(scheduledTime),
+      scheduledTime: newScheduledTime,
       duration: durationNum,
       updatedAt: new Date(),
     };
 
-    // Если задача была с ошибкой — сбрасываем в статус "готова к записи"
-    if (task.status === 'failed') {
+    // Если задача была с ошибкой или отменена — сбрасываем в ready
+    if (task.status === 'failed' || task.status === 'cancelled') {
       updateData.status = 'ready';
       updateData.errorMessage = null;
       updateData.workerId = null;
       updateData.startedAt = null;
       updateData.completedAt = null;
+      updateData.attemptCount = 0;
+    }
+
+    // Если задача запланирована и время уже наступило — сразу переводим в ready
+    if (task.status === 'scheduled' && newScheduledTime.getTime() - Date.now() <= READY_ADVANCE_MS) {
+      updateData.status = 'ready';
+    }
+
+    // Если in_progress — только обновляем поля, статус не меняем (изменения применятся при следующей попытке)
+    // Сбрасываем attempt_count чтобы дать ещё 3 попытки с новыми данными
+    if (task.status === 'in_progress') {
+      updateData.attemptCount = 0;
+      updateData.errorMessage = null;
     }
 
     await db.update(recordingTasks)

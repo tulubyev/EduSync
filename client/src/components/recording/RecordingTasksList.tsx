@@ -399,7 +399,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 </Button>
               )}
 
-              {(task.status === 'scheduled' || task.status === 'ready' || task.status === 'failed') && (
+              {(task.status === 'scheduled' || task.status === 'ready' || task.status === 'failed' || task.status === 'in_progress' || task.status === 'cancelled') && (
                 <>
                   {(task.urlCheckStatus === 'warning' || task.urlCheckStatus === 'failed') && (
                     <Button
