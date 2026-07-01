@@ -33,6 +33,9 @@ export class BegetStorage {
         secretAccessKey: executorConfig.beget.secretAccessKey,
       },
       forcePathStyle: true,
+      // Beget S3 (Ceph) rejects streaming uploads with SHA256 checksums
+      requestChecksumCalculation: 'WHEN_REQUIRED' as any,
+      responseChecksumValidation: 'WHEN_REQUIRED' as any,
     });
 
     logger.info(`BegetStorage initialized for bucket: ${this.bucketName}`);
@@ -60,12 +63,13 @@ export class BegetStorage {
       if (fileSizeBytes >= MULTIPART_THRESHOLD_BYTES) {
         await this.multipartUpload(filePath, key, contentType, fileSizeBytes);
       } else {
-        const fileStream = fs.createReadStream(filePath);
+        // Use Buffer (not ReadStream) — Beget S3 (Ceph) rejects streaming uploads
+        const fileBuffer = fs.readFileSync(filePath);
         await this.s3.send(
           new PutObjectCommand({
             Bucket: this.bucketName,
             Key: key,
-            Body: fileStream,
+            Body: fileBuffer,
             ContentLength: fileSizeBytes,
             ContentType: contentType,
           })

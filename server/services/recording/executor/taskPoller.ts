@@ -1,6 +1,6 @@
 import { db } from '../../../db';
 import { recordingTasks, recordingWorkerStatus } from '@shared/schema';
-import { eq, and, lt, sql } from 'drizzle-orm';
+import { eq, and, lt, sql, inArray } from 'drizzle-orm';
 import { StreamingRecorder } from './streamingRecorder';
 import { BegetStorage } from './begetStorage';
 import { logger } from '../../logger';
@@ -138,7 +138,7 @@ export class TaskPoller {
         .from(recordingTasks)
         .where(
           and(
-            eq(recordingTasks.status, 'in_progress'),
+            inArray(recordingTasks.status, ['in_progress', 'uploading']),
             eq(recordingTasks.workerId, this.workerId)
           )
         );

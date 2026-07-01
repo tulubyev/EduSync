@@ -46,6 +46,7 @@ export class StreamingRecorder {
   private currentSession: StreamingRecordingSession | null = null;
   private frameBuffer: Buffer[] = [];
   private frameWriteInterval: NodeJS.Timeout | null = null;
+  private screenshotPollInterval: NodeJS.Timeout | null = null;
   private workerId: string;
   private outputDir: string;
   private audioSetup: AudioSetup;
@@ -445,19 +446,35 @@ export class StreamingRecorder {
         if (btn) {
           await btn.click();
           logger.info(`[JOIN] ✅ Submitted join form via "${sel}" — waiting for room to open...`);
-          await this.page!.waitForTimeout(5000);
+          // Wait up to 15s for form to disappear (page transition)
+          await this.waitForFormDismiss();
           return true;
         }
       }
       // Fallback: press Enter
       const emailEl = await this.page!.$('input[type="email"]').catch(() => null);
-      if (emailEl) { await emailEl.press('Enter'); await this.page!.waitForTimeout(5000); return true; }
+      if (emailEl) { await emailEl.press('Enter'); await this.waitForFormDismiss(); return true; }
       const nameEl = await this.page!.$('input[name="name"]').catch(() => null);
-      if (nameEl) { await nameEl.press('Enter'); await this.page!.waitForTimeout(5000); return true; }
+      if (nameEl) { await nameEl.press('Enter'); await this.waitForFormDismiss(); return true; }
     } catch (e) {
       logger.warn(`[JOIN] Form fill error: ${(e as Error).message}`);
     }
     return false;
+  }
+
+  private async waitForFormDismiss(): Promise<void> {
+    if (!this.page) return;
+    try {
+      // Wait up to 15s for name input to disappear (means page transitioned to room)
+      await this.page.waitForFunction(
+        () => !document.querySelector('input[name="name"]') && !document.querySelector('input[placeholder*="имя"]'),
+        { timeout: 15000 }
+      );
+      logger.info('[JOIN] ✅ Form dismissed — room loaded');
+    } catch {
+      // Form still present after 15s — maybe it's a timed webinar, record anyway
+      logger.warn('[JOIN] ⚠️ Form still present after 15s — proceeding to record page as-is');
+    }
   }
 
   private async handleYouTubePage(url: string): Promise<void> {
@@ -627,9 +644,24 @@ export class StreamingRecorder {
 
     this.cdpSession.on('Page.screencastFrame', () => { void cdpDiagTimer; });
 
+    // Fallback: если CDP не даёт кадров за 5 секунд — включаем screenshot polling
+    setTimeout(() => {
+      if (this.currentSession?.isActive && this.currentSession.frameCount === 0 && !this.screenshotPollInterval) {
+        logger.warn('[FALLBACK] CDP gave 0 frames in 5s — switching to screenshot polling at 5fps');
+        this.startScreenshotPolling();
+      }
+    }, 5000);
+
     let framesReceived = 0;
     this.cdpSession.on('Page.screencastFrame', (params) => {
       if (!this.currentSession?.isActive) return;
+
+      // CDP got a frame — stop screenshot polling if it was running as fallback
+      if (framesReceived === 0 && this.screenshotPollInterval) {
+        clearInterval(this.screenshotPollInterval);
+        this.screenshotPollInterval = null;
+        logger.info('[FALLBACK] CDP recovered — stopped screenshot polling');
+      }
 
       try {
         const frameData = Buffer.from(params.data, 'base64');
@@ -691,6 +723,42 @@ export class StreamingRecorder {
         }
       }
     }
+  }
+
+  private startScreenshotPolling(): void {
+    if (this.screenshotPollInterval || !this.page) return;
+    const POLL_FPS = 5;
+    const intervalMs = Math.floor(1000 / POLL_FPS);
+    let capturing = false;
+    let framesCaptured = 0;
+
+    this.screenshotPollInterval = setInterval(async () => {
+      if (!this.currentSession?.isActive || !this.page || capturing) return;
+      capturing = true;
+      try {
+        const frameData = await this.page.screenshot({ type: 'jpeg', quality: 80 });
+        if (this.currentSession?.isActive) {
+          if (this.frameBuffer.length >= MAX_FRAME_BUFFER_SIZE) {
+            const dropCount = this.frameBuffer.length - FRAME_DROP_THRESHOLD;
+            if (dropCount > 0) this.frameBuffer.splice(0, dropCount);
+          }
+          this.frameBuffer.push(frameData);
+          framesCaptured++;
+          if (framesCaptured === 1) {
+            logger.info(`[FALLBACK] ✅ First screenshot frame (${frameData.length} bytes)`);
+          } else if (framesCaptured % 50 === 0) {
+            logger.info(`[FALLBACK] ${framesCaptured} screenshot frames captured`);
+          }
+          if (this.currentSession && previewBus.hasSubscribers(this.currentSession.taskId)) {
+            previewBus.publishFrame(this.currentSession.taskId, frameData);
+          }
+        }
+      } catch (e) {
+        logger.warn(`[FALLBACK] Screenshot capture error: ${(e as Error).message}`);
+      } finally {
+        capturing = false;
+      }
+    }, intervalMs);
   }
 
   async waitForRecordingComplete(durationMs: number): Promise<{
@@ -766,7 +834,11 @@ export class StreamingRecorder {
             resolve();
             return;
           }
-          logger.warn(`[WAIT] ⚠️ Нет новых кадров уже ${stallSec}s (всего кадров: ${fc}) — CDPSession завис или браузер упал`);
+          logger.warn(`[WAIT] ⚠️ Нет новых кадров уже ${stallSec}s (всего кадров: ${fc}) — страница статична, перезапускаем screenshot polling`);
+          // Страница статична — CDP не шлёт кадры. Перезапускаем fallback как heartbeat.
+          if (!this.screenshotPollInterval && this.currentSession?.isActive) {
+            this.startScreenshotPolling();
+          }
         } else {
           logger.info(`[WAIT] Прогресс: ${elapsed}s, ${fc} кадров`);
         }
@@ -814,6 +886,11 @@ export class StreamingRecorder {
     if (this.frameWriteInterval) {
       clearInterval(this.frameWriteInterval);
       this.frameWriteInterval = null;
+    }
+
+    if (this.screenshotPollInterval) {
+      clearInterval(this.screenshotPollInterval);
+      this.screenshotPollInterval = null;
     }
 
     this.flushFrameBuffer();
