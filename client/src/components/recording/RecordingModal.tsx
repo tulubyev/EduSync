@@ -32,6 +32,9 @@ export interface RecordingData {
   description?: string;
   streamUrl: string;
   streamPassword?: string;
+  joinName?: string;
+  joinEmail?: string;
+  joinPhone?: string;
   scheduledTime: string;
   duration?: number;
   saveTarget: 'yandex_disk' | 'library' | 'beget';
@@ -43,6 +46,9 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
     description: '',
     streamUrl: '',
     streamPassword: '',
+    joinName: '',
+    joinEmail: '',
+    joinPhone: '',
     scheduledTime: '',
     duration: 60,
     saveTarget: 'beget',
@@ -51,7 +57,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
 
   useEffect(() => {
     if (!open) {
-      setFormData({ title: '', description: '', streamUrl: '', streamPassword: '', scheduledTime: '', duration: 60, saveTarget: 'beget' });
+      setFormData({ title: '', description: '', streamUrl: '', streamPassword: '', joinName: '', joinEmail: '', joinPhone: '', scheduledTime: '', duration: 60, saveTarget: 'beget' });
       setErrors({});
     }
   }, [open]);
@@ -92,7 +98,14 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
 
   const handleSubmit = () => {
     if (validateForm()) {
-      onSubmit(formData);
+      onSubmit({
+        ...formData,
+        joinName: formData.joinName?.trim() || undefined,
+        joinEmail: formData.joinEmail?.trim() || undefined,
+        joinPhone: formData.joinPhone?.trim() || undefined,
+        streamPassword: formData.streamPassword?.trim() || undefined,
+        description: formData.description?.trim() || undefined,
+      });
     }
   };
 
@@ -140,7 +153,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
               placeholder="Описание трансляции..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="min-h-[100px]"
+              className="min-h-[60px]"
             />
           </div>
 
@@ -176,6 +189,45 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
               value={formData.streamPassword}
               onChange={(e) => setFormData({ ...formData, streamPassword: e.target.value })}
             />
+          </div>
+
+          {/* Данные для входа в вебинар */}
+          <div className="border border-gray-200 rounded-lg p-3 space-y-3 bg-gray-50">
+            <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+              Данные для регистрации на вебинар (Bizon365 и др.)
+            </p>
+
+            <div className="space-y-2">
+              <Label htmlFor="joinName">Имя участника</Label>
+              <Input
+                id="joinName"
+                placeholder="Александр"
+                value={formData.joinName}
+                onChange={(e) => setFormData({ ...formData, joinName: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="joinEmail">Email участника</Label>
+              <Input
+                id="joinEmail"
+                type="email"
+                placeholder="example@mail.ru"
+                value={formData.joinEmail}
+                onChange={(e) => setFormData({ ...formData, joinEmail: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="joinPhone">Телефон участника</Label>
+              <Input
+                id="joinPhone"
+                type="tel"
+                placeholder="+79001234567"
+                value={formData.joinPhone}
+                onChange={(e) => setFormData({ ...formData, joinPhone: e.target.value })}
+              />
+            </div>
           </div>
 
           {/* Время трансляции */}
