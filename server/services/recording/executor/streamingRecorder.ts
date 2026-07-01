@@ -399,59 +399,128 @@ export class StreamingRecorder {
     if (!isWebinar) return false;
 
     try {
-      const nameSelectors = ['input[name="name"]', 'input[name="username"]', 'input[placeholder*="имя"]', 'input[placeholder*="name" i]', 'input[placeholder*="Name"]', '#name', '#username'];
-      const emailSelectors = ['input[name="email"]', 'input[type="email"]', 'input[placeholder*="email" i]', 'input[placeholder*="Email"]', '#email'];
-      const phoneSelectors = ['input[name="phone"]', 'input[type="tel"]', 'input[placeholder*="телефон"]', 'input[placeholder*="phone" i]', '#phone'];
+      // Debug: dump all visible input fields on the page
+      const allInputs = await this.page.evaluate(() => {
+        return Array.from(document.querySelectorAll('input, textarea')).map(el => ({
+          tag: el.tagName,
+          type: (el as HTMLInputElement).type,
+          name: (el as HTMLInputElement).name,
+          id: el.id,
+          placeholder: (el as HTMLInputElement).placeholder,
+          className: el.className.slice(0, 60),
+        }));
+      }).catch(() => []);
+      if (allInputs.length > 0) {
+        logger.info(`[JOIN] Found ${allInputs.length} input(s): ${JSON.stringify(allInputs)}`);
+      }
+
+      const nameSelectors = [
+        'input[name="name"]', 'input[name="username"]', 'input[name="user_name"]',
+        'input[placeholder*="имя" i]', 'input[placeholder*="name" i]',
+        'input[placeholder*="Имя"]', '#name', '#username',
+      ];
+      const emailSelectors = [
+        'input[name="email"]', 'input[type="email"]',
+        'input[placeholder*="email" i]', 'input[placeholder*="Email"]',
+        'input[placeholder*="почт" i]', '#email',
+      ];
+      // Phone selectors — case-insensitive (i flag) + all common Bizon365/Russian webinar patterns
+      const phoneSelectors = [
+        'input[name="phone"]', 'input[name="phone_number"]', 'input[name="user_phone"]',
+        'input[type="tel"]',
+        'input[placeholder*="телефон" i]',
+        'input[placeholder*="Телефон"]',
+        'input[placeholder*="мобильный" i]',
+        'input[placeholder*="phone" i]',
+        'input[placeholder*="номер" i]',
+        '#phone', '#phone_number', '#user_phone',
+      ];
 
       let filled = false;
 
-      const fillFirst = async (selectors: string[], value?: string): Promise<boolean> => {
-        if (!value) return false;
+      const fillFirst = async (selectors: string[], value?: string): Promise<{ ok: boolean; sel: string }> => {
+        if (!value) return { ok: false, sel: '' };
         for (const sel of selectors) {
-          const el = await this.page!.$(sel).catch(() => null);
-          if (el) { await el.fill(value); return true; }
+          try {
+            const el = await this.page!.$(sel).catch(() => null);
+            if (el) {
+              // Use type() instead of fill() for masked/formatted phone inputs
+              await el.click({ clickCount: 3 }); // select all
+              await el.fill('');
+              await el.type(value, { delay: 30 });
+              return { ok: true, sel };
+            }
+          } catch (_e) {}
         }
-        return false;
+        return { ok: false, sel: '' };
       };
 
       const nameVal = joinName || process.env.RECORDING_JOIN_NAME || 'Слушатель';
       const emailVal = joinEmail || process.env.RECORDING_JOIN_EMAIL || '';
       const phoneVal = joinPhone || process.env.RECORDING_JOIN_PHONE || '';
 
-      const nameOk = await fillFirst(nameSelectors, nameVal);
-      const emailOk = await fillFirst(emailSelectors, emailVal);
-      const phoneOk = await fillFirst(phoneSelectors, phoneVal);
-      filled = nameOk || emailOk || phoneOk;
+      const nameRes = await fillFirst(nameSelectors, nameVal);
+      const emailRes = await fillFirst(emailSelectors, emailVal);
+      const phoneRes = await fillFirst(phoneSelectors, phoneVal);
+      filled = nameRes.ok || emailRes.ok || phoneRes.ok;
 
       if (!filled) {
         logger.info('[JOIN] No registration form fields found on page');
         return false;
       }
 
-      logger.info(`[JOIN] Filled form: name=${nameOk}, email=${emailOk}, phone=${phoneOk}`);
+      logger.info(`[JOIN] Filled form: name=${nameRes.ok}(${nameRes.sel}), email=${emailRes.ok}(${emailRes.sel}), phone=${phoneRes.ok}(${phoneRes.sel})`);
+
+      // If phone wasn't filled but we have a value, try a broader fallback:
+      // find any unfilled input that's not name/email and try to type the phone there
+      if (!phoneRes.ok && phoneVal) {
+        const phoneFallback = await this.page.evaluate(() => {
+          const inputs = Array.from(document.querySelectorAll('input'));
+          // Find input that looks like phone: not type=email, not name=name/email
+          const candidate = inputs.find(el =>
+            el.type !== 'email' && el.type !== 'checkbox' && el.type !== 'radio' &&
+            !['name', 'username', 'email'].includes(el.name.toLowerCase()) &&
+            el.offsetParent !== null // visible
+          );
+          return candidate ? { name: candidate.name, id: candidate.id, placeholder: candidate.placeholder, type: candidate.type } : null;
+        }).catch(() => null);
+
+        if (phoneFallback) {
+          logger.warn(`[JOIN] Phone field fallback: trying ${JSON.stringify(phoneFallback)}`);
+          const fallbackSel = phoneFallback.id ? `#${phoneFallback.id}` : (phoneFallback.name ? `input[name="${phoneFallback.name}"]` : null);
+          if (fallbackSel) {
+            const el = await this.page.$(fallbackSel).catch(() => null);
+            if (el) {
+              await el.click({ clickCount: 3 });
+              await el.fill('');
+              await el.type(phoneVal, { delay: 30 });
+              logger.info(`[JOIN] ✅ Phone filled via fallback selector: ${fallbackSel}`);
+            }
+          }
+        }
+      }
 
       const submitSelectors = [
-        'button[type="submit"]',
-        'input[type="submit"]',
-        'button:has-text("Войти")',
         'button:has-text("Войти в комнату")',
+        'button:has-text("Войти")',
         'button:has-text("Присоединиться")',
         'button:has-text("Начать")',
         'button:has-text("Продолжить")',
         'button:has-text("Enter")',
         'button:has-text("Join")',
+        'button[type="submit"]',
+        'input[type="submit"]',
       ];
       for (const sel of submitSelectors) {
         const btn = await this.page!.$(sel).catch(() => null);
         if (btn) {
           await btn.click();
-          logger.info(`[JOIN] ✅ Submitted join form via "${sel}" — waiting for room to open...`);
-          // Wait up to 15s for form to disappear (page transition)
+          logger.info(`[JOIN] ✅ Clicked submit button via "${sel}" — waiting for room to open...`);
           await this.waitForFormDismiss();
           return true;
         }
       }
-      // Fallback: press Enter
+      // Fallback: press Enter on last filled field
       const emailEl = await this.page!.$('input[type="email"]').catch(() => null);
       if (emailEl) { await emailEl.press('Enter'); await this.waitForFormDismiss(); return true; }
       const nameEl = await this.page!.$('input[name="name"]').catch(() => null);
@@ -465,11 +534,22 @@ export class StreamingRecorder {
   private async waitForFormDismiss(): Promise<void> {
     if (!this.page) return;
     try {
-      // Wait up to 15s for name input to disappear (means page transitioned to room)
-      await this.page.waitForFunction(
-        () => !document.querySelector('input[name="name"]') && !document.querySelector('input[placeholder*="имя"]'),
-        { timeout: 15000 }
-      );
+      // Wait up to 15s for the registration form to disappear.
+      // Checks: name input gone AND email input gone (both must be absent = room loaded).
+      // Uses JS toLowerCase() to avoid CSS case-sensitivity issues with Cyrillic placeholders.
+      await this.page.waitForFunction(() => {
+        const inputs = Array.from(document.querySelectorAll('input'));
+        const hasNameField = inputs.some(el => {
+          const n = el.name?.toLowerCase() ?? '';
+          const p = el.placeholder?.toLowerCase() ?? '';
+          return n === 'name' || n === 'username' || p.includes('имя') || p.includes('name');
+        });
+        const hasEmailField = inputs.some(el =>
+          el.type === 'email' || el.name?.toLowerCase() === 'email' || el.placeholder?.toLowerCase().includes('email')
+        );
+        // Form is dismissed when both name and email fields are gone
+        return !hasNameField && !hasEmailField;
+      }, { timeout: 15000 });
       logger.info('[JOIN] ✅ Form dismissed — room loaded');
     } catch {
       // Form still present after 15s — maybe it's a timed webinar, record anyway
