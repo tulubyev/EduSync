@@ -39,20 +39,29 @@ export class AudioSetup {
 
   private async ensurePulseAudio(): Promise<boolean> {
     return new Promise((resolve) => {
-      const check = spawn('pulseaudio', ['--check'], { stdio: 'ignore' });
-      check.on('close', (code) => {
-        if (code === 0) return resolve(true);
+      // First try pactl info — works even when pulseaudio --check fails (system socket)
+      const pacheck = spawn('pactl', ['info'], { stdio: ['ignore', 'pipe', 'ignore'] });
+      let pactlOut = '';
+      pacheck.stdout?.on('data', (d) => { pactlOut += d.toString(); });
+      pacheck.on('close', (code) => {
+        if (code === 0 && pactlOut.includes('Server Name')) {
+          logger.info('[AUDIO] PulseAudio detected via pactl info');
+          return resolve(true);
+        }
+        // Fallback: try to start PulseAudio daemon
         const start = spawn('pulseaudio', ['--start', '--exit-idle-time=-1'], {
           stdio: 'ignore', detached: true,
         });
         start.on('error', () => resolve(false));
         setTimeout(() => {
-          const recheck = spawn('pulseaudio', ['--check'], { stdio: 'ignore' });
-          recheck.on('close', (c) => resolve(c === 0));
+          const recheck = spawn('pactl', ['info'], { stdio: ['ignore', 'pipe', 'ignore'] });
+          let out2 = '';
+          recheck.stdout?.on('data', (d) => { out2 += d.toString(); });
+          recheck.on('close', (c) => resolve(c === 0 && out2.includes('Server Name')));
           recheck.on('error', () => resolve(false));
         }, 1500);
       });
-      check.on('error', () => resolve(false));
+      pacheck.on('error', () => resolve(false));
     });
   }
 
