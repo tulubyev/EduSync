@@ -370,6 +370,10 @@ class RecordingTaskManager {
       urlCheckStatus: (task.urlCheckStatus as RecordingTaskData['urlCheckStatus']) || 'pending',
       urlCheckMessage: task.urlCheckMessage || undefined,
       urlCheckedAt: task.urlCheckedAt || undefined,
+      mergeStatus: (task.metadata as any)?.mergeStatus || undefined,
+      mergeProgress: (task.metadata as any)?.mergeProgress || undefined,
+      mergedUrl: (task.metadata as any)?.mergedUrl || undefined,
+      mergeError: (task.metadata as any)?.mergeError || undefined,
     };
   }
 }

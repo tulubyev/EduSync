@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, RotateCcw, TriangleAlert, XCircle, StopCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, RotateCcw, TriangleAlert, XCircle, StopCircle, Merge } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -76,6 +76,10 @@ interface RecordingTask {
   urlCheckStatus?: 'pending' | 'ok' | 'warning' | 'failed';
   urlCheckMessage?: string;
   urlCheckedAt?: string;
+  mergeStatus?: 'idle' | 'merging' | 'completed' | 'failed';
+  mergeProgress?: string;
+  mergedUrl?: string;
+  mergeError?: string;
 }
 
 interface RecordingTasksListProps {
@@ -274,6 +278,20 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     }
   };
 
+  const handleMerge = async (taskId: string) => {
+    try {
+      const response = await authService.authenticatedFetch(`/api/recording/tasks/${taskId}/merge`, { method: 'POST' });
+      if (response.ok) {
+        await fetchTasks();
+      } else {
+        const data = await response.json().catch(() => ({}));
+        alert(data.message || 'Ошибка запуска слияния');
+      }
+    } catch (error) {
+      console.error('Error starting merge:', error);
+    }
+  };
+
   const handleEditStart = (task: RecordingTask) => {
     setEditingTask(task);
     setEditError(null);
@@ -388,12 +406,47 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 </span>
               )}
 
-              {task.status === 'completed' && (task.begetUrl || task.playlistUrl) && (
-                <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="Смотреть видео" asChild>
-                  <a href={task.begetUrl || task.playlistUrl} target="_blank" rel="noopener noreferrer">
+              {task.status === 'completed' && (task.mergedUrl || task.begetUrl || task.playlistUrl) && (
+                <Button size="sm" variant="outline" className="h-8 w-8 p-0" title={task.mergedUrl ? 'Смотреть объединённый файл' : 'Смотреть видео (часть 1)'} asChild>
+                  <a href={task.mergedUrl || task.begetUrl || task.playlistUrl} target="_blank" rel="noopener noreferrer">
                     <Play className="h-4 w-4" />
                   </a>
                 </Button>
+              )}
+
+              {task.status === 'completed' && (task.parts?.length ?? 0) >= 2 && task.mergeStatus !== 'completed' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={`h-8 px-2 text-xs gap-1 ${
+                    task.mergeStatus === 'merging'
+                      ? 'text-blue-500 border-blue-300 cursor-wait'
+                      : task.mergeStatus === 'failed'
+                      ? 'text-red-500 border-red-300'
+                      : 'text-indigo-600 hover:text-indigo-800 hover:border-indigo-300'
+                  }`}
+                  title={
+                    task.mergeStatus === 'merging'
+                      ? (task.mergeProgress ?? 'Слияние...')
+                      : task.mergeStatus === 'failed'
+                      ? `Ошибка: ${task.mergeError ?? 'неизвестно'}`
+                      : `Слить ${task.parts?.length} части в один файл`
+                  }
+                  disabled={task.mergeStatus === 'merging'}
+                  onClick={() => handleMerge(task.id)}
+                >
+                  {task.mergeStatus === 'merging'
+                    ? <Loader className="h-3.5 w-3.5 animate-spin" />
+                    : <Merge className="h-3.5 w-3.5" />
+                  }
+                  {task.mergeStatus === 'merging' ? 'Слияние...' : task.mergeStatus === 'failed' ? 'Повтор слияния' : 'Слить'}
+                </Button>
+              )}
+
+              {task.status === 'completed' && task.mergeStatus === 'completed' && task.mergedUrl && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700" title={task.mergedUrl}>
+                  ✅ Слито
+                </span>
               )}
 
               {(task.status === 'scheduled' || task.status === 'in_progress' || task.status === 'uploading') && (

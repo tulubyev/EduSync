@@ -152,6 +152,46 @@ router.post('/tasks/:taskId/recover', authenticateToken as any, async (req: Auth
   }
 });
 
+router.post('/tasks/:taskId/merge', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+
+    const task = await recordingTaskManager.getTask(taskId);
+    if (!task) return res.status(404).json({ message: 'Задача не найдена' });
+    if (task.userId !== userId) return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    if (task.status !== 'completed' && task.status !== 'failed') {
+      return res.status(400).json({ message: 'Слияние доступно только для завершённых задач' });
+    }
+
+    const parts = (task.parts ?? []) as Array<{ publicUrl?: string; partNumber: number }>;
+    const urls = parts
+      .filter(p => p.publicUrl)
+      .sort((a, b) => a.partNumber - b.partNumber)
+      .map(p => p.publicUrl!);
+
+    if (urls.length < 2) {
+      return res.status(400).json({ message: `Нужно минимум 2 части для слияния (найдено: ${urls.length})` });
+    }
+
+    if (task.mergeStatus === 'merging') {
+      return res.status(400).json({ message: 'Слияние уже выполняется, подождите' });
+    }
+
+    logger.info(`[MERGE] Starting merge for task ${taskId}: ${urls.length} parts`);
+
+    const { chunkMerger } = await import('../services/recording/executor/mergeChunks');
+    chunkMerger.merge(taskId, urls, task.title).catch(async (err: Error) => {
+      logger.error(`[MERGE] Background merge failed for ${taskId}:`, err);
+    });
+
+    res.json({ success: true, message: `Слияние ${urls.length} частей запущено в фоне` });
+  } catch (error) {
+    logger.error('Error starting merge:', error);
+    res.status(500).json({ message: 'Ошибка запуска слияния' });
+  }
+});
+
 router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const { taskId } = req.params;

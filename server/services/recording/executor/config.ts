@@ -32,7 +32,7 @@ export const executorConfig = {
   },
   recording: {
     outputDir: process.env.RECORDINGS_DIR || '/tmp/recordings',
-    maxPartDurationMs: parseInt(process.env.MAX_PART_DURATION_MS || '1200000', 10),
+    maxPartDurationMs: parseInt(process.env.MAX_PART_DURATION_MS || '600000', 10),
     frameRate: parseInt(process.env.FRAME_RATE || '15', 10),
     viewport: {
       width: parseInt(process.env.VIEWPORT_WIDTH || '1920', 10),
