@@ -234,16 +234,16 @@ export class StreamingRecorder {
         logger.warn(`[BROWSER PAGE ERROR] ${String(err).slice(0, 300)}`);
       });
 
-      // All streaming, webinar, and video platforms use domcontentloaded —
-      // they never fire the 'load' event within a reasonable timeout because
-      // they continuously stream data or are heavy SPAs with WebRTC.
-      // The 20-second post-nav wait handles player initialisation instead.
-      // Simple non-streaming websites that are unlikely to be recorded are
-      // the only case where 'load' might be preferable, but domcontentloaded
-      // is safe for all cases here.
-      const isStreamingOrWebinar = /youtube\.com|youtu\.be|twitch\.tv|vk\.com\/video|vk\.com\/live|rutube\.ru|ok\.ru\/video|vimeo\.com|kinescope\.io|kick\.com|boosty\.to|goodgame\.ru|trovo\.live|zoom\.us|webinar\.ru|bizon365\.ru|getcourse\.ru|webinarjam\.com|gotomeeting\.com|teams\.microsoft\.com|meet\.google\.com|bigmarker\.com|demio\.com|livestorm\.co|on24\.com|webex\.com|whereby\.com|miro\.com|prezi\.com|streamyard\.com|restream\.io|castr\.com|dacast\.com/i.test(url);
-      const waitUntil = isStreamingOrWebinar ? 'domcontentloaded' : 'load';
-      const navTimeout = 120000;
+      // Bizon365 and similar webinar platforms use JS redirects and heavy WebRTC
+      // initialization — they often never fire 'domcontentloaded' within 60-120s
+      // at peak load (webinar start surge). Use 'commit' (first-byte received)
+      // for these platforms so navigation succeeds immediately, then rely on
+      // the 20s post-nav wait for player initialization.
+      // Other streaming/video sites use 'domcontentloaded' as before.
+      const isFastCommitPlatform = /bizon365\.ru|getcourse\.ru|webinar\.ru|zoom\.us|teams\.microsoft\.com|meet\.google\.com|webex\.com|bigmarker\.com|demio\.com|livestorm\.co|on24\.com|whereby\.com/i.test(url);
+      const isStreamingOrWebinar = /youtube\.com|youtu\.be|twitch\.tv|vk\.com\/video|vk\.com\/live|rutube\.ru|ok\.ru\/video|vimeo\.com|kinescope\.io|kick\.com|boosty\.to|goodgame\.ru|trovo\.live|zoom\.us|webinarjam\.com|gotomeeting\.com|prezi\.com|streamyard\.com|restream\.io|castr\.com|dacast\.com/i.test(url);
+      const waitUntil = isFastCommitPlatform ? 'commit' : (isStreamingOrWebinar ? 'domcontentloaded' : 'load');
+      const navTimeout = 180000;
 
       logger.info(`[NAV] Navigating to ${url} (waitUntil: ${waitUntil}, timeout: ${navTimeout / 1000}s)`);
       await this.page.goto(url, { waitUntil, timeout: navTimeout });
