@@ -134,6 +134,8 @@ export class TaskPoller {
           id: recordingTasks.id,
           title: recordingTasks.title,
           attemptCount: recordingTasks.attemptCount,
+          currentPart: recordingTasks.currentPart,
+          totalParts: recordingTasks.totalParts,
         })
         .from(recordingTasks)
         .where(
@@ -150,6 +152,8 @@ export class TaskPoller {
       for (const task of orphans) {
         const attempts = task.attemptCount ?? 0;
         const now = new Date();
+        const chunkNumber = (task.currentPart ?? 0) + 1;
+        const chunkLabel = `чанк ${chunkNumber}${task.totalParts ? `/${task.totalParts}` : ''}`;
 
         if (attempts < 3) {
           await db
@@ -157,25 +161,25 @@ export class TaskPoller {
             .set({
               status: 'ready',
               workerId: null,
-              errorMessage: `Воркер перезапустился во время записи (попытка ${attempts})`,
+              errorMessage: `Воркер перезапустился во время записи ${chunkLabel} (попытка ${attempts})`,
               lastHeartbeat: null,
               updatedAt: now,
             })
             .where(eq(recordingTasks.id, task.id));
 
-          logger.info(`Orphaned task ${task.id} "${task.title}" → reset to 'ready' for retry (attempt ${attempts})`);
+          logger.info(`Orphaned task ${task.id} "${task.title}" → reset to 'ready' for retry (attempt ${attempts}, ${chunkLabel})`);
         } else {
           await db
             .update(recordingTasks)
             .set({
               status: 'failed',
-              errorMessage: `Воркер перезапускался ${attempts} раз во время записи — задача отменена`,
+              errorMessage: `Воркер перезапускался ${attempts} раз во время записи ${chunkLabel} — задача отменена`,
               completedAt: now,
               updatedAt: now,
             })
             .where(eq(recordingTasks.id, task.id));
 
-          logger.warn(`Orphaned task ${task.id} "${task.title}" → failed (too many attempts: ${attempts})`);
+          logger.warn(`Orphaned task ${task.id} "${task.title}" → failed (too many attempts: ${attempts}, ${chunkLabel})`);
         }
       }
     } catch (err) {
@@ -445,6 +449,11 @@ export class TaskPoller {
         joinName: task.joinName ?? undefined,
         joinEmail: task.joinEmail ?? undefined,
         joinPhone: task.joinPhone ?? undefined,
+        // Respect the task-level part duration (minutes) instead of always
+        // falling back to the global MAX_PART_DURATION_MS default — otherwise
+        // the totalParts computed above (based on task.maxPartDuration) and
+        // the actual chunk boundaries used during recording disagree.
+        chunkDurationMs: maxPartMin * 60 * 1000,
 
         onChunk: async (chunk) => {
           logger.info(`[CHUNK] Part ${chunk.partNumber} ready (${chunk.frameCount} frames, ${Math.round(chunk.durationMs / 1000)}s) — uploading to S3...`);
@@ -521,8 +530,10 @@ export class TaskPoller {
       const errMsg = (error as Error).message;
       const attemptsDone = task.attemptCount ?? 1;
       const MAX_ATTEMPTS = 3;
+      const failedChunkNumber = uploadedChunks.length + 1;
+      const chunkLabel = `чанк ${failedChunkNumber}${expectedParts ? `/${expectedParts}` : ''}`;
 
-      logger.error(`Failed task ${task.id} (attempt ${attemptsDone}/${MAX_ATTEMPTS}): ${errMsg}`);
+      logger.error(`Failed task ${task.id} (attempt ${attemptsDone}/${MAX_ATTEMPTS}, ${chunkLabel}): ${errMsg}`);
 
       // Если хоть один чанк уже загружен — сохраняем частичный результат, не повторяем
       if (uploadedChunks.length > 0) {
@@ -562,7 +573,7 @@ export class TaskPoller {
         await db
           .update(recordingTasks)
           .set({
-            errorMessage: `Попытка ${attemptsDone}/${MAX_ATTEMPTS} не удалась: ${errMsg}. Повтор через ${retryDelaySec}с...`,
+            errorMessage: `Попытка ${attemptsDone}/${MAX_ATTEMPTS} не удалась (${chunkLabel}): ${errMsg}. Повтор через ${retryDelaySec}с...`,
             lastHeartbeat: new Date(),
             updatedAt: new Date(),
           })
@@ -586,7 +597,7 @@ export class TaskPoller {
           .set({
             status: 'ready',
             workerId: null,
-            errorMessage: `Попытка ${attemptsDone}/${MAX_ATTEMPTS} не удалась: ${errMsg}`,
+            errorMessage: `Попытка ${attemptsDone}/${MAX_ATTEMPTS} не удалась (${chunkLabel}): ${errMsg}`,
             lastHeartbeat: null,
             updatedAt: new Date(),
           })

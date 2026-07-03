@@ -1480,17 +1480,18 @@ function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory, onError
       </td>
       <td style={S.td}>
         <span style={{ ...S.badge, ...badge }}>{STATUS_LABELS[task.status] || task.status}</span>
-        {(['in_progress', 'uploading'].includes(task.status) && (task.currentPart ?? 0) > 0) && (() => {
-          const saved = task.currentPart!;
+        {(['in_progress', 'uploading'].includes(task.status)) && (() => {
+          const saved = task.currentPart ?? 0;
           const partMin = task.maxPartDuration || 20;
           const totalMin = task.duration || 0;
           const plannedParts = task.totalParts && task.totalParts > saved ? task.totalParts : (totalMin > 0 ? Math.ceil(totalMin / partMin) : null);
+          const recordingChunk = saved + 1;
           const savedMin = saved * partMin;
           return (
             <div style={{ marginTop: 3, fontSize: 11, color: '#a78bfa', whiteSpace: 'nowrap' }}>
               {plannedParts
-                ? `Часть ${saved} из ${plannedParts}`
-                : `Сохранено ${saved} ч.`}
+                ? `Чанк ${recordingChunk} из ${plannedParts}`
+                : `Чанк ${recordingChunk}`}
               {totalMin > 0 && (
                 <span style={{ color: '#6b7280', marginLeft: 4 }}>
                   ({Math.min(savedMin, totalMin)}/{totalMin} мин)
