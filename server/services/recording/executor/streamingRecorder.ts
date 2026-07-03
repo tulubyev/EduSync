@@ -248,6 +248,17 @@ export class StreamingRecorder {
       logger.info(`[NAV] Navigating to ${url} (waitUntil: ${waitUntil}, timeout: ${navTimeout / 1000}s)`);
       await this.page.goto(url, { waitUntil, timeout: navTimeout });
 
+      // 'commit' resolves as soon as the first byte of the response arrives —
+      // the DOM may still be completely empty at this point (no form, no content).
+      // Give the page a real chance to render before we try to read/fill anything,
+      // but don't let a slow/hanging page block us forever (webinar-start traffic
+      // spikes can keep 'domcontentloaded' from firing at all).
+      if (waitUntil === 'commit') {
+        await this.page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {
+          logger.warn('[NAV] domcontentloaded not reached within 30s after commit — proceeding anyway');
+        });
+      }
+
       const finalUrl = this.page.url();
       const title = await this.page.title().catch(() => '(no title)');
       logger.info(`[NAV] ✅ Loaded — title: "${title}", finalUrl: ${finalUrl}`);
@@ -399,19 +410,33 @@ export class StreamingRecorder {
     if (!isWebinar) return false;
 
     try {
-      // Debug: dump all visible input fields on the page
-      const allInputs = await this.page.evaluate(() => {
-        return Array.from(document.querySelectorAll('input, textarea')).map(el => ({
-          tag: el.tagName,
-          type: (el as HTMLInputElement).type,
-          name: (el as HTMLInputElement).name,
-          id: el.id,
-          placeholder: (el as HTMLInputElement).placeholder,
-          className: el.className.slice(0, 60),
-        }));
-      }).catch(() => []);
+      // The page may have just committed navigation with an empty DOM (see 'commit'
+      // waitUntil for webinar platforms). Poll for input fields to actually appear
+      // instead of checking once immediately — the registration form can take a
+      // few seconds to render after first byte.
+      let allInputs: Array<{ tag: string; type: string; name: string; id: string; placeholder: string; className: string }> = [];
+      const maxPollMs = 10000;
+      const pollStep = 500;
+      let waited = 0;
+      while (waited < maxPollMs) {
+        allInputs = await this.page.evaluate(() => {
+          return Array.from(document.querySelectorAll('input, textarea')).map(el => ({
+            tag: el.tagName,
+            type: (el as HTMLInputElement).type,
+            name: (el as HTMLInputElement).name,
+            id: el.id,
+            placeholder: (el as HTMLInputElement).placeholder,
+            className: el.className.slice(0, 60),
+          }));
+        }).catch(() => []);
+        if (allInputs.length > 0) break;
+        await this.page.waitForTimeout(pollStep);
+        waited += pollStep;
+      }
       if (allInputs.length > 0) {
-        logger.info(`[JOIN] Found ${allInputs.length} input(s): ${JSON.stringify(allInputs)}`);
+        logger.info(`[JOIN] Found ${allInputs.length} input(s) after ${waited}ms: ${JSON.stringify(allInputs)}`);
+      } else {
+        logger.warn(`[JOIN] No inputs found on page after polling ${maxPollMs}ms`);
       }
 
       const nameSelectors = [
