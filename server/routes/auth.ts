@@ -10,6 +10,10 @@ import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { config } from "../../config/environment";
 import { validationRules } from "../middleware/validationRules";
+
+// 2FA выключена по умолчанию: в таблице users нет колонок two_factor_* / sms_code*.
+// Включать (ENABLE_2FA=true) только после миграции БД и добавления колонок в shared/schema.ts.
+const TWO_FACTOR_ENABLED = process.env.ENABLE_2FA === 'true';
 import { logger } from "../services/logger";
 import { secureLogs } from "../middleware/secureLogs";
 import { db } from "../db";
@@ -123,7 +127,7 @@ authRouter.post('/login', authLimiter, async (req, res) => {
     };
     
     // Проверяем нужна ли 2FA
-    const requiresTwoFactor = await twoFactorService.requiresTwoFactor(loginResult.user.id);
+    const requiresTwoFactor = TWO_FACTOR_ENABLED && await twoFactorService.requiresTwoFactor(loginResult.user.id);
     
     if (requiresTwoFactor && !twoFactorCode) {
       // Возвращаем частичный ответ - нужен 2FA код
@@ -267,6 +271,14 @@ authRouter.post('/gosuslugi', async (req, res) => {
 });
 
 // Two-Factor Authentication Routes
+// Управление 2FA доступно только при ENABLE_2FA=true
+authRouter.use(['/2fa/setup', '/2fa/enable', '/2fa/disable'], (_req, res, next) => {
+  if (!TWO_FACTOR_ENABLED) {
+    return res.status(404).json({ message: 'Двухфакторная аутентификация отключена' });
+  }
+  next();
+});
+
 authRouter.post('/2fa/setup', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user.id;
