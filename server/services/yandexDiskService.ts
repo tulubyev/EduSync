@@ -39,7 +39,7 @@ class YandexDiskService {
     if (this.isConfigured) {
       logger.info('✅ YandexDiskService: Configured and ready');
     } else {
-      logger.warn('⚠️ YandexDiskService: Not configured (YANDEX_DISK_TOKEN not found)');
+      logger.warn('YandexDiskService: Not configured (YANDEX_DISK_TOKEN not found)');
     }
   }
 

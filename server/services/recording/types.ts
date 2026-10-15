@@ -18,6 +18,9 @@ export interface RecordingTaskData {
   description?: string;
   streamUrl: string;
   streamPassword?: string;
+  joinName?: string;
+  joinEmail?: string;
+  joinPhone?: string;
   scheduledTime: Date;
   duration: number;
   maxPartDuration: number;
@@ -40,6 +43,10 @@ export interface RecordingTaskData {
   urlCheckStatus?: 'pending' | 'ok' | 'warning' | 'failed';
   urlCheckMessage?: string;
   urlCheckedAt?: Date;
+  mergeStatus?: 'idle' | 'merging' | 'completed' | 'failed';
+  mergeProgress?: string;
+  mergedUrl?: string;
+  mergeError?: string;
 }
 
 export interface RecordingConfig {

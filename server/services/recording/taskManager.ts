@@ -37,6 +37,9 @@ class RecordingTaskManager {
     description?: string;
     streamUrl: string;
     streamPassword?: string;
+    joinName?: string;
+    joinEmail?: string;
+    joinPhone?: string;
     scheduledTime: Date;
     duration: number;
     saveTarget: 'library' | 'yandex_disk' | 'beget';
@@ -45,7 +48,7 @@ class RecordingTaskManager {
     const taskId = randomUUID();
 
     const dateStr = data.scheduledTime.toISOString().slice(0, 10); // YYYY-MM-DD
-    const s3Prefix = `epa/recordings/${data.userId}/${taskId}/`;
+    const s3Prefix = `myepa/recordings/${data.userId}/${taskId}/`;
     const s3Filename = `${slugify(data.title) || 'recording'}_${dateStr}`;
 
     const parts: RecordingPart[] = Array.from({ length: totalParts }, (_, i) => ({
@@ -67,6 +70,9 @@ class RecordingTaskManager {
       description: data.description,
       streamUrl: data.streamUrl,
       streamPassword: data.streamPassword,
+      joinName: data.joinName,
+      joinEmail: data.joinEmail,
+      joinPhone: data.joinPhone,
       scheduledTime: data.scheduledTime,
       duration: data.duration,
       maxPartDuration: MAX_PART_DURATION_MIN,
@@ -364,6 +370,10 @@ class RecordingTaskManager {
       urlCheckStatus: (task.urlCheckStatus as RecordingTaskData['urlCheckStatus']) || 'pending',
       urlCheckMessage: task.urlCheckMessage || undefined,
       urlCheckedAt: task.urlCheckedAt || undefined,
+      mergeStatus: (task.metadata as any)?.mergeStatus || undefined,
+      mergeProgress: (task.metadata as any)?.mergeProgress || undefined,
+      mergedUrl: (task.metadata as any)?.mergedUrl || undefined,
+      mergeError: (task.metadata as any)?.mergeError || undefined,
     };
   }
 }

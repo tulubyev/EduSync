@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
@@ -35,9 +36,10 @@ export function RecordingSchedulePage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [tasksRefreshKey, setTasksRefreshKey] = useState(0);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
 
   const computeUserStats = (tasks: Array<{ status: string }>) => {
-    const stats: DashboardStats = { ready: 0, in_progress: 0, uploading: 0, completed: 0, failed: 0, cancelled: 0, total: tasks.length };
+    const stats: DashboardStats = { scheduled: 0, ready: 0, in_progress: 0, uploading: 0, completed: 0, failed: 0, cancelled: 0, total: tasks.length };
     tasks.forEach(t => {
       if (t.status in stats) (stats as any)[t.status]++;
     });
@@ -57,13 +59,9 @@ export function RecordingSchedulePage() {
   const handleScheduleRecording = async (data: RecordingData) => {
     try {
       setIsScheduling(true);
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/recording/schedule', {
+      setScheduleError(null);
+      const response = await authService.authenticatedFetch('/api/recording/schedule', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({
           ...data,
           scheduledTime: new Date(data.scheduledTime + ':00+03:00').toISOString(),
@@ -73,9 +71,14 @@ export function RecordingSchedulePage() {
       if (response.ok) {
         setShowRecordingModal(false);
         setTasksRefreshKey(k => k + 1);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        const msg = (errorData as any).message || `Ошибка ${response.status}: не удалось запланировать запись`;
+        setScheduleError(msg);
       }
     } catch (error) {
       console.error('Error scheduling recording:', error);
+      setScheduleError('Ошибка соединения с сервером. Проверьте подключение и попробуйте снова.');
     } finally {
       setIsScheduling(false);
     }
@@ -190,9 +193,10 @@ export function RecordingSchedulePage() {
 
       <RecordingModal
         open={showRecordingModal}
-        onClose={() => setShowRecordingModal(false)}
+        onClose={() => { setShowRecordingModal(false); setScheduleError(null); }}
         onSubmit={handleScheduleRecording}
         isLoading={isScheduling}
+        error={scheduleError}
       />
     </div>
   );

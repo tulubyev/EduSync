@@ -3,7 +3,8 @@ import { storage } from "../storage";
 import { authenticateToken } from "../middleware/auth";
 import { z } from "zod";
 import { yandexDiskService } from "../services/yandexDiskService";
-import { recordingTaskManager, recordingLogger } from "../services/recording";
+import { recordingTaskManager, recordingLogger, pollerController } from "../services/recording";
+import { executorModeService } from "../services/recording/executorModeService";
 import { logger } from "../services/logger";
 import { db } from "../db";
 import { recordingTasks, recordingWorkerStatus, recordingLogs } from "@shared/schema";
@@ -21,6 +22,9 @@ const recordingSchema = z.object({
   description: z.string().optional(),
   streamUrl: z.string().url("Некорректная ссылка"),
   streamPassword: z.string().optional(),
+  joinName: z.string().optional(),
+  joinEmail: z.string().email("Некорректный email").optional().or(z.literal('')),
+  joinPhone: z.string().optional(),
   scheduledTime: z.string().datetime("Некорректное время"),
   duration: z.number().int().min(1).max(1440).default(60),
   saveTarget: z.enum(['yandex_disk', 'library', 'beget']).default('beget'),
@@ -37,6 +41,9 @@ router.post('/schedule', authenticateToken as any, async (req: AuthRequest, res:
       description: validData.description,
       streamUrl: validData.streamUrl,
       streamPassword: validData.streamPassword,
+      joinName: validData.joinName || undefined,
+      joinEmail: validData.joinEmail || undefined,
+      joinPhone: validData.joinPhone || undefined,
       scheduledTime: new Date(validData.scheduledTime),
       duration: validData.duration,
       saveTarget: validData.saveTarget,
@@ -145,11 +152,51 @@ router.post('/tasks/:taskId/recover', authenticateToken as any, async (req: Auth
   }
 });
 
+router.post('/tasks/:taskId/merge', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user!.id;
+
+    const task = await recordingTaskManager.getTask(taskId);
+    if (!task) return res.status(404).json({ message: 'Задача не найдена' });
+    if (task.userId !== userId) return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    if (task.status !== 'completed' && task.status !== 'failed') {
+      return res.status(400).json({ message: 'Слияние доступно только для завершённых задач' });
+    }
+
+    const parts = (task.parts ?? []) as Array<{ publicUrl?: string; partNumber: number }>;
+    const urls = parts
+      .filter(p => p.publicUrl)
+      .sort((a, b) => a.partNumber - b.partNumber)
+      .map(p => p.publicUrl!);
+
+    if (urls.length < 2) {
+      return res.status(400).json({ message: `Нужно минимум 2 части для слияния (найдено: ${urls.length})` });
+    }
+
+    if (task.mergeStatus === 'merging') {
+      return res.status(400).json({ message: 'Слияние уже выполняется, подождите' });
+    }
+
+    logger.info(`[MERGE] Starting merge for task ${taskId}: ${urls.length} parts`);
+
+    const { chunkMerger } = await import('../services/recording/executor/mergeChunks');
+    chunkMerger.merge(taskId, urls, task.title).catch(async (err: Error) => {
+      logger.error(`[MERGE] Background merge failed for ${taskId}:`, err);
+    });
+
+    res.json({ success: true, message: `Слияние ${urls.length} частей запущено в фоне` });
+  } catch (error) {
+    logger.error('Error starting merge:', error);
+    res.status(500).json({ message: 'Ошибка запуска слияния' });
+  }
+});
+
 router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const { taskId } = req.params;
     const userId = req.user!.id;
-    const { title, description, streamUrl, streamPassword, scheduledTime, duration } = req.body;
+    const { title, description, streamUrl, streamPassword, joinName, joinEmail, joinPhone, scheduledTime, duration } = req.body;
 
     const task = await recordingTaskManager.getTask(taskId);
     
@@ -161,8 +208,8 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
     }
 
-    if (task.status !== 'ready' && task.status !== 'failed') {
-      return res.status(400).json({ message: 'Редактировать можно только задачи в статусе «Готова к записи» или «Ошибка»' });
+    if (!['ready', 'failed', 'scheduled', 'cancelled', 'in_progress'].includes(task.status)) {
+      return res.status(400).json({ message: 'Редактировать можно только задачи в статусе «Готова к записи», «Запланирована», «В процессе», «Отменена» или «Ошибка»' });
     }
 
     // Validate input
@@ -175,23 +222,42 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
       return res.status(400).json({ message: 'Длительность должна быть от 1 до 1440 минут' });
     }
 
+    const newScheduledTime = new Date(scheduledTime);
+    const READY_ADVANCE_MS = 5 * 60 * 1000;
+
     const updateData: Record<string, any> = {
       title: title.trim(),
       description: description?.trim() || null,
       streamUrl: streamUrl.trim(),
       streamPassword: streamPassword?.trim() || null,
-      scheduledTime: new Date(scheduledTime),
+      joinName: joinName?.trim() || null,
+      joinEmail: joinEmail?.trim() || null,
+      joinPhone: joinPhone?.trim() || null,
+      scheduledTime: newScheduledTime,
       duration: durationNum,
       updatedAt: new Date(),
     };
 
-    // Если задача была с ошибкой — сбрасываем в статус "готова к записи"
-    if (task.status === 'failed') {
+    // Если задача была с ошибкой или отменена — сбрасываем в ready
+    if (task.status === 'failed' || task.status === 'cancelled') {
       updateData.status = 'ready';
       updateData.errorMessage = null;
       updateData.workerId = null;
       updateData.startedAt = null;
       updateData.completedAt = null;
+      updateData.attemptCount = 0;
+    }
+
+    // Если задача запланирована и время уже наступило — сразу переводим в ready
+    if (task.status === 'scheduled' && newScheduledTime.getTime() - Date.now() <= READY_ADVANCE_MS) {
+      updateData.status = 'ready';
+    }
+
+    // Если in_progress — только обновляем поля, статус не меняем (изменения применятся при следующей попытке)
+    // Сбрасываем attempt_count чтобы дать ещё 3 попытки с новыми данными
+    if (task.status === 'in_progress') {
+      updateData.attemptCount = 0;
+      updateData.errorMessage = null;
     }
 
     await db.update(recordingTasks)
@@ -882,6 +948,74 @@ router.get('/admin/health', authenticateToken as any, async (req: AuthRequest, r
       health.services.s3 = { status: 'error', error: (e as Error).message };
     }
   }
+
+  // Playwright / browser health — живые данные из StreamingRecorder (все воркеры)
+  try {
+    const executorStatus = pollerController.getStatus();
+    const allWorkers = pollerController.getBrowserStatusAll();
+
+    const toPlaywrightStatus = (bs: ReturnType<typeof pollerController.getBrowserStatus>, running: boolean) => {
+      if (!running) return 'executor_stopped';
+      if (bs.isRecording) return 'recording';
+      if (bs.browserAlive) return 'idle';
+      return 'not_launched';
+    };
+
+    if (allWorkers.length === 0) {
+      health.services.playwright = { status: 'executor_stopped' };
+    } else if (allWorkers.length === 1) {
+      const bs = allWorkers[0];
+      health.services.playwright = {
+        status: toPlaywrightStatus(bs, executorStatus.isRunning),
+        browserAlive: bs.browserAlive,
+        pageAlive: bs.pageAlive,
+        isRecording: bs.isRecording,
+        frameCount: bs.frameCount,
+        elapsedMs: bs.elapsedMs,
+        currentUrl: bs.currentUrl,
+        taskId: bs.taskId,
+        workers: allWorkers.map(w => ({
+          workerId: w.workerId,
+          status: toPlaywrightStatus(w, executorStatus.isRunning),
+          browserAlive: w.browserAlive,
+          isRecording: w.isRecording,
+          frameCount: w.frameCount,
+          elapsedMs: w.elapsedMs,
+          currentUrl: w.currentUrl,
+          taskId: w.taskId,
+        })),
+      };
+    } else {
+      // Multi-worker: aggregate
+      const anyRecording = allWorkers.some(w => w.isRecording);
+      const anyBrowserAlive = allWorkers.some(w => w.browserAlive);
+      const aggStatus = anyRecording ? 'recording' : anyBrowserAlive ? 'idle' : 'not_launched';
+      const totalFrames = allWorkers.reduce((s, w) => s + w.frameCount, 0);
+      health.services.playwright = {
+        status: aggStatus,
+        browserAlive: anyBrowserAlive,
+        pageAlive: allWorkers.some(w => w.pageAlive),
+        isRecording: anyRecording,
+        frameCount: totalFrames,
+        elapsedMs: null,
+        currentUrl: null,
+        taskId: null,
+        workers: allWorkers.map(w => ({
+          workerId: w.workerId,
+          status: toPlaywrightStatus(w, executorStatus.isRunning),
+          browserAlive: w.browserAlive,
+          isRecording: w.isRecording,
+          frameCount: w.frameCount,
+          elapsedMs: w.elapsedMs,
+          currentUrl: w.currentUrl,
+          taskId: w.taskId,
+        })),
+      };
+    }
+  } catch (e) {
+    health.services.playwright = { status: 'error', error: (e as Error).message };
+  }
+
   res.json(health);
 });
 
@@ -891,7 +1025,7 @@ router.get('/admin/s3-files', authenticateToken as any, async (req: AuthRequest,
   if (!s3) {
     return res.json({ success: true, files: [], folders: [], configured: false, message: 'S3 не настроен (BEGET_S3_* переменные отсутствуют)' });
   }
-  const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : 'epa/';
+  const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : 'myepa/';
   try {
     const result = await s3.client.send(new ListObjectsV2Command({
       Bucket: s3.bucket,
@@ -900,12 +1034,14 @@ router.get('/admin/s3-files', authenticateToken as any, async (req: AuthRequest,
       MaxKeys: 500,
     }));
     const folders = (result.CommonPrefixes || []).map(cp => cp.Prefix!).filter(Boolean);
-    const files = (result.Contents || []).map(obj => ({
-      key: obj.Key!,
-      size: obj.Size ?? 0,
-      lastModified: obj.LastModified?.toISOString() ?? null,
-      url: s3.publicUrl ? `${s3.publicUrl}/${obj.Key}` : obj.Key!,
-    }));
+    const files = (result.Contents || [])
+      .filter(obj => obj.Key && obj.Key !== prefix)
+      .map(obj => ({
+        key: obj.Key!,
+        size: obj.Size ?? 0,
+        lastModified: obj.LastModified?.toISOString() ?? null,
+        url: s3.publicUrl ? `${s3.publicUrl}/${obj.Key}` : obj.Key!,
+      }));
     res.json({ success: true, prefix, folders, files, total: files.length, configured: true });
   } catch (error) {
     logger.error('Admin S3 files error:', error);
@@ -949,7 +1085,7 @@ router.patch('/admin/tasks/:taskId', authenticateToken as any, async (req: AuthR
   if (!requireAdminRole(req, res)) return;
   try {
     const body = req.body;
-    const allowed = ['title', 'description', 'streamUrl', 'streamPassword', 'duration', 'scheduledTime', 'saveTarget', 'status', 'begetUrl', 'errorMessage'] as const;
+    const allowed = ['title', 'description', 'streamUrl', 'streamPassword', 'joinName', 'joinEmail', 'joinPhone', 'duration', 'scheduledTime', 'saveTarget', 'status', 'begetUrl', 'errorMessage'] as const;
     const update: Record<string, any> = { updatedAt: new Date() };
     for (const key of allowed) {
       if (key in body) {
@@ -1055,6 +1191,122 @@ router.get('/admin/tasks/:taskId/logs', authenticateToken as any, async (req: Au
     logger.error('Admin task logs error:', error);
     res.status(500).json({ message: 'Ошибка получения логов задачи' });
   }
+});
+
+// ── Executor (Recording Poller) Controls ─────────────────────────────────────
+
+router.get('/admin/executor/status', authenticateToken as any, (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  res.json({ success: true, executor: pollerController.getStatus() });
+});
+
+router.post('/admin/executor/start', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const currentMode = await executorModeService.getMode();
+  if (currentMode === 'vps') {
+    return res.status(409).json({ success: false, message: 'Нельзя запустить встроенный исполнитель в VPS-режиме. Переключитесь в Replit-режим.' });
+  }
+  const adminId = req.user!.id;
+  const count = typeof req.body?.count === 'number' ? req.body.count : undefined;
+  logger.info(`Admin ${adminId} requested executor START (count=${count ?? 'default'})`);
+  const result = await pollerController.start(count);
+  res.status(result.ok ? 200 : 409).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
+});
+
+router.post('/admin/executor/stop', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const currentMode = await executorModeService.getMode();
+  if (currentMode === 'vps') {
+    return res.status(409).json({ success: false, message: 'Нельзя остановить встроенный исполнитель в VPS-режиме.' });
+  }
+  const adminId = req.user!.id;
+  logger.info(`Admin ${adminId} requested executor STOP ALL`);
+  const result = pollerController.stop();
+  res.status(result.ok ? 200 : 409).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
+});
+
+router.post('/admin/executor/scale-up', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const currentMode = await executorModeService.getMode();
+  if (currentMode === 'vps') {
+    return res.status(409).json({ success: false, message: 'Нельзя масштабировать встроенный исполнитель в VPS-режиме.' });
+  }
+  const adminId = req.user!.id;
+  logger.info(`Admin ${adminId} requested executor SCALE UP`);
+  const result = await pollerController.scaleUp();
+  res.status(result.ok ? 200 : 409).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
+});
+
+router.post('/admin/executor/worker/:workerId/stop', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const currentMode = await executorModeService.getMode();
+  if (currentMode === 'vps') {
+    return res.status(409).json({ success: false, message: 'Нельзя остановить воркер в VPS-режиме.' });
+  }
+  const adminId = req.user!.id;
+  const { workerId } = req.params;
+  logger.info(`Admin ${adminId} requested STOP worker ${workerId}`);
+  const result = pollerController.stopWorker(workerId);
+  res.status(result.ok ? 200 : 404).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
+});
+
+// ── Executor Mode (Replit / VPS) ──────────────────────────────────────────────
+
+router.get('/admin/executor/mode', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    const mode = await executorModeService.getMode();
+
+    // Fetch VPS workers from recording_worker_status
+    const now = new Date();
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    const workers = await db
+      .select()
+      .from(recordingWorkerStatus)
+      .orderBy(desc(recordingWorkerStatus.lastSeenAt));
+
+    const vpsWorkers = workers.map(w => {
+      const lastSeen = w.lastSeenAt ? new Date(w.lastSeenAt) : null;
+      const isOnline = lastSeen ? lastSeen > fiveMinutesAgo : false;
+      const secondsAgo = lastSeen ? Math.floor((now.getTime() - lastSeen.getTime()) / 1000) : null;
+      return {
+        ...w,
+        isOnline,
+        secondsAgo,
+        healthStatus: isOnline ? 'healthy' : (lastSeen ? 'offline' : 'unknown'),
+      };
+    });
+
+    res.json({
+      success: true,
+      mode,
+      vpsWorkers,
+      executor: pollerController.getStatus(),
+    });
+  } catch (error) {
+    logger.error('Admin executor mode GET error:', error);
+    res.status(500).json({ message: 'Ошибка получения режима исполнителя' });
+  }
+});
+
+router.post('/admin/executor/mode', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  const adminId = req.user!.id;
+  const { mode } = req.body;
+
+  if (mode !== 'replit' && mode !== 'vps') {
+    return res.status(400).json({ message: 'Режим должен быть "replit" или "vps"' });
+  }
+
+  logger.info(`Admin ${adminId} switching executor mode to: ${mode}`);
+  const result = await executorModeService.setMode(mode);
+  const authorizedMode = await executorModeService.getMode();
+  res.status(result.ok ? 200 : 400).json({
+    success: result.ok,
+    message: result.message,
+    mode: authorizedMode,
+    executor: pollerController.getStatus(),
+  });
 });
 
 export default router;

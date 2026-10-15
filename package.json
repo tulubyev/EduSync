@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build:worker": "esbuild server/recording-worker.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/recording-worker.js",
     "start": "NODE_ENV=production node dist/index.js",
+    "worker": "NODE_ENV=production tsx server/recording-worker.ts",
+    "worker:dev": "NODE_ENV=development tsx server/recording-worker.ts",
     "check": "tsc",
     "db:push": "drizzle-kit push"
   },
@@ -91,6 +94,7 @@
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "pg": "^8.16.3",
+    "playwright": "^1.59.1",
     "postcss": "^8.5.6",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
@@ -132,5 +136,9 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
+  },
+  "overrides": {
+    "shell-quote": "^1.9.0",
+    "fast-xml-parser": "^5.9.3"
   }
 }

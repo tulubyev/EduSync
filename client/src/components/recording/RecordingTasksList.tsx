@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, RotateCcw, TriangleAlert, XCircle, StopCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, RotateCcw, TriangleAlert, XCircle, StopCircle, Merge } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,9 @@ interface RecordingTask {
   title: string;
   description?: string;
   streamUrl: string;
+  joinName?: string;
+  joinEmail?: string;
+  joinPhone?: string;
   scheduledTime: string;
   duration: number;
   status: 'scheduled' | 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
@@ -72,6 +76,10 @@ interface RecordingTask {
   urlCheckStatus?: 'pending' | 'ok' | 'warning' | 'failed';
   urlCheckMessage?: string;
   urlCheckedAt?: string;
+  mergeStatus?: 'idle' | 'merging' | 'completed' | 'failed';
+  mergeProgress?: string;
+  mergedUrl?: string;
+  mergeError?: string;
 }
 
 interface RecordingTasksListProps {
@@ -80,9 +88,19 @@ interface RecordingTasksListProps {
   onTasksLoaded?: (tasks: RecordingTask[]) => void;
 }
 
+function useNow(intervalMs = 5000) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
+
 export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: RecordingTasksListProps) {
   const [tasks, setTasks] = useState<RecordingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const now = useNow(5000);
   const [editingTask, setEditingTask] = useState<RecordingTask | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState>({
     open: false,
@@ -105,6 +123,9 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     description: '',
     streamUrl: '',
     streamPassword: '',
+    joinName: '',
+    joinEmail: '',
+    joinPhone: '',
     scheduledTime: '',
     duration: 60,
   });
@@ -118,18 +139,25 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
   const fetchTasks = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/recording/tasks', {
-        headers: { 'Authorization': `Bearer ${token}` },
+      const response = await authService.authenticatedFetch('/api/recording/tasks', {
+        method: 'GET',
       });
 
       if (response.ok) {
         const data = await response.json();
         setTasks(data);
         onTasksLoaded?.(data);
+      } else if (response.status === 401) {
+        console.warn('Recording tasks: сессия истекла, требуется повторный вход');
+      } else {
+        console.error('Recording tasks: HTTP', response.status);
       }
     } catch (error) {
-      console.error('Error fetching recording tasks:', error);
+      if (error instanceof Error && error.message === 'TOKEN_MISSING') {
+        console.warn('Recording tasks: токен не найден');
+      } else {
+        console.error('Recording tasks error:', error instanceof Error ? error.message : error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -205,11 +233,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       onConfirm: async () => {
         closeConfirm();
         try {
-          const token = localStorage.getItem('accessToken');
-          const response = await fetch(`/api/recording/tasks/${taskId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
+          const response = await authService.authenticatedFetch(`/api/recording/tasks/${taskId}`, { method: 'DELETE' });
           if (response.ok) await fetchTasks();
         } catch (error) {
           console.error('Error deleting task:', error);
@@ -227,11 +251,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       onConfirm: async () => {
         closeConfirm();
         try {
-          const token = localStorage.getItem('accessToken');
-          const response = await fetch(`/api/recording/tasks/${taskId}/cancel`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
+          const response = await authService.authenticatedFetch(`/api/recording/tasks/${taskId}/cancel`, { method: 'POST' });
           if (response.ok) await fetchTasks();
         } catch (error) {
           console.error('Error cancelling task:', error);
@@ -242,11 +262,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
   const handleRecheck = async (taskId: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
-      await fetch(`/api/recording/tasks/${taskId}/recheck`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      await authService.authenticatedFetch(`/api/recording/tasks/${taskId}/recheck`, { method: 'POST' });
       await fetchTasks();
     } catch (error) {
       console.error('Error requesting recheck:', error);
@@ -255,14 +271,24 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
   const handleRecover = async (taskId: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/recording/tasks/${taskId}/recover`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      const response = await authService.authenticatedFetch(`/api/recording/tasks/${taskId}/recover`, { method: 'POST' });
       if (response.ok) await fetchTasks();
     } catch (error) {
       console.error('Error recovering task:', error);
+    }
+  };
+
+  const handleMerge = async (taskId: string) => {
+    try {
+      const response = await authService.authenticatedFetch(`/api/recording/tasks/${taskId}/merge`, { method: 'POST' });
+      if (response.ok) {
+        await fetchTasks();
+      } else {
+        const data = await response.json().catch(() => ({}));
+        alert(data.message || 'Ошибка запуска слияния');
+      }
+    } catch (error) {
+      console.error('Error starting merge:', error);
     }
   };
 
@@ -275,6 +301,9 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       description: task.description || '',
       streamUrl: task.streamUrl,
       streamPassword: '',
+      joinName: task.joinName || '',
+      joinEmail: task.joinEmail || '',
+      joinPhone: task.joinPhone || '',
       scheduledTime: moscowToInputValue(task.scheduledTime),
       duration: task.duration,
     });
@@ -303,18 +332,16 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
     try {
       setIsUpdating(true);
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/recording/tasks/${editingTask.id}`, {
+      const response = await authService.authenticatedFetch(`/api/recording/tasks/${editingTask.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({
           title: editFormData.title.trim(),
           description: editFormData.description.trim() || undefined,
           streamUrl: editFormData.streamUrl.trim(),
           streamPassword: editFormData.streamPassword || undefined,
+          joinName: editFormData.joinName.trim() || undefined,
+          joinEmail: editFormData.joinEmail.trim() || undefined,
+          joinPhone: editFormData.joinPhone.trim() || undefined,
           scheduledTime: inputToUtcIso(editFormData.scheduledTime),
           duration: Number(editFormData.duration),
         }),
@@ -379,12 +406,47 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 </span>
               )}
 
-              {task.status === 'completed' && (task.begetUrl || task.playlistUrl) && (
-                <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="Смотреть видео" asChild>
-                  <a href={task.begetUrl || task.playlistUrl} target="_blank" rel="noopener noreferrer">
+              {task.status === 'completed' && (task.mergedUrl || task.begetUrl || task.playlistUrl) && (
+                <Button size="sm" variant="outline" className="h-8 w-8 p-0" title={task.mergedUrl ? 'Смотреть объединённый файл' : 'Смотреть видео (часть 1)'} asChild>
+                  <a href={task.mergedUrl || task.begetUrl || task.playlistUrl} target="_blank" rel="noopener noreferrer">
                     <Play className="h-4 w-4" />
                   </a>
                 </Button>
+              )}
+
+              {task.status === 'completed' && (task.parts?.length ?? 0) >= 2 && task.mergeStatus !== 'completed' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={`h-8 px-2 text-xs gap-1 ${
+                    task.mergeStatus === 'merging'
+                      ? 'text-blue-500 border-blue-300 cursor-wait'
+                      : task.mergeStatus === 'failed'
+                      ? 'text-red-500 border-red-300'
+                      : 'text-indigo-600 hover:text-indigo-800 hover:border-indigo-300'
+                  }`}
+                  title={
+                    task.mergeStatus === 'merging'
+                      ? (task.mergeProgress ?? 'Слияние...')
+                      : task.mergeStatus === 'failed'
+                      ? `Ошибка: ${task.mergeError ?? 'неизвестно'}`
+                      : `Слить ${task.parts?.length} части в один файл`
+                  }
+                  disabled={task.mergeStatus === 'merging'}
+                  onClick={() => handleMerge(task.id)}
+                >
+                  {task.mergeStatus === 'merging'
+                    ? <Loader className="h-3.5 w-3.5 animate-spin" />
+                    : <Merge className="h-3.5 w-3.5" />
+                  }
+                  {task.mergeStatus === 'merging' ? 'Слияние...' : task.mergeStatus === 'failed' ? 'Повтор слияния' : 'Слить'}
+                </Button>
+              )}
+
+              {task.status === 'completed' && task.mergeStatus === 'completed' && task.mergedUrl && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700" title={task.mergedUrl}>
+                  ✅ Слито
+                </span>
               )}
 
               {(task.status === 'scheduled' || task.status === 'in_progress' || task.status === 'uploading') && (
@@ -400,7 +462,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 </Button>
               )}
 
-              {(task.status === 'scheduled' || task.status === 'ready' || task.status === 'failed') && (
+              {(task.status === 'scheduled' || task.status === 'ready' || task.status === 'failed' || task.status === 'in_progress' || task.status === 'cancelled') && (
                 <>
                   {(task.urlCheckStatus === 'warning' || task.urlCheckStatus === 'failed') && (
                     <Button
@@ -466,16 +528,16 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               <div className="flex items-center gap-1 mt-0.5">
                 <p className="font-semibold text-xs">{getDomain(task.streamUrl)}</p>
                 {task.urlCheckStatus === 'pending' && (
-                  <Loader className="h-3 w-3 text-gray-400 animate-spin flex-shrink-0" title="Проверяется доступность..." />
+                  <span title="Проверяется доступность..."><Loader className="h-3 w-3 text-gray-400 animate-spin flex-shrink-0" /></span>
                 )}
                 {task.urlCheckStatus === 'ok' && (
-                  <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" title="URL доступен" />
+                  <span title="URL доступен"><CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" /></span>
                 )}
                 {task.urlCheckStatus === 'warning' && (
-                  <TriangleAlert className="h-3 w-3 text-amber-500 flex-shrink-0" title={task.urlCheckMessage} />
+                  <span title={task.urlCheckMessage ?? undefined}><TriangleAlert className="h-3 w-3 text-amber-500 flex-shrink-0" /></span>
                 )}
                 {task.urlCheckStatus === 'failed' && (
-                  <XCircle className="h-3 w-3 text-red-500 flex-shrink-0" title={task.urlCheckMessage} />
+                  <span title={task.urlCheckMessage ?? undefined}><XCircle className="h-3 w-3 text-red-500 flex-shrink-0" /></span>
                 )}
               </div>
               <a
@@ -494,23 +556,56 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             </div>
             <div className="bg-gray-50 p-2 rounded">
               <span className="text-gray-500 text-xs block">Статус</span>
-              <p className={`text-xs font-semibold mt-0.5 ${
-                task.status === 'scheduled'   ? 'text-indigo-600' :
-                task.status === 'ready'       ? 'text-blue-600' :
-                task.status === 'in_progress' ? 'text-amber-600' :
-                task.status === 'uploading'   ? 'text-purple-600' :
-                task.status === 'completed'   ? 'text-green-600' :
-                task.status === 'failed'      ? 'text-red-600' :
-                                                'text-gray-500'
-              }`}>
-                {task.status === 'scheduled'   ? 'Запланировано' :
-                 task.status === 'ready'       ? 'Ожидает' :
-                 task.status === 'in_progress' ? 'Идёт запись' :
-                 task.status === 'uploading'   ? 'Загрузка' :
-                 task.status === 'completed'   ? 'Завершена' :
-                 task.status === 'failed'      ? 'Ошибка' :
-                                                'Отменена'}
-              </p>
+              {(() => {
+                const isActive = task.status === 'in_progress' || task.status === 'uploading';
+                let pct = 0;
+                if (isActive && task.startedAt && task.duration) {
+                  const elapsed = now - new Date(task.startedAt).getTime();
+                  pct = Math.min(99, Math.round(elapsed / (task.duration * 60 * 1000) * 100));
+                } else if (task.status === 'completed') {
+                  pct = 100;
+                }
+                const label =
+                  task.status === 'scheduled'   ? 'Запланировано' :
+                  task.status === 'ready'       ? 'Ожидает' :
+                  task.status === 'in_progress' ? 'Идёт запись' :
+                  task.status === 'uploading'   ? 'Загрузка' :
+                  task.status === 'completed'   ? 'Завершена' :
+                  task.status === 'failed'      ? 'Ошибка' : 'Отменена';
+                const color =
+                  task.status === 'scheduled'   ? 'text-indigo-600' :
+                  task.status === 'ready'       ? 'text-blue-600' :
+                  task.status === 'in_progress' ? 'text-amber-600' :
+                  task.status === 'uploading'   ? 'text-purple-600' :
+                  task.status === 'completed'   ? 'text-green-600' :
+                  task.status === 'failed'      ? 'text-red-600' : 'text-gray-500';
+                const barColor =
+                  task.status === 'in_progress' ? 'bg-amber-400' :
+                  task.status === 'uploading'   ? 'bg-purple-400' : 'bg-green-500';
+                return (
+                  <>
+                    <p className={`text-xs font-semibold mt-0.5 ${color}`}>{label}</p>
+                    {(isActive || task.status === 'completed') && (
+                      <div className="mt-1.5">
+                        <div className="flex justify-between items-center mb-0.5">
+                          <span className="text-xs text-gray-400">{pct}%</span>
+                          {isActive && task.startedAt && task.duration && (
+                            <span className="text-xs text-gray-400">
+                              {Math.max(0, Math.round((task.duration * 60 * 1000 - (now - new Date(task.startedAt).getTime())) / 60000))} мин
+                            </span>
+                          )}
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-1.5 rounded-full transition-all duration-1000 ${barColor}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="bg-gray-50 p-2 rounded col-span-2 sm:col-span-1">
               <span className="text-gray-500 text-xs block">URL записи</span>
@@ -536,6 +631,29 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               )}
             </div>
           </div>
+
+          {(task.joinName || task.joinEmail || task.joinPhone) && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 px-1">
+              {task.joinName && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <span className="text-gray-400">👤</span>
+                  {task.joinName}
+                </span>
+              )}
+              {task.joinEmail && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <span className="text-gray-400">✉</span>
+                  {task.joinEmail}
+                </span>
+              )}
+              {task.joinPhone && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <span className="text-gray-400">📞</span>
+                  {task.joinPhone}
+                </span>
+              )}
+            </div>
+          )}
 
           {task.urlCheckStatus === 'warning' && task.urlCheckMessage && (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded p-2 mt-2">
@@ -640,7 +758,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
               <div className="space-y-2">
                 <Label htmlFor="edit-password">
-                  Пароль {editingTask.status === 'failed' ? '(оставьте пустым, если не изменился)' : '(опционально)'}
+                  Пароль трансляции {editingTask.status === 'failed' ? '(оставьте пустым, если не изменился)' : '(опционально)'}
                 </Label>
                 <Input
                   id="edit-password"
@@ -650,6 +768,44 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                   onChange={(e) => setEditFormData({ ...editFormData, streamPassword: e.target.value })}
                   disabled={isUpdating || editSuccess}
                 />
+              </div>
+
+              <div className="border-t pt-3">
+                <p className="text-xs text-gray-500 mb-3">Данные для входа в вебинарную комнату (автологин)</p>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-join-name">Имя участника</Label>
+                    <Input
+                      id="edit-join-name"
+                      placeholder="Например: Иван Петров"
+                      value={editFormData.joinName}
+                      onChange={(e) => setEditFormData({ ...editFormData, joinName: e.target.value })}
+                      disabled={isUpdating || editSuccess}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-join-email">Email участника <span className="text-gray-400 font-normal">(опционально)</span></Label>
+                    <Input
+                      id="edit-join-email"
+                      type="email"
+                      placeholder="example@mail.ru"
+                      value={editFormData.joinEmail}
+                      onChange={(e) => setEditFormData({ ...editFormData, joinEmail: e.target.value })}
+                      disabled={isUpdating || editSuccess}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-join-phone">Телефон участника <span className="text-gray-400 font-normal">(опционально)</span></Label>
+                    <Input
+                      id="edit-join-phone"
+                      type="tel"
+                      placeholder="+79001234567"
+                      value={editFormData.joinPhone}
+                      onChange={(e) => setEditFormData({ ...editFormData, joinPhone: e.target.value })}
+                      disabled={isUpdating || editSuccess}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">

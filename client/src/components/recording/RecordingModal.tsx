@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ interface RecordingModalProps {
   onClose: () => void;
   onSubmit: (data: RecordingData) => void;
   isLoading?: boolean;
+  error?: string | null;
 }
 
 export interface RecordingData {
@@ -31,22 +32,35 @@ export interface RecordingData {
   description?: string;
   streamUrl: string;
   streamPassword?: string;
+  joinName?: string;
+  joinEmail?: string;
+  joinPhone?: string;
   scheduledTime: string;
   duration?: number;
   saveTarget: 'yandex_disk' | 'library' | 'beget';
 }
 
-export function RecordingModal({ open, onClose, onSubmit, isLoading }: RecordingModalProps) {
+export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: RecordingModalProps) {
   const [formData, setFormData] = useState<RecordingData>({
     title: '',
     description: '',
     streamUrl: '',
     streamPassword: '',
+    joinName: '',
+    joinEmail: '',
+    joinPhone: '',
     scheduledTime: '',
     duration: 60,
     saveTarget: 'beget',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!open) {
+      setFormData({ title: '', description: '', streamUrl: '', streamPassword: '', joinName: '', joinEmail: '', joinPhone: '', scheduledTime: '', duration: 60, saveTarget: 'beget' });
+      setErrors({});
+    }
+  }, [open]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -84,18 +98,14 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
 
   const handleSubmit = () => {
     if (validateForm()) {
-      onSubmit(formData);
-      setFormData({
-        title: '',
-        description: '',
-        streamUrl: '',
-        streamPassword: '',
-        scheduledTime: '',
-        duration: 60,
-        saveTarget: 'beget',
+      onSubmit({
+        ...formData,
+        joinName: formData.joinName?.trim() || undefined,
+        joinEmail: formData.joinEmail?.trim() || undefined,
+        joinPhone: formData.joinPhone?.trim() || undefined,
+        streamPassword: formData.streamPassword?.trim() || undefined,
+        description: formData.description?.trim() || undefined,
       });
-      setErrors({});
-      onClose();
     }
   };
 
@@ -143,7 +153,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
               placeholder="Описание трансляции..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="min-h-[100px]"
+              className="min-h-[60px]"
             />
           </div>
 
@@ -179,6 +189,45 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
               value={formData.streamPassword}
               onChange={(e) => setFormData({ ...formData, streamPassword: e.target.value })}
             />
+          </div>
+
+          {/* Данные для входа в вебинар */}
+          <div className="border border-gray-200 rounded-lg p-3 space-y-3 bg-gray-50">
+            <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+              Данные для регистрации на вебинар (Bizon365 и др.)
+            </p>
+
+            <div className="space-y-2">
+              <Label htmlFor="joinName">Имя участника</Label>
+              <Input
+                id="joinName"
+                placeholder="Александр"
+                value={formData.joinName}
+                onChange={(e) => setFormData({ ...formData, joinName: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="joinEmail">Email участника</Label>
+              <Input
+                id="joinEmail"
+                type="email"
+                placeholder="example@mail.ru"
+                value={formData.joinEmail}
+                onChange={(e) => setFormData({ ...formData, joinEmail: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="joinPhone">Телефон участника</Label>
+              <Input
+                id="joinPhone"
+                type="tel"
+                placeholder="+79001234567"
+                value={formData.joinPhone}
+                onChange={(e) => setFormData({ ...formData, joinPhone: e.target.value })}
+              />
+            </div>
           </div>
 
           {/* Время трансляции */}
@@ -248,6 +297,14 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading }: Recording
               {formData.saveTarget === 'yandex_disk' && ' Файлы будут загружены на ваш Яндекс.Диск.'}
             </p>
           </div>
+
+          {/* Ошибка от сервера */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

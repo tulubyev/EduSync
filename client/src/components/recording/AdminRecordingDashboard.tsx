@@ -44,19 +44,6 @@ interface WorkerStatusData {
   timestamp: string;
 }
 
-interface RecentLog {
-  id: string;
-  taskId: string;
-  taskTitle: string | null;
-  userId: string;
-  eventType: string;
-  partNumber: number | null;
-  message: string;
-  errorDetails: string | null;
-  fileSize: number | null;
-  duration: number | null;
-  createdAt: string;
-}
 
 interface TaskLog {
   id: string;
@@ -100,8 +87,18 @@ interface AdminTask {
   attemptCount?: number | null;
   currentPart?: number | null;
   totalParts?: number | null;
+  maxPartDuration?: number | null;
   s3Prefix?: string | null;
   s3Filename?: string | null;
+  parts?: Array<{
+    partNumber: number;
+    fileName: string;
+    startTime: string;
+    duration?: number;
+    status: string;
+    publicUrl?: string;
+    error?: string;
+  }> | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -127,9 +124,33 @@ interface HealthService {
   bucket?: string;
 }
 
+interface WorkerBrowserStatus {
+  workerId: string;
+  status: 'recording' | 'idle' | 'not_launched' | 'executor_stopped' | 'error';
+  browserAlive: boolean;
+  isRecording: boolean;
+  frameCount: number;
+  elapsedMs: number | null;
+  currentUrl: string | null;
+  taskId: string | null;
+}
+
+interface PlaywrightHealth {
+  status: 'recording' | 'idle' | 'not_launched' | 'executor_stopped' | 'error';
+  browserAlive: boolean;
+  pageAlive: boolean;
+  isRecording: boolean;
+  frameCount: number;
+  elapsedMs: number | null;
+  currentUrl: string | null;
+  taskId: string | null;
+  error?: string;
+  workers?: WorkerBrowserStatus[];
+}
+
 interface HealthData {
   timestamp: string;
-  services: { database?: HealthService; s3?: HealthService };
+  services: { database?: HealthService; s3?: HealthService; playwright?: PlaywrightHealth };
 }
 
 interface StatEntry { status: string; count: number; }
@@ -206,11 +227,21 @@ const S = {
     color: active ? '#fff' : '#94a3b8',
     cursor: 'pointer', transition: 'all .15s',
   }),
-  actionBtn: (variant: 'reset' | 'cancel' | 'delete'): React.CSSProperties => ({
-    fontSize: 11, padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', transition: 'opacity .15s',
-    background: variant === 'reset' ? '#1d3461' : variant === 'cancel' ? '#3b0d0d' : '#1e2535',
-    color: variant === 'reset' ? '#60a5fa' : variant === 'cancel' ? '#f87171' : '#64748b',
-  }),
+  actionBtn: (variant: 'history' | 'retry' | 'cancel' | 'delete'): React.CSSProperties => {
+    const map: Record<string, { bg: string; color: string; border: string }> = {
+      history: { bg: '#1e3a5f', color: '#93c5fd', border: '1px solid #2563eb' },
+      retry:   { bg: '#064e3b', color: '#6ee7b7', border: '1px solid #059669' },
+      cancel:  { bg: '#431407', color: '#fdba74', border: '1px solid #ea580c' },
+      delete:  { bg: '#450a0a', color: '#fca5a5', border: '1px solid #dc2626' },
+    };
+    const v = map[variant] || map.history;
+    return {
+      fontSize: 13, padding: '4px 9px', borderRadius: 7, border: v.border,
+      cursor: 'pointer', transition: 'opacity .15s, filter .15s',
+      background: v.bg, color: v.color, fontWeight: 600,
+      display: 'inline-flex', alignItems: 'center', gap: 4, lineHeight: 1,
+    };
+  },
   refreshBtn: (spinning: boolean): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500,
     padding: '6px 14px', borderRadius: 8, border: '1px solid #3b82f6',
@@ -230,8 +261,7 @@ export function AdminRecordingDashboard() {
   const [taskLimit, setTaskLimit]     = useState(100);
   const [stats, setStats]             = useState<Record<string, number>>({});
   const [health, setHealth]           = useState<HealthData | null>(null);
-  const [s3Data, setS3Data]           = useState<S3Data>({ prefix: '', folders: [], files: [], configured: true });
-  const [s3Prefix, setS3Prefix]       = useState('');
+  const [s3RefreshKey, setS3RefreshKey] = useState(0);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate]   = useState('');
@@ -243,8 +273,15 @@ export function AdminRecordingDashboard() {
   const [saveMessage, setSaveMessage] = useState('');
 
   const [workerStatus, setWorkerStatus]     = useState<WorkerStatusData | null>(null);
-  const [recentLogs, setRecentLogs]         = useState<RecentLog[]>([]);
-  const [logFilterTaskId, setLogFilterTaskId] = useState<string>('');
+  const [executorRunning, setExecutorRunning] = useState<boolean | null>(null);
+  const [executorAction, setExecutorAction]   = useState<'start' | 'stop' | 'scale-up' | null>(null);
+  const [executorWorkerCount, setExecutorWorkerCount] = useState<number>(0);
+  const [executorMaxWorkers, setExecutorMaxWorkers]   = useState<number>(1);
+  const [scalingWorkerId, setScalingWorkerId] = useState<string | null>(null);
+  const [executorMode, setExecutorMode]       = useState<'replit' | 'vps'>('replit');
+  const [vpsWorkers, setVpsWorkers]           = useState<WorkerEntry[]>([]);
+  const [modeLoading, setModeLoading]         = useState(false);
+  const [errorDetail, setErrorDetail] = useState<{ taskId: string; taskTitle: string; message: string } | null>(null);
   const [historyTaskId, setHistoryTaskId]   = useState<string | null>(null);
   const [historyTaskTitle, setHistoryTaskTitle] = useState('');
   const [historyLogs, setHistoryLogs]       = useState<TaskLog[]>([]);
@@ -294,37 +331,126 @@ export function AdminRecordingDashboard() {
     }
   }, [filterStatus, taskLimit]);
 
-  const fetchS3Files = useCallback(async (prefix?: string) => {
-    const p = prefix ?? s3Prefix;
-    const r = await fetch(`/api/recording/admin/s3-files?prefix=${encodeURIComponent(p)}`, { headers: authHdr() });
-    if (r.ok) {
-      const d = await r.json();
-      setS3Data({
-        prefix: d.prefix ?? p,
-        folders: d.folders || [],
-        files: d.files || [],
-        configured: d.configured !== false,
-        message: d.message,
-      });
-    }
-  }, [s3Prefix]);
-
-  const navigateS3 = useCallback((newPrefix: string) => {
-    setS3Prefix(newPrefix);
-    fetchS3Files(newPrefix);
-  }, [fetchS3Files]);
-
   const fetchWorkerStatus = useCallback(async () => {
     const r = await fetch('/api/recording/monitor/worker-status', { headers: authHdr() });
     if (r.ok) setWorkerStatus(await r.json());
   }, []);
 
-  const fetchRecentLogs = useCallback(async (taskIdFilter?: string) => {
-    const tid = taskIdFilter !== undefined ? taskIdFilter : logFilterTaskId;
-    const qs = tid ? `?limit=20&taskId=${encodeURIComponent(tid)}` : '?limit=20';
-    const r = await fetch(`/api/recording/monitor/recent-logs${qs}`, { headers: authHdr() });
-    if (r.ok) { const d = await r.json(); setRecentLogs(d.logs || []); }
-  }, [logFilterTaskId]);
+  const fetchExecutorStatus = useCallback(async () => {
+    const r = await fetch('/api/recording/admin/executor/status', { headers: authHdr() });
+    if (r.ok) {
+      const d = await r.json();
+      setExecutorRunning(d.executor?.isRunning ?? null);
+      setExecutorWorkerCount(d.executor?.workerCount ?? 0);
+      setExecutorMaxWorkers(d.executor?.maxWorkers ?? 1);
+    }
+  }, []);
+
+  const fetchExecutorMode = useCallback(async () => {
+    const r = await fetch('/api/recording/admin/executor/mode', { headers: authHdr() });
+    if (r.ok) {
+      const d = await r.json();
+      setExecutorMode(d.mode ?? 'replit');
+      setVpsWorkers(d.vpsWorkers ?? []);
+      if (d.executor) {
+        setExecutorRunning(d.executor.isRunning ?? null);
+        setExecutorWorkerCount(d.executor.workerCount ?? 0);
+        setExecutorMaxWorkers(d.executor.maxWorkers ?? 1);
+      }
+    }
+  }, []);
+
+  const handleSetMode = async (newMode: 'replit' | 'vps') => {
+    if (newMode === executorMode) return;
+    const inProgress = (stats['in_progress'] ?? 0) + (stats['uploading'] ?? 0);
+    const doSwitch = async () => {
+      setModeLoading(true);
+      try {
+        const r = await fetch('/api/recording/admin/executor/mode', {
+          method: 'POST', headers: jsonHdr(), body: JSON.stringify({ mode: newMode }),
+        });
+        const d = await r.json();
+        if (!d.success) {
+          showConfirm({
+            title: 'Ошибка переключения режима',
+            message: d.message || 'Неизвестная ошибка при переключении режима исполнителя.',
+            confirmLabel: 'OK',
+            onConfirm: closeConfirm,
+          });
+          return;
+        }
+        if (d.mode) setExecutorMode(d.mode);
+        if (d.executor) {
+          setExecutorRunning(d.executor.isRunning ?? null);
+          setExecutorWorkerCount(d.executor.workerCount ?? 0);
+        }
+        await fetchExecutorMode();
+      } catch (e) {
+        showConfirm({
+          title: 'Ошибка сети',
+          message: 'Не удалось подключиться к серверу при переключении режима.',
+          confirmLabel: 'OK',
+          onConfirm: closeConfirm,
+        });
+      } finally { setModeLoading(false); }
+    };
+
+    if (newMode === 'vps' && inProgress > 0) {
+      showConfirm({
+        title: 'Переключить в VPS-режим?',
+        message: `Есть ${inProgress} активных задач. Встроенный воркер будет остановлен. Их продолжит внешний VPS-воркер (если подключён).`,
+        confirmLabel: 'Переключить',
+        onConfirm: async () => { closeConfirm(); await doSwitch(); },
+      });
+    } else {
+      await doSwitch();
+    }
+  };
+
+  const handleStartExecutor = async () => {
+    setExecutorAction('start');
+    try {
+      const r = await fetch('/api/recording/admin/executor/start', { method: 'POST', headers: jsonHdr() });
+      const d = await r.json();
+      setExecutorRunning(d.executor?.isRunning ?? true);
+      setExecutorWorkerCount(d.executor?.workerCount ?? 1);
+      setExecutorMaxWorkers(d.executor?.maxWorkers ?? 1);
+    } finally { setExecutorAction(null); }
+  };
+
+  const handleStopExecutor = async () => {
+    setExecutorAction('stop');
+    try {
+      const r = await fetch('/api/recording/admin/executor/stop', { method: 'POST', headers: jsonHdr() });
+      const d = await r.json();
+      setExecutorRunning(d.executor?.isRunning ?? false);
+      setExecutorWorkerCount(0);
+    } finally { setExecutorAction(null); }
+  };
+
+  const handleScaleUp = async () => {
+    setExecutorAction('scale-up');
+    try {
+      const r = await fetch('/api/recording/admin/executor/scale-up', { method: 'POST', headers: jsonHdr() });
+      const d = await r.json();
+      setExecutorRunning(d.executor?.isRunning ?? true);
+      setExecutorWorkerCount(d.executor?.workerCount ?? executorWorkerCount + 1);
+      setExecutorMaxWorkers(d.executor?.maxWorkers ?? executorMaxWorkers);
+    } finally { setExecutorAction(null); }
+  };
+
+  const handleStopWorker = async (workerId: string) => {
+    setScalingWorkerId(workerId);
+    try {
+      const r = await fetch(`/api/recording/admin/executor/worker/${encodeURIComponent(workerId)}/stop`, {
+        method: 'POST', headers: jsonHdr(),
+      });
+      const d = await r.json();
+      setExecutorRunning(d.executor?.isRunning ?? false);
+      setExecutorWorkerCount(d.executor?.workerCount ?? 0);
+    } finally { setScalingWorkerId(null); }
+  };
+
 
   const openHistory = async (taskId: string, taskTitle: string) => {
     setHistoryTaskId(taskId);
@@ -352,21 +478,17 @@ export function AdminRecordingDashboard() {
 
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchS3Files(), fetchWorkerStatus(), fetchRecentLogs()]);
+    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchWorkerStatus(), fetchExecutorStatus(), fetchExecutorMode()]);
+    setS3RefreshKey(k => k + 1);
     setLastUpdate(new Date().toLocaleTimeString('ru-RU'));
     setIsRefreshing(false);
-  }, [fetchStats, fetchHealth, fetchTasks, fetchS3Files, fetchWorkerStatus, fetchRecentLogs]);
+  }, [fetchStats, fetchHealth, fetchTasks, fetchWorkerStatus, fetchExecutorStatus, fetchExecutorMode]);
 
   useEffect(() => {
     refreshAll();
     const iv = setInterval(refreshAll, 15000);
     return () => clearInterval(iv);
   }, [refreshAll]);
-
-  useEffect(() => {
-    const iv = setInterval(() => fetchRecentLogs(), 30000);
-    return () => clearInterval(iv);
-  }, [fetchRecentLogs]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
@@ -456,10 +578,86 @@ export function AdminRecordingDashboard() {
         <span style={{ fontSize: 12, color: '#64748b' }}>
           {lastUpdate ? `Обновлено: ${lastUpdate}` : 'Загрузка...'}
         </span>
-        <button style={S.refreshBtn(isRefreshing)} onClick={refreshAll} disabled={isRefreshing}>
-          <span style={{ display: 'inline-block', animation: isRefreshing ? 'spin .6s linear infinite' : 'none' }}>↻</span>
-          Обновить
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* ── Executor Start/Stop + Scale Up (Replit mode only) ── */}
+          {executorMode === 'vps' && (
+            <span style={{
+              fontSize: 11, padding: '4px 12px', borderRadius: 8,
+              background: '#1e3a5f', color: '#60a5fa',
+              border: '1px solid #2563eb', fontWeight: 600,
+            }}>
+              🖥 VPS-режим — внешний воркер
+            </span>
+          )}
+          {executorMode === 'replit' && executorRunning !== false ? (
+            <>
+              {executorWorkerCount < executorMaxWorkers && (
+                <button
+                  onClick={handleScaleUp}
+                  disabled={!!executorAction}
+                  title={`Добавить воркер (${executorWorkerCount}/${executorMaxWorkers})`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '9px 16px', borderRadius: 24, border: '1px solid #1d4ed8',
+                    background: executorAction ? '#0d1b3e' : '#1e3a8a',
+                    color: executorAction ? '#9ca3af' : '#93c5fd',
+                    fontSize: 13, fontWeight: 700, cursor: executorAction ? 'not-allowed' : 'pointer',
+                    transition: 'all .2s',
+                  }}
+                >
+                  {executorAction === 'scale-up' ? '⏳' : '＋'} Воркер
+                  <span style={{ fontSize: 10, opacity: .7 }}>{executorWorkerCount}/{executorMaxWorkers}</span>
+                </button>
+              )}
+              <button
+                onClick={handleStopExecutor}
+                disabled={!!executorAction}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '9px 22px', borderRadius: 24, border: '1px solid #7f1d1d',
+                  background: executorAction ? '#2d1515' : '#3b0d0d',
+                  color: executorAction ? '#9ca3af' : '#fca5a5',
+                  fontSize: 13, fontWeight: 700, cursor: executorAction ? 'not-allowed' : 'pointer',
+                  transition: 'all .2s', letterSpacing: '.3px',
+                  boxShadow: executorAction ? 'none' : '0 0 12px rgba(239,68,68,.15)',
+                }}
+              >
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                  background: executorAction ? '#6b7280' : '#ef4444',
+                  animation: executorAction ? 'none' : 'pulse 1.4s ease-in-out infinite',
+                }} />
+                {executorAction === 'stop' ? 'Останавливаю...' : `⏹ Стоп (${executorWorkerCount} воркер${executorWorkerCount === 1 ? '' : 'ов'})`}
+              </button>
+            </>
+          ) : executorMode === 'replit' ? (
+            <button
+              onClick={handleStartExecutor}
+              disabled={!!executorAction}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '9px 22px', borderRadius: 24, border: '1px solid #166534',
+                background: executorAction ? '#0a1a10' : '#052e16',
+                color: executorAction ? '#9ca3af' : '#4ade80',
+                fontSize: 13, fontWeight: 700, cursor: executorAction ? 'not-allowed' : 'pointer',
+                transition: 'all .2s', letterSpacing: '.3px',
+                boxShadow: executorAction ? 'none' : '0 0 12px rgba(34,197,94,.15)',
+              }}
+            >
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                background: executorAction ? '#6b7280' : '#22c55e',
+              }} />
+              {executorAction === 'start' ? 'Запускаю...' : '▶ Запустить воркер'}
+            </button>
+          ) : null}
+
+          {/* ── Refresh ── */}
+          <button style={S.refreshBtn(isRefreshing)} onClick={refreshAll} disabled={isRefreshing}>
+            <span style={{ display: 'inline-block', animation: isRefreshing ? 'spin .6s linear infinite' : 'none' }}>↻</span>
+            Обновить
+          </button>
+        </div>
       </div>
 
       {/* ── Stats grid ─────────────────────────────────────────── */}
@@ -502,26 +700,60 @@ export function AdminRecordingDashboard() {
       <div style={{ ...S.card, marginBottom: 16 }}>
         <div style={S.cardHead}>
           <span style={S.h2}>Состояние сервисов</span>
-          <button
-            onClick={handleSyncCheck}
-            disabled={syncCheckLoading}
-            style={{
-              fontSize: 11, padding: '3px 12px', borderRadius: 6, border: '1px solid #2d3748',
-              background: '#1a1f2e', color: '#94a3b8', cursor: syncCheckLoading ? 'default' : 'pointer',
-              opacity: syncCheckLoading ? .6 : 1,
-            }}
-          >
-            {syncCheckLoading ? '⏳ Проверка...' : '🔍 Проверить статус'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* ── Mode switcher ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', borderRadius: 8,
+              border: '1px solid #2d3748', overflow: 'hidden', opacity: modeLoading ? .6 : 1,
+            }}>
+              {(['replit', 'vps'] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => handleSetMode(m)}
+                  disabled={modeLoading}
+                  style={{
+                    fontSize: 11, fontWeight: 600, padding: '4px 14px',
+                    background: executorMode === m ? (m === 'vps' ? '#1e3a5f' : '#052e16') : '#0f1117',
+                    color: executorMode === m ? (m === 'vps' ? '#60a5fa' : '#4ade80') : '#64748b',
+                    border: 'none', cursor: modeLoading ? 'not-allowed' : 'pointer',
+                    transition: 'all .15s',
+                    borderLeft: m === 'vps' ? '1px solid #2d3748' : 'none',
+                  }}
+                  title={m === 'replit' ? 'Встроенный воркер (Playwright)' : 'Внешний VPS-воркер'}
+                >
+                  {m === 'replit' ? '☁ Replit' : '🖥 VPS'}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleSyncCheck}
+              disabled={syncCheckLoading}
+              style={{
+                fontSize: 11, padding: '3px 12px', borderRadius: 6, border: '1px solid #2d3748',
+                background: '#1a1f2e', color: '#94a3b8', cursor: syncCheckLoading ? 'default' : 'pointer',
+                opacity: syncCheckLoading ? .6 : 1,
+              }}
+            >
+              {syncCheckLoading ? '⏳ Проверка...' : '🔍 Проверить'}
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, padding: '14px 18px' }}>
+        {/* DB + S3 row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: '14px 18px 0' }}>
           <HealthRow label="PostgreSQL" service={db} />
           <HealthRow label="Beget S3" service={s3} />
-          <WorkerCell
-            worker={workerStatus?.workers[0] ?? null}
-            loading={!workerStatus}
-          />
         </div>
+        {/* Workers row — depends on mode */}
+        {executorMode === 'vps' ? (
+          <VpsWorkerGrid workers={vpsWorkers} />
+        ) : (
+          <WorkerPoolGrid
+            playwright={health?.services?.playwright}
+            workerStatus={workerStatus}
+            onStopWorker={handleStopWorker}
+            stoppingWorkerId={scalingWorkerId}
+          />
+        )}
         {syncCheckResult && (
           <div style={{
             margin: '0 18px 14px', padding: '8px 12px', borderRadius: 8,
@@ -541,78 +773,6 @@ export function AdminRecordingDashboard() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* ── Recent Logs ─────────────────────────────────────────── */}
-      <div style={{ ...S.card, marginBottom: 16 }}>
-        <div style={S.cardHead}>
-          <span style={S.h2}>
-            Последние события
-            <span style={{ color: '#64748b', fontWeight: 400, marginLeft: 8 }}>({recentLogs.length})</span>
-          </span>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              value={logFilterTaskId}
-              onChange={e => { setLogFilterTaskId(e.target.value); }}
-              onBlur={() => fetchRecentLogs()}
-              onKeyDown={e => { if (e.key === 'Enter') fetchRecentLogs(); }}
-              placeholder="Фильтр по Task ID..."
-              style={{
-                background: '#0f1117', border: '1px solid #2d3748', borderRadius: 6,
-                color: '#e2e8f0', fontSize: 11, padding: '4px 10px', outline: 'none', width: 200,
-              }}
-            />
-            {logFilterTaskId && (
-              <button style={S.clearBtn} onClick={() => { setLogFilterTaskId(''); fetchRecentLogs(''); }}>✕</button>
-            )}
-            <button style={{ ...S.clearBtn, fontSize: 11 }} onClick={() => fetchRecentLogs()}>↺ Обновить</button>
-          </div>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr>
-                {['Время', 'Задача', 'Тип события', 'Сообщение', 'Детали'].map(h => (
-                  <th key={h} style={S.th as React.CSSProperties}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {recentLogs.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 12 }}>Нет событий</td></tr>
-              ) : recentLogs.map(log => (
-                <tr key={log.id}
-                  onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'rgba(59,130,246,.04)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'; }}
-                >
-                  <td style={{ ...S.tdMuted, whiteSpace: 'nowrap' }}>{fmtDateFull(log.createdAt)}</td>
-                  <td style={{ ...S.td, maxWidth: 160 }}>
-                    <button
-                      onClick={() => openHistory(log.taskId, log.taskTitle || log.taskId.slice(0, 8))}
-                      title={log.taskId}
-                      style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', padding: 0, fontSize: 12, textAlign: 'left' }}
-                    >
-                      <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>
-                        {log.taskTitle || log.taskId.slice(0, 14) + '…'}
-                      </span>
-                    </button>
-                  </td>
-                  <td style={S.td}>
-                    <EventTypeBadge eventType={log.eventType} />
-                  </td>
-                  <td style={{ ...S.td, maxWidth: 220 }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }} title={log.message}>{log.message}</span>
-                  </td>
-                  <td style={{ ...S.tdMuted, fontSize: 11 }}>
-                    {log.errorDetails ? (
-                      <span style={{ color: '#f87171' }} title={log.errorDetails}>{log.errorDetails.slice(0, 60)}…</span>
-                    ) : log.fileSize ? fmtSize(log.fileSize) : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
 
       {/* ── Tasks table ────────────────────────────────────────── */}
@@ -660,6 +820,7 @@ export function AdminRecordingDashboard() {
                   onCancel={handleCancel}
                   onDelete={handleDelete}
                   onHistory={(id, title) => openHistory(id, title)}
+                  onErrorClick={(taskId, taskTitle, msg) => setErrorDetail({ taskId, taskTitle, message: msg })}
                 />
               ))}
             </tbody>
@@ -677,64 +838,16 @@ export function AdminRecordingDashboard() {
       <div style={S.card}>
         <div style={S.cardHead}>
           <span style={S.h2}>Файлы в S3</span>
-          <button
-            style={{ ...S.clearBtn, fontSize: 12 }}
-            onClick={() => navigateS3('')}
-          >
-            ↺ Корень
-          </button>
         </div>
         <div style={{ padding: '8px 18px 16px' }}>
-          {!s3Data.configured ? (
-            <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>{s3Data.message || 'S3 не настроен'}</div>
-          ) : (
-            <>
-              {/* Breadcrumbs */}
-              <S3Breadcrumbs prefix={s3Data.prefix} onNavigate={navigateS3} />
-
-              {/* Folders */}
-              {s3Data.folders.map(folder => {
-                const label = folder.replace(s3Data.prefix, '').replace(/\/$/, '') || folder;
-                return (
-                  <div
-                    key={folder}
-                    onClick={() => navigateS3(folder)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #1e2535', cursor: 'pointer' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(59,130,246,.04)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-                  >
-                    <span style={{ fontSize: 14 }}>📁</span>
-                    <span style={{ color: '#60a5fa', fontSize: 13, fontFamily: 'monospace' }}>{label}/</span>
-                  </div>
-                );
-              })}
-
-              {/* Files */}
-              {s3Data.files.map(f => {
-                const name = f.key.split('/').pop() || f.key;
-                return (
-                  <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #1e2535' }}>
-                    <span style={{ fontSize: 14 }}>🎬</span>
-                    <span style={{ color: '#94a3b8', fontSize: 12, fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.key}>{name}</span>
-                    <span style={{ color: '#64748b', fontSize: 11, flexShrink: 0 }}>{fmtSize(f.size)}</span>
-                    {f.lastModified && (
-                      <span style={{ color: '#475569', fontSize: 11, flexShrink: 0 }}>{fmtDate(f.lastModified)}</span>
-                    )}
-                    <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 12, flexShrink: 0, textDecoration: 'none' }}>▶</a>
-                  </div>
-                );
-              })}
-
-              {s3Data.folders.length === 0 && s3Data.files.length === 0 && (
-                <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Папка пуста</div>
-              )}
-            </>
-          )}
+          <S3TreeBrowser refreshKey={s3RefreshKey} />
         </div>
       </div>
 
-      {/* spin keyframe */}
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+      `}</style>
 
       {/* ── Edit Modal ─────────────────────────────────────────── */}
       <Dialog open={!!editTask} onOpenChange={open => { if (!open) setEditTask(null); }}>
@@ -965,6 +1078,42 @@ export function AdminRecordingDashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Error Detail Modal ──────────────────────────────────── */}
+      <Dialog open={!!errorDetail} onOpenChange={open => { if (!open) setErrorDetail(null); }}>
+        <DialogContent style={{ background: '#1a1f2e', border: '1px solid #7f1d1d', maxWidth: 560 }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: '#fca5a5', fontSize: 15 }}>⚠ Ошибка задачи</DialogTitle>
+            <p style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontFamily: 'monospace' }}>
+              {errorDetail?.taskTitle}
+            </p>
+          </DialogHeader>
+          <div style={{
+            background: '#0f1117', borderRadius: 8, padding: 14, margin: '4px 0 12px',
+            fontFamily: 'monospace', fontSize: 12, color: '#f87171',
+            whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto',
+            border: '1px solid #450a0a',
+          }}>
+            {errorDetail?.message || '—'}
+          </div>
+          <DialogFooter style={{ gap: 10, paddingTop: 4 }}>
+            <button
+              style={{ background: '#1e3a5f', color: '#93c5fd', border: '1px solid #2563eb', padding: '7px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
+              onClick={() => {
+                if (errorDetail) { openHistory(errorDetail.taskId, errorDetail.taskTitle); setErrorDetail(null); }
+              }}
+            >
+              📋 Открыть полный лог
+            </button>
+            <button
+              style={{ background: '#1e2535', color: '#94a3b8', border: 'none', padding: '7px 18px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}
+              onClick={() => setErrorDetail(null)}
+            >
+              Закрыть
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {clearResult && (
         <div style={{ position: 'fixed', bottom: 24, right: 24, background: '#052e16', border: '1px solid #166534', borderRadius: 8, padding: '10px 18px', color: '#4ade80', fontSize: 13, zIndex: 9999, cursor: 'pointer' }}
           onClick={() => setClearResult(null)}
@@ -977,54 +1126,302 @@ export function AdminRecordingDashboard() {
 }
 
 /* ─── sub-components ────────────────────────────────────────── */
-function S3Breadcrumbs({ prefix, onNavigate }: { prefix: string; onNavigate: (p: string) => void }) {
-  const parts = prefix.replace(/\/$/, '').split('/').filter(Boolean);
-  const crumbs: { label: string; path: string }[] = [];
-  parts.forEach((part, i) => {
-    crumbs.push({ label: part, path: parts.slice(0, i + 1).join('/') + '/' });
-  });
+// ── S3 Tree Browser ────────────────────────────────────────────────────────
 
-  const parentPrefix = (): string => {
-    const trimmed = prefix.replace(/\/$/, '');
-    const up = trimmed.split('/').slice(0, -1).join('/');
-    return up ? up + '/' : '';
+interface S3NodeData {
+  folders: string[];
+  files: S3File[];
+  isExpanded: boolean;
+  isLoading: boolean;
+  isLoaded: boolean;
+}
+
+const S3_ROOT = 'myepa/';
+
+function S3TreeBrowser({ refreshKey }: { refreshKey: number }) {
+  const [nodes, setNodes] = React.useState<Record<string, S3NodeData>>({});
+  const nodesRef = React.useRef<Record<string, S3NodeData>>({});
+  nodesRef.current = nodes;
+
+  // Token is read inline on each fetch — no closure dependency, no re-renders from auth changes
+  const loadNode = React.useCallback(async (path: string, expandOverride?: boolean) => {
+    const tok = localStorage.getItem('accessToken');
+    const hdrs = { 'Authorization': `Bearer ${tok}` };
+    const currentExpand = expandOverride !== undefined ? expandOverride : (nodesRef.current[path]?.isExpanded ?? true);
+
+    setNodes(prev => ({
+      ...prev,
+      [path]: { ...(prev[path] ?? { folders: [], files: [], isLoaded: false }), isExpanded: currentExpand, isLoading: true },
+    }));
+
+    try {
+      const r = await fetch(`/api/recording/admin/s3-files?prefix=${encodeURIComponent(path)}`, { headers: hdrs });
+      const expand = nodesRef.current[path]?.isExpanded ?? currentExpand;
+      if (r.ok) {
+        const d = await r.json();
+        setNodes(prev => ({
+          ...prev,
+          [path]: { folders: d.folders || [], files: d.files || [], isExpanded: expand, isLoading: false, isLoaded: true },
+        }));
+      } else {
+        setNodes(prev => ({ ...prev, [path]: { ...(prev[path] ?? { folders: [], files: [] }), isLoading: false, isLoaded: true } }));
+      }
+    } catch {
+      setNodes(prev => ({ ...prev, [path]: { ...(prev[path] ?? { folders: [], files: [] }), isLoading: false, isLoaded: true } }));
+    }
+  }, []); // ← no external deps: token and nodes are read via ref/localStorage each time
+
+  const isFirstRender = React.useRef(true);
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      loadNode(S3_ROOT, true);
+      return;
+    }
+    // On periodic refresh: reload only already-loaded paths, preserving expand state
+    const current = nodesRef.current;
+    const loaded = Object.keys(current).filter(p => current[p].isLoaded);
+    (loaded.length > 0 ? loaded : [S3_ROOT]).forEach(p => loadNode(p));
+  }, [refreshKey]); // ← only refreshKey triggers this, NOT loadNode
+
+  const toggle = (path: string) => {
+    const node = nodesRef.current[path];
+    if (!node || !node.isLoaded) {
+      loadNode(path, true);
+    } else if (!node.isLoading) {
+      setNodes(prev => ({ ...prev, [path]: { ...prev[path], isExpanded: !prev[path].isExpanded } }));
+    }
   };
 
+  const renderLevel = (path: string, depth: number): React.ReactNode => {
+    const node = nodes[path];
+    if (!node || !node.isLoaded) return null;
+    const pl = depth * 20 + 4;
+
+    return (
+      <div>
+        {node.folders.map(folder => {
+          const label = folder.replace(path, '').replace(/\/$/, '');
+          const child = nodes[folder];
+          const expanded = child?.isExpanded ?? false;
+          const loading  = child?.isLoading  ?? false;
+          return (
+            <div key={folder}>
+              <div
+                onClick={() => toggle(folder)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  paddingTop: 7, paddingBottom: 7, paddingLeft: pl,
+                  borderBottom: '1px solid #1e2535',
+                  cursor: loading ? 'default' : 'pointer',
+                  userSelect: 'none',
+                }}
+                onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLDivElement).style.background = 'rgba(59,130,246,.05)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+              >
+                <span style={{ fontSize: 13, width: 18, textAlign: 'center', flexShrink: 0 }}>
+                  {loading ? '⏳' : expanded ? '📂' : '📁'}
+                </span>
+                <span style={{ color: '#60a5fa', fontSize: 13, fontFamily: 'monospace', flex: 1 }}>{label}/</span>
+                <span style={{ color: '#475569', fontSize: 11, marginRight: 6 }}>
+                  {!loading && (expanded ? '▼' : '▶')}
+                </span>
+              </div>
+              {expanded && !loading && renderLevel(folder, depth + 1)}
+            </div>
+          );
+        })}
+
+        {node.files.map(f => {
+          const name = f.key.split('/').pop() || f.key;
+          return (
+            <div
+              key={f.key}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                paddingTop: 6, paddingBottom: 6, paddingLeft: pl,
+                borderBottom: '1px solid #1e2535',
+              }}
+            >
+              <span style={{ fontSize: 13, width: 18, textAlign: 'center', flexShrink: 0 }}>🎬</span>
+              <span
+                style={{ color: '#94a3b8', fontSize: 12, fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                title={f.key}
+              >{name}</span>
+              <span style={{ color: '#64748b', fontSize: 11, flexShrink: 0 }}>{fmtSize(f.size)}</span>
+              {f.lastModified && <span style={{ color: '#475569', fontSize: 11, flexShrink: 0 }}>{fmtDate(f.lastModified)}</span>}
+              <a href={f.url} target="_blank" rel="noopener noreferrer"
+                style={{ color: '#3b82f6', fontSize: 12, flexShrink: 0, textDecoration: 'none' }}
+                title="Открыть"
+              >▶</a>
+            </div>
+          );
+        })}
+
+        {node.isLoaded && node.folders.length === 0 && node.files.length === 0 && (
+          <div style={{ paddingLeft: pl, color: '#475569', fontSize: 12, paddingTop: 8, paddingBottom: 8, borderBottom: '1px solid #1e2535' }}>
+            Пусто
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const root = nodes[S3_ROOT];
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0 12px', flexWrap: 'wrap' }}>
-      {/* Root anchor */}
-      <button
-        onClick={() => onNavigate('')}
-        style={{ background: 'none', border: 'none', padding: '2px 4px', cursor: 'pointer', fontSize: 12, color: prefix === '' ? '#e2e8f0' : '#3b82f6' }}
-        title="Корень бакета"
-      >
-        🪣 Bucket
-      </button>
-
-      {/* Path segments */}
-      {crumbs.map((c, i) => (
-        <span key={c.path} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: '#2d3748' }}>›</span>
-          <button
-            onClick={() => onNavigate(c.path)}
-            style={{ background: 'none', border: 'none', padding: '2px 4px', borderRadius: 4, cursor: 'pointer', fontSize: 12, color: i === crumbs.length - 1 ? '#e2e8f0' : '#3b82f6', fontFamily: 'monospace' }}
-          >
-            {c.label}
-          </button>
-        </span>
-      ))}
-
-      {/* Up button (hidden at root) */}
-      {prefix !== '' && (
-        <button
-          onClick={() => onNavigate(parentPrefix())}
-          title="На уровень выше"
-          style={{ background: '#1e2535', border: 'none', padding: '3px 8px', borderRadius: 5, cursor: 'pointer', fontSize: 12, color: '#94a3b8', marginLeft: 4 }}
-        >
-          ⬆ Наверх
-        </button>
-      )}
+    <div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        paddingTop: 8, paddingBottom: 10, borderBottom: '1px solid #2d3748', marginBottom: 2,
+      }}>
+        <span style={{ fontSize: 14 }}>🪣</span>
+        <span style={{ color: '#e2e8f0', fontSize: 13, fontFamily: 'monospace', fontWeight: 600 }}>myepa/</span>
+        {root?.isLoading && <span style={{ color: '#64748b', fontSize: 11, marginLeft: 4 }}>загрузка...</span>}
+      </div>
+      {!root && <div style={{ color: '#64748b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>⏳ Загрузка...</div>}
+      {root?.isLoaded && renderLevel(S3_ROOT, 0)}
     </div>
+  );
+}
+
+function WorkerPoolGrid({
+  playwright,
+  workerStatus,
+  onStopWorker,
+  stoppingWorkerId,
+}: {
+  playwright?: PlaywrightHealth;
+  workerStatus: WorkerStatusData | null;
+  onStopWorker: (workerId: string) => void;
+  stoppingWorkerId: string | null;
+}) {
+  const workers = playwright?.workers ?? [];
+  if (workers.length === 0) {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: '14px 18px' }}>
+        <WorkerCell worker={workerStatus?.workers[0] ?? null} loading={!workerStatus} />
+        <PlaywrightCell playwright={playwright} />
+      </div>
+    );
+  }
+
+  // Multi-worker mode
+  const cols = Math.max(2, Math.min(4, workers.length + 1));
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(${cols}, 1fr)`,
+      gap: 14, padding: '14px 18px',
+    }}>
+      <WorkerCell worker={workerStatus?.workers[0] ?? null} loading={!workerStatus} />
+      {workers.map((w) => (
+        <PlaywrightCell
+          key={w.workerId}
+          playwright={{ ...playwright, ...w } as PlaywrightHealth}
+          workerId={w.workerId}
+          onStop={() => onStopWorker(w.workerId)}
+          stopping={stoppingWorkerId === w.workerId}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PlaywrightCell({
+  playwright,
+  workerId,
+  onStop,
+  stopping,
+}: {
+  playwright?: PlaywrightHealth;
+  workerId?: string;
+  onStop?: () => void;
+  stopping?: boolean;
+}) {
+  const status = playwright?.status;
+
+  let dotColor = '#64748b';
+  let dotGlow  = 'none';
+  let dotAnim  = '';
+  let label    = '...';
+  let sub      = '';
+
+  const workerLabel = workerId
+    ? workerId.replace(/^epa-/, '')
+    : 'browser';
+
+  if (!playwright) {
+    label = `Playwright · ${workerLabel}`;
+    sub   = '...';
+  } else if (status === 'recording') {
+    dotColor = '#22c55e';
+    dotGlow  = '0 0 8px #22c55e99';
+    dotAnim  = 'pwPulse 1.2s ease-in-out infinite';
+    label    = `${workerLabel} · Запись`;
+    const elMin = playwright.elapsedMs != null ? Math.floor(playwright.elapsedMs / 60000) : 0;
+    const elSec = playwright.elapsedMs != null ? Math.floor((playwright.elapsedMs % 60000) / 1000) : 0;
+    sub = `${playwright.frameCount} фреймов · ${elMin > 0 ? `${elMin}м ` : ''}${elSec}с`;
+  } else if (status === 'idle') {
+    dotColor = '#f59e0b';
+    dotGlow  = '0 0 6px #f59e0b66';
+    label    = `${workerLabel} · Ожидание`;
+    sub      = 'Браузер запущен, задач нет';
+  } else if (status === 'not_launched') {
+    dotColor = '#64748b';
+    label    = `${workerLabel}`;
+    sub      = 'Ожидает задачи';
+  } else if (status === 'executor_stopped') {
+    dotColor = '#475569';
+    label    = `${workerLabel}`;
+    sub      = 'Воркер остановлен';
+  } else if (status === 'error') {
+    dotColor = '#ef4444';
+    dotGlow  = '0 0 8px #ef444466';
+    label    = `${workerLabel} · Ошибка`;
+    sub      = (playwright as PlaywrightHealth).error || 'Неизвестная ошибка';
+  }
+
+  const urlLine = playwright?.currentUrl && playwright.currentUrl !== 'about:blank'
+    ? playwright.currentUrl.replace(/^https?:\/\//, '').slice(0, 38) + (playwright.currentUrl.length > 45 ? '…' : '')
+    : null;
+
+  return (
+    <>
+      <style>{`@keyframes pwPulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }`}</style>
+      <div style={{ background: '#0f1117', borderRadius: 8, padding: 14, display: 'flex', alignItems: 'flex-start', gap: 12, position: 'relative' }}>
+        <div style={{
+          width: 10, height: 10, borderRadius: '50%', flexShrink: 0, marginTop: 3,
+          background: dotColor, boxShadow: dotGlow,
+          animation: dotAnim || undefined,
+        }} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{sub}</div>
+          {urlLine && (
+            <div style={{ fontSize: 10, color: '#475569', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={playwright?.currentUrl ?? ''}>
+              🌐 {urlLine}
+            </div>
+          )}
+        </div>
+        {onStop && workerId && (
+          <button
+            onClick={onStop}
+            disabled={stopping}
+            title={`Остановить ${workerId}`}
+            style={{
+              position: 'absolute', top: 8, right: 8,
+              background: 'none', border: 'none',
+              color: stopping ? '#475569' : '#64748b',
+              fontSize: 14, cursor: stopping ? 'not-allowed' : 'pointer',
+              lineHeight: 1, padding: 2,
+            }}
+          >
+            {stopping ? '⏳' : '✕'}
+          </button>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -1046,13 +1443,14 @@ function HealthRow({ label, service }: { label: string; service?: HealthService 
   );
 }
 
-function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory }: {
+function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory, onErrorClick }: {
   task: AdminTask;
   onOpen: (id: string) => void;
   onReset: (id: string) => void;
   onCancel: (id: string) => void;
   onDelete: (id: string, title: string) => void;
   onHistory: (id: string, title: string) => void;
+  onErrorClick: (taskId: string, taskTitle: string, message: string) => void;
 }) {
   const badge = BADGE_STYLES[task.status] || { background: '#1e2535', color: '#94a3b8' };
   return (
@@ -1082,6 +1480,26 @@ function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory }: {
       </td>
       <td style={S.td}>
         <span style={{ ...S.badge, ...badge }}>{STATUS_LABELS[task.status] || task.status}</span>
+        {(['in_progress', 'uploading'].includes(task.status)) && (() => {
+          const saved = task.currentPart ?? 0;
+          const partMin = task.maxPartDuration || 20;
+          const totalMin = task.duration || 0;
+          const plannedParts = task.totalParts && task.totalParts > saved ? task.totalParts : (totalMin > 0 ? Math.ceil(totalMin / partMin) : null);
+          const recordingChunk = saved + 1;
+          const savedMin = saved * partMin;
+          return (
+            <div style={{ marginTop: 3, fontSize: 11, color: '#a78bfa', whiteSpace: 'nowrap' }}>
+              {plannedParts
+                ? `Чанк ${recordingChunk} из ${plannedParts}`
+                : `Чанк ${recordingChunk}`}
+              {totalMin > 0 && (
+                <span style={{ color: '#6b7280', marginLeft: 4 }}>
+                  ({Math.min(savedMin, totalMin)}/{totalMin} мин)
+                </span>
+              )}
+            </div>
+          );
+        })()}
       </td>
       <td style={S.tdMuted}>{fmtDuration(task.duration)}</td>
       <td style={{ ...S.tdMuted, fontFamily: 'monospace', maxWidth: 120 }}>
@@ -1091,27 +1509,69 @@ function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory }: {
       </td>
       <td style={S.tdMuted}>{fmtDate(task.lastHeartbeat)}</td>
       <td style={S.td}>
-        {task.begetUrl
-          ? <a href={task.begetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 12, textDecoration: 'none' }}>▶ Открыть</a>
-          : <span style={{ color: '#2d3748' }}>—</span>}
+        {task.parts && task.parts.length > 1 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {task.parts.map((p) => p.publicUrl ? (
+              <a
+                key={p.partNumber}
+                href={p.publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#3b82f6', fontSize: 11, textDecoration: 'none', whiteSpace: 'nowrap' }}
+              >
+                ▶ Часть {p.partNumber}
+                {p.duration ? ` (${Math.round(p.duration / 60000)} мин)` : ''}
+              </a>
+            ) : (
+              <span key={p.partNumber} style={{ color: '#6b7280', fontSize: 11 }}>Часть {p.partNumber}: {p.status}</span>
+            ))}
+          </div>
+        ) : task.begetUrl ? (
+          <a href={task.begetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 12, textDecoration: 'none' }}>▶ Открыть</a>
+        ) : (
+          <span style={{ color: '#2d3748' }}>—</span>
+        )}
       </td>
       <td style={{ ...S.td, maxWidth: 160 }}>
-        {task.errorMessage && (
-          <span style={{ color: '#ef4444', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }} title={task.errorMessage}>
-            {task.errorMessage.slice(0, 60)}
-          </span>
+        {task.errorMessage ? (
+          <button
+            onClick={() => onErrorClick(task.id, task.title, task.errorMessage!)}
+            title="Нажмите для просмотра полной ошибки"
+            style={{
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', width: '100%',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            <span style={{ color: '#f87171', fontSize: 11, flexShrink: 0 }}>⚠</span>
+            <span style={{
+              color: '#f87171', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap', display: 'block', textDecoration: 'underline dotted',
+            }}>
+              {task.errorMessage.slice(0, 55)}{task.errorMessage.length > 55 ? '…' : ''}
+            </span>
+          </button>
+        ) : (
+          <span style={{ color: '#2d3748' }}>—</span>
         )}
       </td>
       <td style={{ ...S.td, whiteSpace: 'nowrap' }}>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button style={S.actionBtn('reset')} onClick={() => onHistory(task.id, task.title)} title="История событий">📋</button>
+        <div style={{ display: 'flex', gap: 5 }}>
+          <button style={S.actionBtn('history')} onClick={() => onHistory(task.id, task.title)} title="История событий">
+            📋 <span style={{ fontSize: 11 }}>Лог</span>
+          </button>
           {['failed', 'in_progress'].includes(task.status) && (
-            <button style={S.actionBtn('reset')} onClick={() => onReset(task.id)} title="Повторить">↺ Повтор</button>
+            <button style={S.actionBtn('retry')} onClick={() => onReset(task.id)} title="Повторить запись">
+              🔄 <span style={{ fontSize: 11 }}>Повтор</span>
+            </button>
           )}
           {['ready', 'in_progress', 'scheduled'].includes(task.status) && (
-            <button style={S.actionBtn('cancel')} onClick={() => onCancel(task.id)} title="Отменить">✕</button>
+            <button style={S.actionBtn('cancel')} onClick={() => onCancel(task.id)} title="Отменить задачу">
+              🛑 <span style={{ fontSize: 11 }}>Стоп</span>
+            </button>
           )}
-          <button style={S.actionBtn('delete')} onClick={() => onDelete(task.id, task.title)} title="Удалить из БД">🗑</button>
+          <button style={S.actionBtn('delete')} onClick={() => onDelete(task.id, task.title)} title="Удалить из БД">
+            🗑️ <span style={{ fontSize: 11 }}>Удалить</span>
+          </button>
         </div>
       </td>
     </tr>
@@ -1210,6 +1670,82 @@ function WorkerCell({ worker, loading }: { worker: WorkerEntry | null; loading: 
         <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>Recording Worker</div>
         <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>
       </div>
+    </div>
+  );
+}
+
+/* ─── VPS Worker Grid ──────────────────────────────────────────────────────── */
+function VpsWorkerGrid({ workers }: { workers: WorkerEntry[] }) {
+  const fmtAgo = (secondsAgo: number | null) => {
+    if (secondsAgo == null) return '—';
+    if (secondsAgo < 60) return `${secondsAgo}с назад`;
+    if (secondsAgo < 3600) return `${Math.floor(secondsAgo / 60)}м назад`;
+    return `${Math.floor(secondsAgo / 3600)}ч назад`;
+  };
+
+  return (
+    <div style={{ padding: '12px 18px 14px' }}>
+      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.5px' }}>
+        VPS-воркеры ({workers.length})
+      </div>
+      {workers.length === 0 ? (
+        <div style={{
+          background: '#0f1117', borderRadius: 8, padding: '14px 16px',
+          border: '1px dashed #2d3748', color: '#64748b', fontSize: 12, textAlign: 'center',
+        }}>
+          Нет данных о VPS-воркерах. Убедитесь что сервис запущен и подключён к той же БД.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+          {workers.map(w => {
+            const dotColor = w.isOnline ? '#22c55e' : '#ef4444';
+            const dotGlow  = w.isOnline ? '0 0 8px #22c55e66' : '0 0 8px #ef444466';
+            return (
+              <div key={w.workerId} style={{
+                background: '#0f1117', borderRadius: 8, padding: '12px 14px',
+                border: `1px solid ${w.isOnline ? '#166534' : '#450a0a'}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <div style={{ width: 9, height: 9, borderRadius: '50%', flexShrink: 0, background: dotColor, boxShadow: dotGlow }} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', fontFamily: 'monospace' }}>
+                    {w.workerId}
+                  </span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10, color: w.isOnline ? '#4ade80' : '#f87171', fontWeight: 600 }}>
+                    {w.isOnline ? 'Online' : 'Offline'}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11, color: '#94a3b8' }}>
+                  <div>Видел: <span style={{ color: '#cbd5e1' }}>{fmtAgo(w.secondsAgo)}</span></div>
+                  <div>
+                    БД: <span style={{ color: w.dbConnected ? '#4ade80' : '#f87171' }}>{w.dbConnected ? '✓' : '✗'}</span>
+                    {'  '}S3: <span style={{ color: w.s3Connected ? '#4ade80' : '#f87171' }}>{w.s3Connected ? '✓' : '✗'}</span>
+                    {'  '}Активен: <span style={{ color: w.isActive ? '#4ade80' : '#f87171' }}>{w.isActive ? '✓' : '✗'}</span>
+                  </div>
+                  <div>Всего: <span style={{ color: '#cbd5e1' }}>{w.tasksProcessed ?? 0}</span></div>
+                  <div>
+                    <span style={{ color: '#4ade80' }}>✓{w.tasksSuccessful ?? 0}</span>
+                    {' / '}
+                    <span style={{ color: (w.tasksFailed ?? 0) > 0 ? '#f87171' : '#64748b' }}>✗{w.tasksFailed ?? 0}</span>
+                  </div>
+                  {w.activeTaskId && (
+                    <div style={{ gridColumn: '1 / -1', color: '#fbbf24', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      ▶ {w.currentTaskTitle || w.activeTaskId}
+                    </div>
+                  )}
+                  {!w.activeTaskId && w.currentTaskTitle && (
+                    <div style={{ gridColumn: '1 / -1', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {w.currentTaskTitle}
+                    </div>
+                  )}
+                  {w.buildVersion && (
+                    <div style={{ gridColumn: '1 / -1', color: '#475569' }}>v{w.buildVersion}</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

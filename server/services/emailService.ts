@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { logger } from './logger';
 
 export interface EmailOptions {
   to: string;
@@ -23,7 +24,7 @@ export class EmailService {
     const password = process.env.BEGET_SMTP_PASSWORD;
 
     if (!host || !user || !password) {
-      console.warn('⚠️ EmailService: SMTP not configured. Email sending will be in test mode.');
+      logger.warn('EmailService: SMTP not configured. Email sending will be in test mode.');
       this.isConfigured = false;
       return;
     }

@@ -6,7 +6,8 @@ import { logger } from "./services/logger";
 import { yookassaService } from "./services/yookassaService";
 import { PaymentFactory } from "./services/payments/paymentFactory";
 import { courseDiscoveryService } from "./services/courseDiscoveryService";
-import { recordingTaskManager } from "./services/recording";
+import { recordingTaskManager, pollerController } from "./services/recording";
+import { executorModeService } from "./services/recording/executorModeService";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
@@ -48,7 +49,7 @@ app.use((req, res, next) => {
   try {
     validateConfig();
   } catch (error) {
-    logger.error('🚨 Ошибка валидации конфигурации:', error);
+    logger.error('Ошибка валидации конфигурации:', error);
     process.exit(1);
   }
 
@@ -58,8 +59,10 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
+    logger.error(`[${status}] ${message}`, { stack: err.stack });
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
   });
 
   // importantly only setup vite in development and after
@@ -184,6 +187,30 @@ app.use((req, res, next) => {
     setInterval(runRecordingWatchdog, 2 * 60 * 1000); // every 2 minutes
     runRecordingWatchdog(); // run immediately on start
     logger.info('Recording watchdog started (runs every 2 min, stale threshold: 12 min)');
+
+    // Recording executor — mode controlled by executorModeService (DB-persisted)
+    // env DISABLE_RECORDING_EXECUTOR=true forces VPS mode
+    executorModeService.init().then(async (mode) => {
+      // Start DB watcher so primary detects mode changes written by non-primary processes.
+      executorModeService.startWatching(10_000);
+
+      if (mode === 'vps') {
+        logger.info('Recording executor: VPS mode — built-in poller disabled, external worker handles recordings');
+        return;
+      }
+      // Replit mode: start local poller (PM2 cluster safe — only in primary)
+      const isPrimaryWorker = !process.env.pm_id || process.env.pm_id === '0';
+      if (isPrimaryWorker) {
+        const result = await pollerController.start();
+        if (result.ok) {
+          logger.info(`Recording executor poller started (worker: ${process.env.WORKER_ID || 'epa-worker-1'})`);
+        } else {
+          logger.error(`Recording executor failed to start: ${result.message}`);
+        }
+      } else {
+        logger.info(`Recording executor poller skipped on PM2 worker #${process.env.pm_id}`);
+      }
+    });
 
   }, 30000); // Wait 30 seconds before starting background services
 })();

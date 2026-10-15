@@ -374,6 +374,9 @@ export const recordingTasks = pgTable("recording_tasks", {
   description: text("description"),
   streamUrl: varchar("stream_url", { length: 1000 }).notNull(),
   streamPassword: varchar("stream_password", { length: 255 }),
+  joinName: varchar("join_name", { length: 255 }),
+  joinEmail: varchar("join_email", { length: 255 }),
+  joinPhone: varchar("join_phone", { length: 50 }),
   scheduledTime: timestamp("scheduled_time").notNull(),
   duration: integer("duration").notNull(), // in minutes
   maxPartDuration: integer("max_part_duration").default(20), // minutes per part (Replit limit)
@@ -458,6 +461,13 @@ export const recordingWorkerStatus = pgTable("recording_worker_status", {
   lastSeenIdx: index("recording_worker_status_last_seen_idx").on(table.lastSeenAt),
   isActiveIdx: index("recording_worker_status_is_active_idx").on(table.isActive),
 }));
+
+// System Settings table — key-value store for system-wide configuration
+export const systemSettings = pgTable("system_settings", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // Admin Logs table - Admin activity tracking
 export const adminLogs = pgTable("admin_logs", {
