@@ -469,6 +469,10 @@ const API_SECRET = process.env.API_SECRET;
 // Middleware to verify worker/n8n requests
 const verifyInternalRequest = (req: Request, res: Response, next: any) => {
   const authHeader = req.headers.authorization;
+  // Без API_SECRET эндпоинты открыты всем — в production закрываем (fail closed)
+  if (!API_SECRET && process.env.NODE_ENV === 'production') {
+    return res.status(401).json({ message: 'Unauthorized internal request: API_SECRET не задан' });
+  }
   if (API_SECRET && authHeader !== `Bearer ${API_SECRET}`) {
     return res.status(401).json({ message: 'Unauthorized internal request' });
   }
