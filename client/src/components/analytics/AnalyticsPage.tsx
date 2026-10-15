@@ -384,7 +384,7 @@ export function AnalyticsPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="status" />
                   <YAxis />
-                  <Tooltip formatter={(value) => `₽${value.toFixed(2)}`} />
+                  <Tooltip formatter={(value) => `₽${Number(value).toFixed(2)}`} />
                   <Legend />
                   <Bar dataKey="cost" fill="#764ba2" name="Стоимость (₽)" />
                 </BarChart>

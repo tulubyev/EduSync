@@ -5,12 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, Loader2 } from 'lucide-react';
-import type { Platform } from '@shared/schema';
 
 interface PlatformAuthModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  platform: Platform | null;
+  platform: { id: string; name: string } | null;
 }
 
 export function PlatformAuthModal({ open, onOpenChange, platform }: PlatformAuthModalProps) {

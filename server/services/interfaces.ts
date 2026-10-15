@@ -28,8 +28,6 @@ export interface UserProfile {
   role: string;
   planType: string;
   isVerified: boolean;
-  banksConnected: number;
-  totalBalance: string;
   createdAt: Date;
 }
 
@@ -44,45 +42,4 @@ export interface AuthResult {
   user: User;
   token: string;
   refreshToken?: string;
-}
-
-// ===========================================
-// ADMIN SERVICE INTERFACES (ДОБАВЛЕНО)
-// ===========================================
-
-export interface IAdminService {
-  getAdminDashboardData(adminUserId: string): Promise<AdminDashboardData>;
-  moderateUser(adminUserId: string, targetUserId: string, action: string, reason?: string): Promise<UserModerationData>;
-  manageAdminRole(superAdminId: string, targetUserId: string, newRole: any): Promise<void>;
-  getAdminAuditLog(adminUserId: string, filters?: any): Promise<any[]>;
-  getSystemHealth(): Promise<SystemHealthData>;
-  bulkUserOperation(adminUserId: string, userIds: string[], operation: string, params?: any): Promise<any>;
-}
-
-export interface AdminDashboardData {
-  totalUsers: number;
-  newUsersToday: number;
-  pendingDocuments: number;
-  systemHealth: any;
-  usersByRole: Record<string, number>;
-  financialStats: any;
-  recentLogs: any[];
-  lastUpdated: Date;
-}
-
-export interface UserModerationData {
-  success: boolean;
-  action: string;
-  targetUser: string;
-  reason: string;
-  timestamp: Date;
-}
-
-export interface SystemHealthData {
-  overall: 'healthy' | 'warning' | 'error';
-  database: 'healthy' | 'warning' | 'error';
-  storage: 'healthy' | 'warning' | 'error';
-  api: 'healthy' | 'warning' | 'error';
-  performance: any;
-  lastCheck: Date;
 }

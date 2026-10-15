@@ -49,6 +49,8 @@ export class DatabaseStorage implements IStorage {
   getConnectedPlatforms(...args: Parameters<PlatformStorage['getConnectedPlatforms']>) { return this.platformStorage.getConnectedPlatforms(...args); }
   connectPlatform(...args: Parameters<PlatformStorage['connectPlatform']>) { return this.platformStorage.connectPlatform(...args); }
   createPlatform(...args: Parameters<PlatformStorage['createPlatform']>) { return this.platformStorage.createPlatform(...args); }
+  savePlatformConnection(...args: Parameters<PlatformStorage['savePlatformConnection']>) { return this.platformStorage.savePlatformConnection(...args); }
+  getPlatformConnection(...args: Parameters<PlatformStorage['getPlatformConnection']>) { return this.platformStorage.getPlatformConnection(...args); }
 
   // Deadline methods
   getDeadlines(...args: Parameters<DeadlineStorage['getDeadlines']>) { return this.deadlineStorage.getDeadlines(...args); }
@@ -74,7 +76,11 @@ export class DatabaseStorage implements IStorage {
   deleteUserByAdmin(...args: Parameters<AdminStorage['deleteUserByAdmin']>) { return this.adminStorage.deleteUserByAdmin(...args); }
   getPaymentTransactionCount(...args: Parameters<AdminStorage['getPaymentTransactionCount']>) { return this.adminStorage.getPaymentTransactionCount(...args); }
   getPaymentTotalAmount(...args: Parameters<AdminStorage['getPaymentTotalAmount']>) { return this.adminStorage.getPaymentTotalAmount(...args); }
+  getUserGrowthByMonth(...args: Parameters<AdminStorage['getUserGrowthByMonth']>) { return this.adminStorage.getUserGrowthByMonth(...args); }
+  getSuccessfulPaymentCount(...args: Parameters<AdminStorage['getSuccessfulPaymentCount']>) { return this.adminStorage.getSuccessfulPaymentCount(...args); }
   getPaymentTransactions(...args: Parameters<AdminStorage['getPaymentTransactions']>) { return this.adminStorage.getPaymentTransactions(...args); }
+  createAdminLog(...args: Parameters<AdminStorage['createAdminLog']>) { return this.adminStorage.createAdminLog(...args); }
+  getAdminLogs(...args: Parameters<AdminStorage['getAdminLogs']>) { return this.adminStorage.getAdminLogs(...args); }
 }
 
 export const storage = new DatabaseStorage();

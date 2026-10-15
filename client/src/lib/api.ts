@@ -19,7 +19,6 @@ const getEndpoints = async (): Promise<any> => {
         login: '/api/auth/login',
         refresh: '/api/auth/refresh',
         logout: '/api/auth/logout',
-        gosuslugi: '/api/auth/gosuslugi',
         verify: '/api/auth/verify'
       },
       profile: {
@@ -68,12 +67,6 @@ export const authAPI = {
   logout: async (): Promise<void> => {
     const endpoints: any = await getEndpoints();
     await apiRequest("POST", endpoints.auth.logout);
-  },
-
-  gosuslugiAuth: async (code: string): Promise<{ user: User; accessToken: string }> => {
-    const endpoints: any = await getEndpoints();
-    const res = await apiRequest("POST", endpoints.auth.gosuslugi, { code });
-    return await res.json();
   },
 };
 

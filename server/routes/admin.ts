@@ -2,7 +2,6 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { storage } from "../storage";
 import { authenticateToken, type AuthenticatedRequest } from "../middleware/auth";
 import { requireAdmin, requirePermission, getAdminSections, hasPermission } from "../middleware/adminAuth";
-import { adminService } from "../services/AdminService";
 import { getMetrics, checkAlerts, getSystemHealth, getPerformanceStats } from "../middleware/metrics";
 import { getCacheStats } from "../middleware/caching";
 import { tokenCache } from "../services/tokenCache";
@@ -151,14 +150,13 @@ adminRouter.get('/monitoring/realtime', authenticateToken, requireAdmin, async (
       timestamp: new Date().toISOString(),
       realtime: {
         requestsPerMinute: metrics.requestsPerMinute,
-        activeConnections: metrics.activeConnections || 0,
         responseTime: metrics.averageResponseTime,
         errorRate: metrics.errors.rate,
         cacheStats: {
           hitRate: metrics.cache.hitRate,
           missRate: 100 - metrics.cache.hitRate,
-          size: metrics.cache.size,
-          operations: metrics.cache.operations
+          entries: metrics.cache.entryCount,
+          memoryUsage: metrics.cache.memoryUsage
         },
         performance: {
           cpu: metrics.performance.cpu,
@@ -186,20 +184,15 @@ adminRouter.get('/monitoring/performance', authenticateToken, requireAdmin, asyn
       performance: {
         requests: {
           total: metrics.totalRequests,
-          perMinute: metrics.requestsPerMinute,
-          breakdown: metrics.endpoints || {}
+          perMinute: metrics.requestsPerMinute
         },
         responses: {
-          average: metrics.averageResponseTime,
-          p95: metrics.p95ResponseTime || 0,
-          p99: metrics.p99ResponseTime || 0,
-          slowest: metrics.slowestEndpoint || 'N/A'
+          average: metrics.averageResponseTime
         },
         errors: {
           rate: metrics.errors.rate,
           total: metrics.errors.total,
-          byType: metrics.errors.byType || {},
-          recent: metrics.errors.recent || []
+          byType: metrics.errors.byType || {}
         },
         database: {
           connectionCount: metrics.database.connectionCount,
@@ -213,17 +206,6 @@ adminRouter.get('/monitoring/performance', authenticateToken, requireAdmin, asyn
   } catch (error) {
     console.error('Error fetching performance analytics:', error);
     res.status(500).json({ message: 'Ошибка получения аналитики производительности' });
-  }
-});
-
-adminRouter.get('/system/logs', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const limit = parseInt(req.query.limit as string) || 100;
-    const logs = await storage.getRecentLogs(limit);
-    res.json(logs);
-  } catch (error) {
-    console.error('Error fetching system logs:', error);
-    res.status(500).json({ message: 'Ошибка получения системных логов' });
   }
 });
 
@@ -295,66 +277,6 @@ adminRouter.get('/profile', authenticateToken, requireAdmin, async (req: Authent
 // ENHANCED ADMIN DASHBOARD & ANALYTICS
 // ===========================================
 
-// Enhanced admin dashboard metrics
-adminRouter.get('/dashboard/metrics', authenticateToken, requirePermission('dashboard.analytics'), async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const stats = await storage.getAdminStats();
-    
-    // Системные метрики (только для devops и super admin)
-    let systemMetrics = null;
-    if (hasPermission(req.user!, 'system.monitoring')) {
-      systemMetrics = await storage.getSystemMetrics();
-    }
-
-    res.json({
-      ...stats,
-      systemMetrics
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Ошибка получения метрик' });
-  }
-});
-
-// User analytics for analytics admin
-adminRouter.get('/users/analytics', authenticateToken, requirePermission('users.analytics'), async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const analytics = await storage.getUserAnalytics();
-    res.json(analytics);
-  } catch (error) {
-    res.status(500).json({ message: 'Ошибка получения аналитики пользователей' });
-  }
-});
-
-// Financial data for finance admin  
-adminRouter.get('/finances/overview', authenticateToken, requirePermission('transactions.view'), async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const overview = await storage.getFinancialOverview();
-    res.json(overview);
-  } catch (error) {
-    res.status(500).json({ message: 'Ошибка получения финансовых данных' });
-  }
-});
-
-// API monitoring for API admin
-adminRouter.get('/api/status', authenticateToken, requirePermission('api.monitoring'), async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const apiStatus = await storage.getApiStatus();
-    res.json(apiStatus);
-  } catch (error) {
-    res.status(500).json({ message: 'Ошибка получения статуса API' });
-  }
-});
-
-// Security monitoring for security admin
-adminRouter.get('/security/overview', authenticateToken, requirePermission('security.monitoring'), async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const securityData = await storage.getSecurityOverview();
-    res.json(securityData);
-  } catch (error) {
-    res.status(500).json({ message: 'Ошибка получения данных безопасности' });
-  }
-});
-
 // Admin logs (все админы могут видеть свои действия, super admin - все)
 adminRouter.get('/logs', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -376,7 +298,19 @@ adminRouter.get('/logs', authenticateToken, requireAdmin, async (req: Authentica
 adminRouter.get('/users', authenticateToken, requirePermission('users.manage'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { page = 1, limit = 20, search = '' } = req.query;
-    const users = await storage.getAllUsers(Number(page), Number(limit), search as string);
+    const all = await storage.getAllUsers();
+    const q = String(search).trim().toLowerCase();
+    const filtered = q
+      ? all.filter(u => [u.email, u.phone, u.firstName, u.lastName].some(v => (v || '').toLowerCase().includes(q)))
+      : all;
+    const pageNum = Math.max(1, Number(page) || 1);
+    const pageSize = Math.min(200, Math.max(1, Number(limit) || 20));
+    const users = {
+      users: filtered.slice((pageNum - 1) * pageSize, pageNum * pageSize).map(({ passwordHash, ...rest }) => rest),
+      total: filtered.length,
+      page: pageNum,
+      limit: pageSize
+    };
     
     await logAdminAction(req.user!.id, 'users_list_viewed', 'admin_panel', undefined, { page, limit, search }, req);
     
@@ -434,24 +368,6 @@ adminRouter.patch('/users/:userId/role', authenticateToken, async (req: Authenti
   } catch (error) {
     console.error('Ошибка обновления роли пользователя:', error);
     res.status(500).json({ message: 'Ошибка обновления роли пользователя' });
-  }
-});
-
-// Get user details for admin
-adminRouter.get('/users/:userId', authenticateToken, requirePermission('users.manage'), async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { userId } = req.params;
-    const user = await storage.getUserDetails(userId);
-    
-    if (!user) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
-    }
-
-    await logAdminAction(req.user!.id, 'user_details_viewed', 'user', userId, undefined, req);
-    
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ message: 'Ошибка получения данных пользователя' });
   }
 });
 

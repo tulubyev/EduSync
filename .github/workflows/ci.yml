@@ -15,8 +15,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      # Проверка типов (`npm run check`) пока не включена: в репозитории ~250
-      # накопленных ошибок tsc. Включить, когда будут устранены.
+      - name: Type check
+        run: npm run check
       - name: Build web (vite + esbuild)
         run: npm run build
       - name: Build recording worker

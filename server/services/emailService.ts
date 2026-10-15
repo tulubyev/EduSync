@@ -324,6 +324,9 @@ export class EmailService {
 
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
+      if (!this.transporter) {
+        return { success: false, error: 'SMTP не настроен' };
+      }
       await this.transporter.verify();
       return { success: true };
     } catch (error) {

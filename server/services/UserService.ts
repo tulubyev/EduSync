@@ -53,15 +53,6 @@ export class UserService extends BaseService implements IUserService {
         throw new NotFoundError('Пользователь', userId);
       }
 
-      // Агрегируем дополнительные данные
-      const [
-        bankConnections,
-        totalBalance
-      ] = await Promise.all([
-        this.storage.getBankConnections(userId),
-        this.storage.getTotalBalance(userId).catch(() => "0.00")
-      ]);
-
       // Формируем агрегированный профиль
       const profile: UserProfile = {
         id: user.id,
@@ -72,8 +63,6 @@ export class UserService extends BaseService implements IUserService {
         role: user.role || 'personal',
         planType: user.planType || 'free',
         isVerified: user.isVerified || false,
-        banksConnected: bankConnections.length,
-        totalBalance: totalBalance,
         createdAt: user.createdAt || new Date(),
       };
 

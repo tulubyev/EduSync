@@ -144,18 +144,6 @@ export interface AppConfig {
     maxFileSize: number;
   };
   
-  // ESIA OAuth Configuration
-  esia: {
-    windowMs: number;
-    maxAttempts: number;
-  };
-  
-  // Bank Connection Configuration
-  banks: {
-    redirectTimeoutMs: number;
-    baseUrl: string;
-  };
-  
   // Фронтенд
   frontend: {
     urls: string[];

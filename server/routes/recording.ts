@@ -5,6 +5,7 @@ import { z } from "zod";
 import { yandexDiskService } from "../services/yandexDiskService";
 import { recordingTaskManager, recordingLogger, pollerController } from "../services/recording";
 import { executorModeService } from "../services/recording/executorModeService";
+import { resolveBegetPublicUrl } from "../services/recording/s3PublicUrl";
 import { logger } from "../services/logger";
 import { db } from "../db";
 import { recordingTasks, recordingWorkerStatus, recordingLogs } from "@shared/schema";
@@ -880,7 +881,7 @@ function getS3Client(): { client: S3Client; bucket: string; publicUrl: string } 
   const accessKeyId = process.env.BEGET_S3_ACCESS_KEY;
   const secretAccessKey = process.env.BEGET_S3_SECRET_KEY;
   const bucket = process.env.BEGET_S3_BUCKET;
-  const publicUrl = process.env.BEGET_S3_PUBLIC_URL || '';
+  const publicUrl = resolveBegetPublicUrl();
   if (!endpoint || !accessKeyId || !secretAccessKey || !bucket) return null;
   const region = process.env.BEGET_S3_REGION || 'ru-1';
   const client = new S3Client({

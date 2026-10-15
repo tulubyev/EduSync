@@ -24,6 +24,9 @@ interface Platform {
   logoUrl?: string;
   description?: string;
   category: string;
+  categoryId?: string;
+  region?: string;
+  regionId?: string;
   authType: string;
   isGlobal: boolean;
   supportedLanguages: string[];

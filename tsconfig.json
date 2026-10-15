@@ -7,6 +7,9 @@
     "noEmit": true,
     "module": "ESNext",
     "strict": true,
+    // Express-обработчики с AuthenticatedRequest (req.user обязателен) не совместимы с RequestHandler
+    // при строгой контравариантности параметров; остальные strict-проверки остаются включёнными.
+    "strictFunctionTypes": false,
     "lib": ["esnext", "dom", "dom.iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,

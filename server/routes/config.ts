@@ -58,8 +58,7 @@ router.get('/public', async (req: Request, res: Response) => {
             register: '/api/auth/register',
             refresh: '/api/auth/refresh',
             verify: '/api/auth/verify',
-            logout: '/api/auth/logout',
-            gosuslugi: '/api/auth/gosuslugi'
+            logout: '/api/auth/logout'
           },
           
           // Verification endpoints

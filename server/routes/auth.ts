@@ -1,7 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { authService } from "../services/authService";
 import { twoFactorService } from "../services/twoFactorService";
-import { esiaService } from "../services/esiaService";
 import { smsService } from "../services/smsService";
 import { emailService } from "../services/emailService";
 import { userService } from "../services/UserService";
@@ -14,6 +13,10 @@ import { validationRules } from "../middleware/validationRules";
 // 2FA выключена по умолчанию: в таблице users нет колонок two_factor_* / sms_code*.
 // Включать (ENABLE_2FA=true) только после миграции БД и добавления колонок в shared/schema.ts.
 const TWO_FACTOR_ENABLED = process.env.ENABLE_2FA === 'true';
+
+// Колонки two_factor_* пока нет в schema.ts, поэтому читаем поле через узкий тип
+const hasTwoFactor = (user: object): boolean =>
+  TWO_FACTOR_ENABLED && Boolean((user as { twoFactorEnabled?: boolean | null }).twoFactorEnabled);
 import { logger } from "../services/logger";
 import { secureLogs } from "../middleware/secureLogs";
 import { db } from "../db";
@@ -168,8 +171,6 @@ authRouter.post('/login', authLimiter, async (req, res) => {
         isEmailVerified: loginResult.user.isEmailVerified,
         isPhoneVerified: loginResult.user.isPhoneVerified,
         isVerified: loginResult.user.isVerified,
-        verificationLevel2: loginResult.user.verificationLevel2,
-        verificationLevel3: loginResult.user.verificationLevel3,
         profileImageUrl: loginResult.user.profileImage
           ? `data:image/jpeg;base64,${loginResult.user.profileImage}`
           : (loginResult.user.profileImageUrl || null)
@@ -232,41 +233,13 @@ authRouter.get('/verify', authenticateToken, async (req: AuthenticatedRequest, r
         isEmailVerified: req.user.isEmailVerified,
         isPhoneVerified: req.user.isPhoneVerified,
         isVerified: req.user.isVerified,
-        isEsiaVerified: req.user.isEsiaVerified,
-        verificationLevel1: req.user.verificationLevel1,
-        verificationLevel2: req.user.verificationLevel2,
-        verificationLevel3: req.user.verificationLevel3,
         profileImageUrl: req.user.profileImage ? `data:image/jpeg;base64,${req.user.profileImage}` : null,
-        twoFactorEnabled: req.user.twoFactorEnabled
+        twoFactorEnabled: hasTwoFactor(req.user)
       }
     });
   } catch (error: any) {
     logger.error('Verify error:', secureLogs.logError(error));
     res.status(500).json({ message: 'Ошибка проверки пользователя' });
-  }
-});
-
-// Mock Gosuslugi OAuth
-authRouter.post('/gosuslugi', async (req, res) => {
-  try {
-    const { code } = req.body;
-    // Mock implementation - в реальности здесь будет реальная интеграция с Госуслугами
-    const mockUser = {
-      id: 'gosuslugi_' + Math.random().toString(36).substr(2, 9),
-      email: 'user@gosuslugi.ru',
-      firstName: 'Иван',
-      lastName: 'Иванов',
-      phone: '+79999999999',
-      role: 'personal',
-      isEmailVerified: true,
-      isPhoneVerified: true,
-      isEsiaVerified: true
-    };
-    
-    res.json({ user: mockUser, message: 'Успешная авторизация через Госуслуги' });
-  } catch (error: any) {
-    logger.error('Gosuslugi auth error:', secureLogs.logError(error));
-    res.status(400).json({ message: error.message || 'Ошибка авторизации через Госуслуги' });
   }
 });
 
@@ -321,7 +294,7 @@ authRouter.get('/2fa/status', authenticateToken, async (req: AuthenticatedReques
   try {
     const userId = req.user.id;
     // Simplified 2FA status check
-    const twoFactorEnabled = req.user.twoFactorEnabled || false;
+    const twoFactorEnabled = hasTwoFactor(req.user);
     res.json({ twoFactorEnabled });
   } catch (error: any) {
     logger.error('2FA status error:', secureLogs.logError(error));
