@@ -281,6 +281,12 @@ export function AdminRecordingDashboard() {
   const [executorMode, setExecutorMode]       = useState<'replit' | 'vps'>('replit');
   const [vpsWorkers, setVpsWorkers]           = useState<WorkerEntry[]>([]);
   const [modeLoading, setModeLoading]         = useState(false);
+  const [runtime, setRuntime] = useState<{
+    paused: boolean; concurrency: number; perUserLimit: number;
+    maxConcurrency: number; aliveWorkers: number; activeRecordings: number;
+  } | null>(null);
+  const [runtimeSaving, setRuntimeSaving] = useState(false);
+  const [runtimeError, setRuntimeError] = useState('');
   const [errorDetail, setErrorDetail] = useState<{ taskId: string; taskTitle: string; message: string } | null>(null);
   const [historyTaskId, setHistoryTaskId]   = useState<string | null>(null);
   const [historyTaskTitle, setHistoryTaskTitle] = useState('');
@@ -345,6 +351,39 @@ export function AdminRecordingDashboard() {
       setExecutorMaxWorkers(d.executor?.maxWorkers ?? 1);
     }
   }, []);
+
+  const fetchRuntime = useCallback(async () => {
+    try {
+      const r = await fetch('/api/recording/admin/executor/settings', { headers: authHdr() });
+      if (!r.ok) return;
+      const d = await r.json();
+      setRuntime({
+        paused: !!d.settings?.paused,
+        concurrency: d.settings?.concurrency ?? 1,
+        perUserLimit: d.settings?.perUserLimit ?? 0,
+        maxConcurrency: d.maxConcurrency ?? 1,
+        aliveWorkers: d.aliveWorkers ?? 0,
+        activeRecordings: d.activeRecordings ?? 0,
+      });
+    } catch { /* панель обновится при следующем опросе */ }
+  }, []);
+
+  const saveRuntime = async (patch: { paused?: boolean; concurrency?: number; perUserLimit?: number }) => {
+    setRuntimeSaving(true);
+    setRuntimeError('');
+    try {
+      const r = await fetch('/api/recording/admin/executor/settings', {
+        method: 'POST', headers: jsonHdr(), body: JSON.stringify(patch),
+      });
+      const d = await r.json();
+      if (!r.ok) setRuntimeError(d.message || 'Не удалось сохранить');
+      await fetchRuntime();
+    } catch {
+      setRuntimeError('Нет связи с сервером');
+    } finally {
+      setRuntimeSaving(false);
+    }
+  };
 
   const fetchExecutorMode = useCallback(async () => {
     const r = await fetch('/api/recording/admin/executor/mode', { headers: authHdr() });
@@ -478,11 +517,11 @@ export function AdminRecordingDashboard() {
 
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchWorkerStatus(), fetchExecutorStatus(), fetchExecutorMode()]);
+    await Promise.all([fetchStats(), fetchHealth(), fetchTasks(), fetchWorkerStatus(), fetchExecutorStatus(), fetchExecutorMode(), fetchRuntime()]);
     setS3RefreshKey(k => k + 1);
     setLastUpdate(new Date().toLocaleTimeString('ru-RU'));
     setIsRefreshing(false);
-  }, [fetchStats, fetchHealth, fetchTasks, fetchWorkerStatus, fetchExecutorStatus, fetchExecutorMode]);
+  }, [fetchStats, fetchHealth, fetchTasks, fetchWorkerStatus, fetchExecutorStatus, fetchExecutorMode, fetchRuntime]);
 
   useEffect(() => {
     refreshAll();
@@ -659,6 +698,68 @@ export function AdminRecordingDashboard() {
           </button>
         </div>
       </div>
+
+      {/* ── Приём записей: пауза / параллельность / лимит на клиента ── */}
+      {runtime && (
+        <div style={{ ...S.card, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => saveRuntime({ paused: !runtime.paused })}
+              disabled={runtimeSaving}
+              style={{
+                padding: '8px 18px', borderRadius: 20, fontSize: 13, fontWeight: 700,
+                cursor: runtimeSaving ? 'not-allowed' : 'pointer',
+                border: runtime.paused ? '1px solid #166534' : '1px solid #92400e',
+                background: runtime.paused ? '#052e16' : '#3b2506',
+                color: runtime.paused ? '#4ade80' : '#fbbf24',
+              }}
+              title={runtime.paused ? 'Воркеры снова начнут брать задачи' : 'Новые записи не стартуют, текущие дописываются до конца'}
+            >
+              {runtime.paused ? '▶ Возобновить приём' : '⏸ Пауза приёма'}
+            </button>
+            <span style={{ fontSize: 12, color: runtime.paused ? '#fbbf24' : '#4ade80', fontWeight: 600 }}>
+              {runtime.paused ? 'Приём приостановлен' : 'Приём идёт'}
+            </span>
+            <span style={{ fontSize: 12, color: '#94a3b8' }}>
+              Сейчас пишется: {runtime.activeRecordings} · воркеров на связи: {runtime.aliveWorkers}
+            </span>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#cbd5e1' }}
+              title={`Сколько записей одновременно. Верхний предел — MAX_WORKERS на сервере (${runtime.maxConcurrency})`}>
+              Одновременно записей
+              <select
+                value={runtime.concurrency}
+                disabled={runtimeSaving}
+                onChange={(e) => saveRuntime({ concurrency: Number(e.target.value) })}
+                style={{ background: '#0f172a', color: '#e2e8f0', border: '1px solid #334155', borderRadius: 6, padding: '4px 6px' }}
+              >
+                {Array.from({ length: runtime.maxConcurrency }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <span style={{ color: '#64748b' }}>из {runtime.maxConcurrency}</span>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#cbd5e1' }}
+              title="Сколько записей одновременно может идти у одного пользователя; остальные его задачи ждут в очереди">
+              Лимит на пользователя
+              <select
+                value={runtime.perUserLimit}
+                disabled={runtimeSaving}
+                onChange={(e) => saveRuntime({ perUserLimit: Number(e.target.value) })}
+                style={{ background: '#0f172a', color: '#e2e8f0', border: '1px solid #334155', borderRadius: 6, padding: '4px 6px' }}
+              >
+                <option value={0}>без лимита</option>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (<option key={n} value={n}>{n}</option>))}
+              </select>
+            </label>
+          </div>
+          {runtimeError && <div style={{ marginTop: 8, fontSize: 12, color: '#f87171' }}>{runtimeError}</div>}
+          <div style={{ marginTop: 8, fontSize: 11, color: '#64748b' }}>
+            Настройки применяются за несколько секунд, перезапуск воркера не нужен. Очередь идёт по времени начала записи.
+          </div>
+        </div>
+      )}
 
       {/* ── Stats grid ─────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 12, marginBottom: 20 }}>

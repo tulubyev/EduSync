@@ -76,9 +76,9 @@ services:
       - myepa_recordings:/data/recordings
     # Каждая запись = Chromium + ffmpeg (libx264) на 1920×1080. Лимит с запасом
     # на MAX_WORKERS=1; при росте параллельности поднимать вместе с MAX_WORKERS.
-    mem_limit: 3g
-    memswap_limit: 3g
-    shm_size: 1gb
+    mem_limit: ${WORKER_MEM_LIMIT:-3g}
+    memswap_limit: ${WORKER_MEM_LIMIT:-3g}
+    shm_size: ${WORKER_SHM_SIZE:-1gb}
     stop_grace_period: 60s
     networks:
       - traefik-public

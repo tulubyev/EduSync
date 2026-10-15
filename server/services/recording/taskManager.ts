@@ -1,9 +1,10 @@
 import { db } from '../../db';
 import { recordingTasks, recordingWorkerStatus } from '@shared/schema';
-import { eq, and, or, lte, gte, lt, desc, sql, isNull } from 'drizzle-orm';
+import { eq, and, or, lte, gte, lt, desc, sql, isNull, inArray } from 'drizzle-orm';
 import { logger } from '../logger';
 import { RecordingTaskData, RecordingPart } from './types';
 import { recordingLogger } from './logger';
+import { readRuntimeSettings } from './runtimeSettings';
 import { buildStartStatus, type WaitingContext, type StartRecord } from './startStatus';
 import { randomUUID } from 'crypto';
 
@@ -125,12 +126,29 @@ class RecordingTaskManager {
     } catch (e) {
       logger.warn('loadWaitingContext: cannot read worker status', e);
     }
+    let runtime: Awaited<ReturnType<typeof readRuntimeSettings>> | null = null;
+    let activeByUser: Record<string, number> = {};
+    try {
+      runtime = await readRuntimeSettings();
+      const active = await db
+        .select({ userId: recordingTasks.userId, n: sql<number>`count(*)::int` })
+        .from(recordingTasks)
+        .where(inArray(recordingTasks.status, ['in_progress', 'uploading']))
+        .groupBy(recordingTasks.userId);
+      activeByUser = Object.fromEntries(active.map((r) => [r.userId, Number(r.n)]));
+    } catch (e) {
+      logger.warn('loadWaitingContext: cannot read runtime settings', e);
+    }
     // Воркер пишет статус раз в ~6 циклов опроса; считаем живым, если был на связи в пределах 3 таких интервалов
     const pollMs = parseInt(process.env.POLL_INTERVAL_MS || '5000', 10);
     return {
       now: new Date(),
       tzOffsetH: parseInt(process.env.SCHEDULED_TIME_TZ_OFFSET_H || '0', 10),
       workers,
+      paused: runtime?.paused,
+      concurrency: runtime?.concurrency,
+      perUserLimit: runtime?.perUserLimit,
+      activeByUser,
       workerAliveMs: Math.max(90_000, pollMs * 6 * 3),
     };
   }
@@ -405,6 +423,7 @@ class RecordingTaskManager {
         ? buildStartStatus(
             {
               id: task.id,
+              userId: task.userId,
               status: task.status,
               scheduledTime: task.scheduledTime,
               attemptCount: task.attemptCount,

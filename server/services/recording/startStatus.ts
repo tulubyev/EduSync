@@ -44,6 +44,8 @@ export type StartFailureCode =
   | 'DISK_SPACE_LOW'
   | 'S3_UPLOAD_FAILED'
   | 'NO_WORKER'
+  | 'PAUSED'
+  | 'USER_LIMIT'
   | 'WORKER_RESTARTED'
   | 'HEARTBEAT_TIMEOUT'
   | 'UNKNOWN';
@@ -223,12 +225,21 @@ export interface WaitingContext {
   /** Поправка (часы), с которой воркер сравнивает scheduled_time (SCHEDULED_TIME_TZ_OFFSET_H) */
   tzOffsetH: number;
   workers: WorkerSnapshot[];
+  /** Приём записей приостановлен админом */
+  paused?: boolean;
+  /** Разрешённая параллельность (null — не ограничена настройкой) */
+  concurrency?: number | null;
+  /** Лимит одновременных записей на пользователя (0/undefined — нет) */
+  perUserLimit?: number;
+  /** Сколько записей сейчас идёт у каждого пользователя */
+  activeByUser?: Record<string, number>;
   /** Воркер считается живым, если был на связи не позднее этого времени (мс) */
   workerAliveMs: number;
 }
 
 export interface TaskForDiagnosis {
   id: string;
+  userId?: string;
   status: string;
   scheduledTime: Date | string;
   attemptCount?: number | null;
@@ -293,7 +304,28 @@ export function buildStartStatus(task: TaskForDiagnosis, ctx: WaitingContext): S
       };
     }
 
-    // Время пришло, а задача всё ещё не взята — смотрим воркеры
+    // Время пришло, а задача всё ещё не взята
+    if (ctx.paused) {
+      return {
+        state: 'waiting',
+        code: 'PAUSED',
+        reason: 'Приём записей приостановлен администратором — задача начнётся после возобновления',
+        updatedAt,
+        severity: 'warn',
+      };
+    }
+    if (ctx.perUserLimit && ctx.perUserLimit > 0 && task.userId && (ctx.activeByUser?.[task.userId] ?? 0) >= ctx.perUserLimit) {
+      return {
+        state: 'waiting',
+        code: 'USER_LIMIT',
+        reason: `У вас уже идёт ${ctx.perUserLimit} запис${ctx.perUserLimit === 1 ? 'ь' : 'и'} одновременно — эта начнётся, когда одна из них закончится`,
+        hint: 'Лимит одновременных записей на пользователя задаёт администратор.',
+        updatedAt,
+        severity: 'warn',
+      };
+    }
+
+    // Смотрим воркеры
     const alive = ctx.workers.filter(
       (w) => w.isActive !== false && w.lastSeenAt && ctx.now.getTime() - new Date(w.lastSeenAt).getTime() <= ctx.workerAliveMs,
     );
@@ -307,11 +339,13 @@ export function buildStartStatus(task: TaskForDiagnosis, ctx: WaitingContext): S
         severity: 'error',
       };
     }
-    if (alive.every((w) => w.activeTaskId)) {
+    const busy = alive.filter((w) => w.activeTaskId).length;
+    const capacity = ctx.concurrency ?? alive.length;
+    if (busy >= Math.min(capacity, alive.length) || alive.every((w) => w.activeTaskId)) {
       return {
         state: 'waiting',
-        reason: 'Воркер занят другой записью — задача начнётся, когда он освободится',
-        hint: alive.length === 1 ? 'Одновременно воркер пишет одну трансляцию. Увеличьте MAX_WORKERS, если нужно параллельно.' : undefined,
+        reason: 'Все места для записи заняты — задача начнётся, когда одно освободится',
+        hint: 'Число одновременных записей задаёт администратор (панель записи → «Приём записей»); верхний предел — MAX_WORKERS на сервере.',
         updatedAt,
         severity: 'warn',
       };
