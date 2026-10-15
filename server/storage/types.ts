@@ -3,7 +3,8 @@ import type {
   Course, InsertCourse,
   Platform, InsertPlatform,
   Deadline, InsertDeadline,
-  Note, InsertNote
+  Note, InsertNote,
+  AdminLog, InsertAdminLog
 } from "@shared/schema";
 
 export interface IUserStorage {
@@ -28,6 +29,8 @@ export interface IPlatformStorage {
   getPlatforms(): Promise<Platform[]>;
   getPlatform(id: string): Promise<Platform | undefined>;
   createPlatform(platform: InsertPlatform): Promise<Platform>;
+  savePlatformConnection(userId: string, platformId: string, authType: string, encryptedData: string): Promise<any>;
+  getPlatformConnection(userId: string, platformId: string): Promise<any>;
 }
 
 export interface IDeadlineStorage {
@@ -59,4 +62,6 @@ export interface IAdminStorage {
   getPaymentTotalAmount(provider?: string): Promise<number>;
   getSuccessfulPaymentCount(provider?: string): Promise<number>;
   getPaymentTransactions(fromDate: Date): Promise<any[]>;
+  createAdminLog(entry: InsertAdminLog): Promise<AdminLog>;
+  getAdminLogs(adminUserId: string | undefined, page?: number, limit?: number): Promise<AdminLog[]>;
 }

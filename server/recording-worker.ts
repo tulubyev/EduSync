@@ -1,7 +1,7 @@
 /**
  * EPA Recording Worker — standalone entry point.
  *
- * Запускается отдельно от основного веб-приложения (Replit).
+ * Запускается отдельно от основного веб-приложения.
  * Подключается к той же PostgreSQL БД, берёт задачи из recording_tasks,
  * пишет видео через Playwright + FFmpeg, загружает на Beget S3.
  *

@@ -19,7 +19,7 @@ export interface SubscriptionPlan {
   description: string | null;
   priceMonthly: string;
   priceYearly: string | null;
-  features: Record<string, any> | null;
+  features: unknown;
   maxCourses: number | null;
   maxPlatforms: number | null;
   hasAnalytics: boolean | null;

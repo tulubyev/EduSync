@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { platforms, platformRegions, type Platform, type InsertPlatform } from "@shared/schema";
+import { platforms, platformRegions, platformConnections, type Platform, type InsertPlatform } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import type { IPlatformStorage } from "./types";
 
@@ -73,7 +73,7 @@ export class PlatformStorage implements IPlatformStorage {
         .values({
           userId,
           platformId,
-          status: 'active',
+          connectionStatus: 'active',
         })
         .returning();
       
@@ -89,18 +89,52 @@ export class PlatformStorage implements IPlatformStorage {
     return newPlatform;
   }
 
+  /**
+   * Сохраняет зашифрованные учётные данные платформы (логин/пароль, API-ключ).
+   * Отдельной колонки под тип авторизации нет, поэтому в access_token_encrypted лежит
+   * JSON {authType, encrypted}; сами данные уже зашифрованы EncryptionService.
+   */
   async savePlatformConnection(userId: string, platformId: string, authType: string, encryptedData: string): Promise<any> {
-    return {
-      id: `conn-${Date.now()}`,
-      userId,
-      platformId,
-      authType,
-      status: 'active',
-      createdAt: new Date(),
-    };
+    const payload = JSON.stringify({ authType, encrypted: encryptedData });
+
+    const [existing] = await db
+      .select()
+      .from(platformConnections)
+      .where(and(eq(platformConnections.userId, userId), eq(platformConnections.platformId, platformId)))
+      .limit(1);
+
+    if (existing) {
+      const [updated] = await db
+        .update(platformConnections)
+        .set({ accessTokenEncrypted: payload, connectionStatus: 'active', updatedAt: new Date() })
+        .where(eq(platformConnections.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    const [created] = await db
+      .insert(platformConnections)
+      .values({ userId, platformId, accessTokenEncrypted: payload, connectionStatus: 'active' })
+      .returning();
+    return created;
   }
 
   async getPlatformConnection(userId: string, platformId: string): Promise<any> {
-    return null;
+    const [row] = await db
+      .select()
+      .from(platformConnections)
+      .where(and(eq(platformConnections.userId, userId), eq(platformConnections.platformId, platformId)))
+      .limit(1);
+
+    if (!row?.accessTokenEncrypted) return null;
+
+    try {
+      const { authType, encrypted } = JSON.parse(row.accessTokenEncrypted);
+      if (typeof authType !== 'string' || typeof encrypted !== 'string') return null;
+      return { ...row, authType, encryptedData: encrypted };
+    } catch {
+      // Токен другого формата (например, OAuth Stepik) — это не учётные данные
+      return null;
+    }
   }
 }

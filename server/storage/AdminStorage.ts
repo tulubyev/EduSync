@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { users, payments, subscriptions, subscriptionPlans, type User } from "@shared/schema";
+import { users, payments, subscriptions, subscriptionPlans, adminLogs, type User, type AdminLog, type InsertAdminLog } from "@shared/schema";
 import { eq, desc, sql, gte, lte, and, or } from "drizzle-orm";
 import type { IAdminStorage } from "./types";
 
@@ -151,5 +151,21 @@ export class AdminStorage implements IAdminStorage {
       console.error('Error getting payment transactions:', error);
       return [];
     }
+  }
+
+  async createAdminLog(entry: InsertAdminLog): Promise<AdminLog> {
+    const [row] = await db.insert(adminLogs).values(entry).returning();
+    return row;
+  }
+
+  /** Журнал действий админов; adminUserId = undefined — все записи (для super_admin). */
+  async getAdminLogs(adminUserId: string | undefined, page = 1, limit = 50): Promise<AdminLog[]> {
+    const pageSize = Math.min(200, Math.max(1, limit));
+    const query = db.select().from(adminLogs);
+    const filtered = adminUserId ? query.where(eq(adminLogs.adminUserId, adminUserId)) : query;
+    return await filtered
+      .orderBy(desc(adminLogs.createdAt))
+      .limit(pageSize)
+      .offset((Math.max(1, page) - 1) * pageSize);
   }
 }

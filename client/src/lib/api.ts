@@ -19,22 +19,12 @@ const getEndpoints = async (): Promise<any> => {
         login: '/api/auth/login',
         refresh: '/api/auth/refresh',
         logout: '/api/auth/logout',
-        gosuslugi: '/api/auth/gosuslugi',
         verify: '/api/auth/verify'
       },
       profile: {
         uploadImage: '/api/profile/upload-image'
       },
-      verification: {
-        sendSms: '/api/verification/send-sms',
-        sendEmail: '/api/verification/send-email',
-        verifySms: '/api/verification/verify-sms',
-        verifyEmail: '/api/verification/verify-email'
-      },
-      ai: '/api/ai',
-      esia: {
-        auth: '/api/auth/esia'
-      }
+      ai: '/api/ai'
     };
   }
 };
@@ -68,12 +58,6 @@ export const authAPI = {
   logout: async (): Promise<void> => {
     const endpoints: any = await getEndpoints();
     await apiRequest("POST", endpoints.auth.logout);
-  },
-
-  gosuslugiAuth: async (code: string): Promise<{ user: User; accessToken: string }> => {
-    const endpoints: any = await getEndpoints();
-    const res = await apiRequest("POST", endpoints.auth.gosuslugi, { code });
-    return await res.json();
   },
 };
 

@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import { resolveBegetPublicUrl } from '../s3PublicUrl';
 
 function detectChromiumPath(): string | undefined {
   if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
@@ -20,7 +21,7 @@ export const executorConfig = {
     bucket: process.env.BEGET_S3_BUCKET || '',
     accessKeyId: process.env.BEGET_S3_ACCESS_KEY || process.env.BEGET_S3_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.BEGET_S3_SECRET_KEY || process.env.BEGET_S3_SECRET_ACCESS_KEY || '',
-    publicUrl: process.env.BEGET_S3_PUBLIC_URL || '',
+    publicUrl: resolveBegetPublicUrl(),
   },
   worker: {
     id: process.env.WORKER_ID || 'epa-worker-1',

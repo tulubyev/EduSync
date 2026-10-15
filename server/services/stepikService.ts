@@ -94,7 +94,7 @@ class StepikService {
     const params = new URLSearchParams({
       client_id: this.clientId,
       response_type: 'code',
-      redirect_uri: `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/platforms/stepik/callback`,
+      redirect_uri: `${(process.env.API_BASE_URL || process.env.APP_URL || 'http://localhost:5000')}/api/platforms/stepik/callback`,
       state,
     });
 
@@ -109,7 +109,7 @@ class StepikService {
       const data = querystring.stringify({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/platforms/stepik/callback`,
+        redirect_uri: `${(process.env.API_BASE_URL || process.env.APP_URL || 'http://localhost:5000')}/api/platforms/stepik/callback`,
         client_id: this.clientId,
         client_secret: this.clientSecret,
       });

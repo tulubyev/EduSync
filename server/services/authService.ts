@@ -213,32 +213,6 @@ export class AuthService {
 
     return { accessToken, refreshToken };
   }
-
-  // Mock OAuth for Gosuslugi integration (for MVP)
-  async mockGosuslugiAuth(code: string): Promise<{ user: User; tokens: AuthTokens }> {
-    // In production, this would validate the OAuth code with Gosuslugi
-    // For MVP, we'll create a mock user
-    const mockUserData = {
-      email: `user${Date.now()}@gosuslugi.ru`,
-      firstName: "Александр",
-      lastName: "Иванов",
-      phone: "+7-900-123-45-67",
-      isVerified: true,
-    };
-
-    // Check if user exists or create new one
-    let user = await storage.getUserByEmail(mockUserData.email);
-    if (!user) {
-      const passwordHash = await bcrypt.hash("temp-password", 12);
-      user = await storage.createUser({
-        ...mockUserData,
-        passwordHash,
-      });
-    }
-
-    const tokens = this.generateTokens(user);
-    return { user, tokens };
-  }
 }
 
 export const authService = new AuthService();

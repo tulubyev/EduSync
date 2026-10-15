@@ -198,7 +198,7 @@ app.use((req, res, next) => {
         logger.info('Recording executor: VPS mode — built-in poller disabled, external worker handles recordings');
         return;
       }
-      // Replit mode: start local poller (PM2 cluster safe — only in primary)
+      // Embedded mode: start local poller (PM2 cluster safe — only in primary)
       const isPrimaryWorker = !process.env.pm_id || process.env.pm_id === '0';
       if (isPrimaryWorker) {
         const result = await pollerController.start();

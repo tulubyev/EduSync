@@ -1,0 +1,96 @@
+# ============================================================
+#  EduSync / My EPA — продакшен на VPS (Вариант A — полный Docker)
+#  По vps-server-infra/projects/template/docker-compose.prod.yml
+#
+#  Размещение:  /var/www/myepa/   (этот файл, deploy.sh и .env)
+#  Домены:      myepa.ru, epa-link.ru → Traefik (labels), Let's Encrypt
+#  БД:          системный PostgreSQL 16 (172.28.0.1:5432), база myepa_db
+#               ⚠ Только порт 5432. Доступ из сети traefik-public
+#               (pg_hba: host all all 172.28.0.0/16 md5).
+#
+#  ⚠ СБОРКА НА ЭТОМ VPS НЕ ДЕЛАЕТСЯ: образы собирает GitHub Actions
+#  (.github/workflows/docker.yml) → ghcr.io/tulubyev/edusync-{web,worker};
+#  на сервере только pull.
+#
+#  Запуск:
+#    cp .env.example .env && nano .env && chmod 600 .env
+#    docker compose -f docker-compose.prod.yml pull
+#    docker compose -f docker-compose.prod.yml up -d             # только web
+#    docker compose -f docker-compose.prod.yml --profile worker up -d   # + воркер записи
+#
+#  Воркер вынесен в profile `worker`, чтобы случайно не запустить второй
+#  воркер рядом с уже работающим (оба берут задачи из recording_tasks).
+# ============================================================
+
+services:
+
+  # ── Веб-приложение (Express + React) ─────────────────────
+  web:
+    image: ghcr.io/tulubyev/edusync-web:${IMAGE_TAG:-latest}
+    container_name: myepa-app
+    restart: always
+    expose:
+      - "5000"
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      # Postgres на хосте без SSL
+      DATABASE_SSL: "false"
+      # Запись выполняет отдельный воркер → встроенный исполнитель выключен
+      DISABLE_RECORDING_EXECUTOR: "true"
+    mem_limit: 768m
+    memswap_limit: 768m
+    networks:
+      - traefik-public
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.myepa.rule=Host(`${APP_DOMAIN:-myepa.ru}`) || Host(`${APP_DOMAIN_ALT:-epa-link.ru}`)"
+      - "traefik.http.routers.myepa.entrypoints=websecure"
+      - "traefik.http.routers.myepa.tls.certresolver=letsencrypt"
+      - "traefik.http.services.myepa.loadbalancer.server.port=5000"
+
+  # ── Воркер записи вебинаров (Chromium + ffmpeg + PulseAudio) ──
+  #  Наружу ничего не публикует. Ходит в БД (таблица recording_tasks)
+  #  и в Beget S3; публичные ссылки на видео строит из BEGET_S3_PUBLIC_URL (CDN).
+  worker:
+    image: ghcr.io/tulubyev/edusync-worker:${IMAGE_TAG:-latest}
+    container_name: myepa-worker
+    profiles: ["worker"]
+    restart: always
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_SSL: "false"
+      WORKER_ID: ${WORKER_ID:-vps-worker-1}
+      RECORDINGS_DIR: /data/recordings
+      PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium
+      CHROMIUM_HEADLESS: "true"
+      SCHEDULED_TIME_TZ_OFFSET_H: ${SCHEDULED_TIME_TZ_OFFSET_H:-3}
+    volumes:
+      - myepa_recordings:/data/recordings
+    # Каждая запись = Chromium + ffmpeg (libx264) на 1920×1080. Лимит с запасом
+    # на MAX_WORKERS=1; при росте параллельности поднимать вместе с MAX_WORKERS.
+    mem_limit: 3g
+    memswap_limit: 3g
+    shm_size: 1gb
+    stop_grace_period: 60s
+    networks:
+      - traefik-public
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
+
+volumes:
+  myepa_recordings:
+
+networks:
+  traefik-public:
+    name: traefik-public
+    external: true   # общая сеть Traefik — уже существует

@@ -45,30 +45,9 @@ export interface FrontendConfig {
         verify: string;
         logout: string;
       };
-      verification: {
-        sendSms: string;
-        sendEmail: string;
-        verifySms: string;
-        verifyEmail: string;
-      };
-      banks: {
-        connections: string;
-        available: string;
-        connect: string;
-        realConnect: string;
-        sync: string;
-      };
-      accounts: string;
-      transactions: string;
       profile: {
         update: string;
         uploadImage: string;
-      };
-      documents: {
-        list: string;
-        upload: string;
-        download: string;
-        types: string;
       };
       ai: {
         chat: string;
@@ -76,10 +55,8 @@ export interface FrontendConfig {
         message: string;
         insights: string;
       };
-      dashboard: string;
       admin: {
         users: string;
-        documents: string;
         system: string;
       };
       twoFactor: {
@@ -88,24 +65,12 @@ export interface FrontendConfig {
         enable: string;
         disable: string;
       };
-      esia: {
-        authorize: string;
-        mock: string;
-      };
     };
     timeout: number;
     retryAttempts: number;
   };
   
   business: {
-    verification: {
-      limits: {
-        unverified: string;
-        phone: string;
-        documents: string;
-      };
-      requirements: string[];
-    };
     sync: {
       defaultInterval: string;
       maxRetries: number;
@@ -216,7 +181,7 @@ class ConfigService {
           maxMessageLength: 1000
         },
         sidebar: {
-          cookieName: 'fintrack-sidebar-collapsed',
+          cookieName: 'myepa-sidebar-collapsed',
           cookieMaxAge: 365 * 24 * 60 * 60 * 1000,
           width: 280,
           widthMobile: 240,
@@ -240,30 +205,9 @@ class ConfigService {
             verify: '/api/auth/verify',
             logout: '/api/auth/logout'
           },
-          verification: {
-            sendSms: '/api/verification/send-sms',
-            sendEmail: '/api/verification/send-email',
-            verifySms: '/api/verification/verify-sms',
-            verifyEmail: '/api/verification/verify-email'
-          },
-          banks: {
-            connections: '/api/banks/connections',
-            available: '/api/banks/available',
-            connect: '/api/banks/connect',
-            realConnect: '/api/banks/real/connect',
-            sync: '/api/banks/real/sync'
-          },
-          accounts: '/api/accounts',
-          transactions: '/api/transactions',
           profile: {
             update: '/api/profile/update',
             uploadImage: '/api/profile/upload-image'
-          },
-          documents: {
-            list: '/api/documents',
-            upload: '/api/documents/upload',
-            download: '/api/documents',
-            types: '/api/documents/types'
           },
           ai: {
             chat: '/api/ai/chat',
@@ -271,10 +215,8 @@ class ConfigService {
             message: '/api/ai/chat/message',
             insights: '/api/ai/insights'
           },
-          dashboard: '/api/dashboard',
           admin: {
             users: '/api/admin/users',
-            documents: '/api/admin/documents',
             system: '/api/admin/system-info'
           },
           twoFactor: {
@@ -282,28 +224,12 @@ class ConfigService {
             setup: '/api/auth/2fa/setup',
             enable: '/api/auth/2fa/enable',
             disable: '/api/auth/2fa/disable'
-          },
-          esia: {
-            authorize: '/api/auth/esia/authorize',
-            mock: '/api/auth/esia/mock'
           }
         },
         timeout: 30000,
         retryAttempts: 3
       },
       business: {
-        verification: {
-          limits: {
-            unverified: '15 000 ₽/мес',
-            phone: '100 000 ₽/мес',
-            documents: '1 000 000 ₽/мес'
-          },
-          requirements: [
-            'Подтверждение телефона',
-            'Подтверждение email',
-            'Загрузка документов'
-          ]
-        },
         sync: {
           defaultInterval: '15 минут',
           maxRetries: 5

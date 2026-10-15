@@ -41,10 +41,10 @@ export function WebhooksModal({ isOpen, onClose }: WebhooksModalProps) {
         <div style={{ marginBottom: '20px' }}>
           <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>🔗 Активные вебхуки</h3>
           {[
-            { service: 'YuKassa', event: 'payment.succeeded', url: 'https://api.fintrack.ru/webhooks/yukassa', status: 'active' },
-            { service: 'CloudPayments', event: 'transaction.completed', url: 'https://api.fintrack.ru/webhooks/cloudpayments', status: 'active' },
-            { service: 'Сбербанк', event: 'account.updated', url: 'https://api.fintrack.ru/webhooks/sberbank', status: 'inactive' },
-            { service: 'Тинькофф', event: 'investment.order', url: 'https://api.fintrack.ru/webhooks/tinkoff', status: 'testing' }
+            { service: 'YuKassa', event: 'payment.succeeded', url: 'https://myepa.ru/api/webhooks/yukassa', status: 'active' },
+            { service: 'CloudPayments', event: 'transaction.completed', url: 'https://myepa.ru/api/webhooks/cloudpayments', status: 'active' },
+            { service: 'Сбербанк', event: 'account.updated', url: 'https://myepa.ru/api/webhooks/sberbank', status: 'inactive' },
+            { service: 'Тинькофф', event: 'investment.order', url: 'https://myepa.ru/api/webhooks/tinkoff', status: 'testing' }
           ].map((webhook, idx) => (
             <div key={idx} style={{
               display: 'flex',

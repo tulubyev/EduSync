@@ -68,16 +68,6 @@ export abstract class BaseService {
   ): Promise<void> {
     try {
       console.log(`[${new Date().toISOString()}] ${action} - User: ${userId}`, metadata);
-      
-      if (this.storage.createAdminLog) {
-        await this.storage.createAdminLog({
-          adminUserId: userId,
-          action,
-          details: metadata ? JSON.stringify(metadata) : null,
-          ipAddress: this.requestContext.ipAddress || null,
-          userAgent: this.requestContext.userAgent || null,
-        });
-      }
     } catch (error) {
       console.error('Audit log error:', error);
     }

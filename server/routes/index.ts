@@ -13,6 +13,7 @@ import adminRouter from "./admin.js";
 import subscriptionsRouter from "./subscriptions.js";
 import stepikRouter from "./stepik.js";
 import recordingRouter from "./recording.js";
+import aiRouter from "./ai.js";
 
 const mainRouter = Router();
 
@@ -35,5 +36,7 @@ mainRouter.use('/platforms', rateLimiters.general, platformsRouter);
 mainRouter.use('/admin', rateLimiters.general, adminRouter);
 mainRouter.use('/subscriptions', rateLimiters.general, subscriptionsRouter);
 mainRouter.use('/stepik', rateLimiters.general, stepikRouter);
+// ИИ-помощник: платные вызовы OpenRouter — жёсткий лимит запросов
+mainRouter.use('/ai', rateLimiters.strict, aiRouter);
 
 export default mainRouter;

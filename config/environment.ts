@@ -1,8 +1,8 @@
            /**
- * 🔧 Централизованная конфигурация FinTrack
+ * 🔧 Централизованная конфигурация My EPA
  * Все настройки приложения через environment variables
  * 
- * @author FinTrack Team
+ * @author My EPA Team
  * @created 2025-09-09
  */
 
@@ -142,18 +142,6 @@ export interface AppConfig {
   // File Upload Configuration
   uploads: {
     maxFileSize: number;
-  };
-  
-  // ESIA OAuth Configuration
-  esia: {
-    windowMs: number;
-    maxAttempts: number;
-  };
-  
-  // Bank Connection Configuration
-  banks: {
-    redirectTimeoutMs: number;
-    baseUrl: string;
   };
   
   // Фронтенд
@@ -402,6 +390,10 @@ export function validateConfig(): void {
   
   if (!config.crypto.encryptionKey) {
     errors.push('ENCRYPTION_KEY обязателен');
+  }
+
+  if (config.env === 'production' && !config.crypto.jwtRefreshSecret) {
+    errors.push('JWT_REFRESH_SECRET обязателен в production (иначе используется известное значение по умолчанию)');
   }
   
   if (!config.services.openrouter.apiKey) {

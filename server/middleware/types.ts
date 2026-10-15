@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import type { User, AdminRole } from '@shared/schema';
+import type { User } from '@shared/schema';
 
 // ===========================================
 // УНИФИЦИРОВАННЫЕ MIDDLEWARE ТИПЫ

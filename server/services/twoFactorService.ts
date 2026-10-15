@@ -1,7 +1,24 @@
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
-import { storage } from "../storage";
+import { storage as baseStorage } from "../storage";
 import type { User } from "@shared/schema";
+
+// Колонок two_factor_* / sms_code* пока нет ни в БД, ни в shared/schema.ts (2FA выключена, ENABLE_2FA).
+// Чтобы включить: добавить колонки в users + в schema.ts и убрать этот адаптер.
+interface TwoFactorFields {
+  twoFactorEnabled?: boolean | null;
+  twoFactorSecret?: string | null;
+  twoFactorBackupCodes?: string[] | null;
+  smsCode?: string | null;
+  smsCodeExpiry?: Date | null;
+}
+type UserWith2FA = User & TwoFactorFields;
+
+const storage = {
+  getUser: (id: string) => baseStorage.getUser(id) as Promise<UserWith2FA | undefined>,
+  getUserByPhone: (phone: string) => baseStorage.getUserByPhone(phone) as Promise<UserWith2FA | undefined>,
+  updateUser: (id: string, updates: TwoFactorFields) => baseStorage.updateUser(id, updates as never),
+};
 
 export interface TwoFactorSetupResponse {
   secret: string;
@@ -16,7 +33,7 @@ export interface SMSCodeResponse {
 }
 
 export class TwoFactorService {
-  private readonly APP_NAME = "FinTrack";
+  private readonly APP_NAME = "My EPA";
   private readonly SMS_CODE_EXPIRY_MINUTES = 5;
 
   /**
