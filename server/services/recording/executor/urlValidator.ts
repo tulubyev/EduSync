@@ -1,5 +1,6 @@
 import * as https from 'https';
 import * as http from 'http';
+import { getRecordingProxy, isProxiedHost } from './proxyConfig';
 import { logger } from '../../logger';
 
 export interface UrlValidationResult {
@@ -175,6 +176,17 @@ export async function validateStreamUrl(
       error = `Соединение сброшено сервером ${hostname}`;
     } else {
       error = msg;
+    }
+
+    // Источник пойдёт через прокси браузера, а эта проверка из Node идёт напрямую и его не видит:
+    // не срываем задачу, доступность проверится при открытии страницы в Chromium.
+    if (getRecordingProxy() && isProxiedHost(hostname)) {
+      logger.warn(`URL check (напрямую) не прошла: ${error} — запись пойдёт через прокси`);
+      return {
+        accessible: true,
+        sourceType,
+        warning: `Прямая проверка не прошла (${error}); запись пойдёт через прокси`,
+      };
     }
 
     logger.warn(`URL check failed: ${error}`);

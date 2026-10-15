@@ -2,6 +2,7 @@ import { chromium, Browser, Page, CDPSession } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
+import { getRecordingProxy } from './proxyConfig';
 import { logger } from '../../logger';
 import { RecordingConfig } from '../types';
 import { AudioSetup } from './audioSetup';
@@ -121,10 +122,16 @@ export class StreamingRecorder {
       logger.info(`[BROWSER] Executable: ${this.recordingConfig.chromiumPath ?? 'playwright-bundled'}`);
       logger.info(`[BROWSER] Headless: ${this.recordingConfig.headless}`);
 
+      const proxy = getRecordingProxy();
+      if (proxy) {
+        logger.info(`[BROWSER] Proxy: ${proxy.server} (напрямую: ${proxy.bypass || '—'})`);
+      }
+
       this.browser = await chromium.launch({
         headless: this.recordingConfig.headless,
         executablePath: this.recordingConfig.chromiumPath,
         args: chromiumArgs,
+        ...(proxy ? { proxy } : {}),
         env: {
           ...process.env,
           ...this.audioSetup.getChromiumEnv(),
