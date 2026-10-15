@@ -2,9 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { storage } from "../storage";
 import { authenticateToken, type AuthenticatedRequest } from "../middleware/auth";
 import { requireAdmin, requirePermission, getAdminSections, hasPermission } from "../middleware/adminAuth";
-import { documentStorageService } from "../services/documentStorageService";
 import { adminService } from "../services/AdminService";
-import { documentService } from "../services/DocumentService";
 import { getMetrics, checkAlerts, getSystemHealth, getPerformanceStats } from "../middleware/metrics";
 import { getCacheStats } from "../middleware/caching";
 import { tokenCache } from "../services/tokenCache";
@@ -71,27 +69,6 @@ const logAdminAction = async (userId: string, action: string, targetType?: strin
     console.error('Ошибка логирования действия админа:', error);
   }
 };
-
-// ===========================================
-// ADMIN STORAGE & SYSTEM MONITORING
-// ===========================================
-
-// Administrative routes for document storage monitoring
-adminRouter.get('/storage/info', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  const storageInfo = await documentStorageService.getStorageInfo();
-  res.json({
-    ...storageInfo,
-    totalSizeMB: Math.round(storageInfo.totalSize / (1024 * 1024) * 100) / 100,
-    securityFeatures: [
-      'AES-256 encryption',
-      'File integrity verification (SHA-256)',
-      'Access control (user-based)',
-      'Secure file paths',
-      'Directory permissions (700)',
-      'Path traversal protection'
-    ]
-  });
-}));
 
 // System monitoring endpoints - ПРОДВИНУТАЯ СИСТЕМА МОНИТОРИНГА
 adminRouter.get('/system/metrics', authenticateToken, requireAdmin, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -311,32 +288,6 @@ adminRouter.get('/profile', authenticateToken, requireAdmin, async (req: Authent
     });
   } catch (error) {
     res.status(500).json({ message: 'Ошибка получения профиля админа' });
-  }
-});
-
-// ===========================================
-// ADMIN DOCUMENTS MANAGEMENT
-// ===========================================
-
-// Get pending documents for moderation (admin only)
-adminRouter.get('/documents/pending', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const pendingDocuments = await documentService.getPendingDocuments();
-    res.json(pendingDocuments);
-  } catch (error) {
-    console.error('Error fetching pending documents:', error);
-    res.status(500).json({ message: 'Ошибка получения документов на модерацию' });
-  }
-});
-
-// Get archived documents for admin (verified/rejected)
-adminRouter.get('/documents/archived', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const archivedDocuments = await storage.getArchivedDocuments();
-    res.json(archivedDocuments);
-  } catch (error) {
-    console.error('Error fetching archived documents:', error);
-    res.status(500).json({ message: 'Ошибка получения архивных документов' });
   }
 });
 

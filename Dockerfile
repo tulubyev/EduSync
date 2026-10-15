@@ -32,8 +32,6 @@ WORKDIR /app
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
-# Документы пользователей лежат в ./saveddata (DocumentStorageService) — монтировать том.
-RUN mkdir -p /app/saveddata && chown node:node /app/saveddata
 USER node
 EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \

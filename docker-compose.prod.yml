@@ -39,8 +39,6 @@ services:
       DATABASE_SSL: "false"
       # Запись выполняет отдельный воркер → встроенный исполнитель выключен
       DISABLE_RECORDING_EXECUTOR: "true"
-    volumes:
-      - myepa_saveddata:/app/saveddata
     mem_limit: 768m
     memswap_limit: 768m
     networks:
@@ -90,7 +88,6 @@ services:
         tag: "{{.Name}}"
 
 volumes:
-  myepa_saveddata:
   myepa_recordings:
 
 networks:

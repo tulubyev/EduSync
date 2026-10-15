@@ -64,12 +64,6 @@ export interface FrontendConfig {
         update: string;
         uploadImage: string;
       };
-      documents: {
-        list: string;
-        upload: string;
-        download: string;
-        types: string;
-      };
       ai: {
         chat: string;
         session: string;
@@ -79,7 +73,6 @@ export interface FrontendConfig {
       dashboard: string;
       admin: {
         users: string;
-        documents: string;
         system: string;
       };
       twoFactor: {
@@ -259,12 +252,6 @@ class ConfigService {
             update: '/api/profile/update',
             uploadImage: '/api/profile/upload-image'
           },
-          documents: {
-            list: '/api/documents',
-            upload: '/api/documents/upload',
-            download: '/api/documents',
-            types: '/api/documents/types'
-          },
           ai: {
             chat: '/api/ai/chat',
             session: '/api/ai/chat/session',
@@ -274,7 +261,6 @@ class ConfigService {
           dashboard: '/api/dashboard',
           admin: {
             users: '/api/admin/users',
-            documents: '/api/admin/documents',
             system: '/api/admin/system-info'
           },
           twoFactor: {

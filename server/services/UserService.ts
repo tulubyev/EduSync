@@ -3,9 +3,7 @@ import type {
   IUserService, 
   UserProfile, 
   ProfileUpdates, 
-  AuthResult,
-  VerificationProcess,
-  VerificationResult 
+  AuthResult 
 } from "./interfaces";
 import type { User, InsertUser } from "@shared/schema";
 import bcrypt from "bcrypt";
@@ -57,11 +55,9 @@ export class UserService extends BaseService implements IUserService {
 
       // Агрегируем дополнительные данные
       const [
-        documents,
         bankConnections,
         totalBalance
       ] = await Promise.all([
-        this.storage.getUserDocuments ? this.storage.getUserDocuments(userId) : [],
         this.storage.getBankConnections(userId),
         this.storage.getTotalBalance(userId).catch(() => "0.00")
       ]);
@@ -76,7 +72,6 @@ export class UserService extends BaseService implements IUserService {
         role: user.role || 'personal',
         planType: user.planType || 'free',
         isVerified: user.isVerified || false,
-        documentsVerified: documents.length > 0 && documents.every(d => d.status === 'verified'),
         banksConnected: bankConnections.length,
         totalBalance: totalBalance,
         createdAt: user.createdAt || new Date(),
@@ -222,95 +217,6 @@ export class UserService extends BaseService implements IUserService {
 
     } catch (error) {
       return this.handleError(error, 'changePassword', userId);
-    }
-  }
-
-  /**
-   * Инициация процесса верификации пользователя
-   */
-  async initiateUserVerification(userId: string): Promise<VerificationProcess> {
-    this.validateUserId(userId);
-
-    try {
-      const user = await this.storage.getUser(userId);
-      if (!user) {
-        throw new NotFoundError('Пользователь', userId);
-      }
-
-      if (user.isVerified) {
-        throw new BusinessError('Пользователь уже верифицирован');
-      }
-
-      // Получаем типы документов для верификации
-      const documentTypes = await this.storage.getDocumentTypes?.() || [];
-      const requiredDocuments = documentTypes
-        .filter(dt => dt.isActive !== false) // используем isActive вместо isRequired
-        .map(dt => dt.name);
-
-      const processId = `verify_${userId}_${Date.now()}`;
-
-      const process: VerificationProcess = {
-        processId,
-        requiredDocuments,
-        status: 'pending'
-      };
-
-      await this.auditLog('verification_initiated', userId, { processId });
-
-      return process;
-
-    } catch (error) {
-      return this.handleError(error, 'initiateUserVerification', userId);
-    }
-  }
-
-  /**
-   * Завершение верификации пользователя
-   */
-  async completeUserVerification(userId: string, verificationData: any): Promise<VerificationResult> {
-    this.validateUserId(userId);
-
-    try {
-      const user = await this.storage.getUser(userId);
-      if (!user) {
-        throw new NotFoundError('Пользователь', userId);
-      }
-
-      // Проверяем документы пользователя
-      const userDocuments = await this.storage.getUserDocuments?.(userId) || [];
-      const verifiedDocuments = userDocuments.filter(d => d.status === 'verified');
-
-      let verificationLevel: 'basic' | 'standard' | 'enhanced' = 'basic';
-      
-      if (verifiedDocuments.length >= 2) {
-        verificationLevel = 'standard';
-      }
-      if (verifiedDocuments.length >= 3) {
-        verificationLevel = 'enhanced';
-      }
-
-      // Обновляем статус верификации  
-      await this.storage.updateUser(userId, { 
-        isVerified: true,
-        verificationLevel2: verificationLevel === 'standard' || verificationLevel === 'enhanced',
-        verificationLevel3: verificationLevel === 'enhanced'
-      });
-
-      // Инвалидируем кэш
-      await this.clearCache(`user_profile:${userId}`);
-
-      const result: VerificationResult = {
-        success: true,
-        verificationLevel,
-        message: `Верификация завершена успешно. Уровень: ${verificationLevel}`
-      };
-
-      await this.auditLog('verification_completed', userId, result);
-
-      return result;
-
-    } catch (error) {
-      return this.handleError(error, 'completeUserVerification', userId);
     }
   }
 

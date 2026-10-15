@@ -1,4 +1,4 @@
-import type { User, Document } from "@shared/schema";
+import type { User } from "@shared/schema";
 
 /**
  * ДОМЕННЫЕ ИНТЕРФЕЙСЫ ДЛЯ СЕРВИСОВ
@@ -17,10 +17,6 @@ export interface IUserService {
   // Аутентификация и безопасность
   verifyUserCredentials(identifier: string, password: string): Promise<AuthResult>;
   changePassword(userId: string, oldPassword: string, newPassword: string): Promise<void>;
-  
-  // Верификация пользователя
-  initiateUserVerification(userId: string): Promise<VerificationProcess>;
-  completeUserVerification(userId: string, verificationData: any): Promise<VerificationResult>;
 }
 
 export interface UserProfile {
@@ -32,7 +28,6 @@ export interface UserProfile {
   role: string;
   planType: string;
   isVerified: boolean;
-  documentsVerified: boolean;
   banksConnected: number;
   totalBalance: string;
   createdAt: Date;
@@ -49,65 +44,6 @@ export interface AuthResult {
   user: User;
   token: string;
   refreshToken?: string;
-}
-
-export interface VerificationProcess {
-  processId: string;
-  requiredDocuments: string[];
-  status: 'pending' | 'in_progress' | 'completed';
-}
-
-export interface VerificationResult {
-  success: boolean;
-  verificationLevel: 'basic' | 'standard' | 'enhanced';
-  message: string;
-}
-
-// ===========================================
-// DOCUMENT SERVICE INTERFACES
-// ===========================================
-
-export interface IDocumentService {
-  // Управление документами
-  getUserDocuments(userId: string, status?: string): Promise<DocumentInfo[]>;
-  uploadDocument(userId: string, documentData: UploadDocumentData): Promise<Document>;
-  
-  // Верификация документов
-  submitForVerification(documentId: string): Promise<void>;
-  getVerificationStatus(documentId: string): Promise<VerificationStatus>;
-  
-  // Админ функции
-  getPendingDocuments(): Promise<DocumentInfo[]>;
-  approveDocument(documentId: string, adminId: string): Promise<Document>;
-  rejectDocument(documentId: string, adminId: string, reason: string): Promise<Document>;
-}
-
-export interface DocumentInfo extends Document {
-  typeName: string;
-  isRequired: boolean;
-  verificationHistory: VerificationHistoryItem[];
-}
-
-export interface UploadDocumentData {
-  documentTypeId: string;
-  fileName: string;
-  fileSize: number;
-  mimeType: string;
-  encryptedContent: Buffer;
-}
-
-export interface VerificationStatus {
-  status: 'pending' | 'verified' | 'rejected';
-  verifiedAt: Date | null;
-  verifiedBy: string | null;
-  rejectionReason: string | null;
-}
-
-export interface VerificationHistoryItem {
-  action: string;
-  performedBy: string;
-  performedAt: Date;
-  reason?: string;
 }
 
 // ===========================================

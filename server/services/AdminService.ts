@@ -276,7 +276,7 @@ export class AdminService extends BaseService implements IAdminService {
 
     const permissions: Record<string, string[]> = {
       'super_admin': ['*'], // Все права
-      'security_admin': ['moderate_user', 'view_logs', 'manage_documents'],
+      'security_admin': ['moderate_user', 'view_logs'],
       'finance_admin': ['view_financial_data', 'manage_transactions'],
       'analytics_admin': ['view_analytics', 'export_data'],
       'api_admin': ['manage_integrations', 'view_api_logs'],

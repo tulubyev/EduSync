@@ -100,14 +100,6 @@ router.get('/public', async (req: Request, res: Response) => {
             uploadImage: '/api/profile/upload-image'
           },
           
-          // Document endpoints
-          documents: {
-            list: '/api/documents',
-            upload: '/api/documents/upload',
-            download: '/api/documents',
-            types: '/api/documents/types'
-          },
-          
           // AI endpoints
           ai: {
             chat: '/api/ai/chat',
@@ -119,7 +111,6 @@ router.get('/public', async (req: Request, res: Response) => {
           // Admin endpoints
           admin: {
             users: '/api/admin/users',
-            documents: '/api/admin/documents',
             system: '/api/admin/system-info'
           },
           
