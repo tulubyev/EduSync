@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.github
+.env
+.env.*
+!.env.example
+*.md
+deploy
+attached_assets
+.secure-documents
+export_secrets.sh
+ecosystem.worker.config.cjs

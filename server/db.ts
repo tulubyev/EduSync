@@ -8,11 +8,13 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+// SSL включён по умолчанию (облачный Postgres, Beget). Для PostgreSQL на том же
+// сервере/в Docker-сети (VPS: 172.28.0.1) задайте DATABASE_SSL=false.
+const useSsl = process.env.DATABASE_SSL !== 'false';
+
 export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Для beget.com
-  }
+  ssl: useSsl ? { rejectUnauthorized: false } : false,
 });
 
 export const db = drizzle(pool, { schema });
