@@ -234,7 +234,7 @@ router.post('/connect', authenticateToken as any, async (req: AuthRequest, res: 
     if (platform.apiType === 'oauth' && platform.code === 'stepik') {
       const stepikClientId = process.env.STEPIK_CLIENT_ID;
       if (stepikClientId) {
-        const redirectUri = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/auth/stepik/callback`;
+        const redirectUri = `${(process.env.APP_URL || 'http://localhost:5000').replace(/\/+$/, '')}/auth/stepik/callback`;
         const authUrl = `https://stepik.org/oauth2/authorize/?client_id=${stepikClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
         return res.json({ 
           success: true, 

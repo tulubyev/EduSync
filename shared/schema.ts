@@ -379,7 +379,7 @@ export const recordingTasks = pgTable("recording_tasks", {
   joinPhone: varchar("join_phone", { length: 50 }),
   scheduledTime: timestamp("scheduled_time").notNull(),
   duration: integer("duration").notNull(), // in minutes
-  maxPartDuration: integer("max_part_duration").default(20), // minutes per part (Replit limit)
+  maxPartDuration: integer("max_part_duration").default(20), // minutes per part
   status: varchar("status", { length: 20 }).default("ready"), // ready, in_progress, uploading, completed, failed, cancelled
   saveTarget: varchar("save_target", { length: 20 }).default("yandex_disk"), // library, yandex_disk, beget
   currentPart: integer("current_part").default(0),

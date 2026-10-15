@@ -29,7 +29,7 @@ export class AIService {
         baseURL: "https://openrouter.ai/api/v1",
         apiKey: apiKey,
         defaultHeaders: {
-          "HTTP-Referer": "https://fintrack.replit.app", // Your site URL
+          "HTTP-Referer": process.env.APP_URL || "http://localhost:5000", // Your site URL
           "X-Title": "FinTrack AI Assistant", // Your app name
         },
       });
