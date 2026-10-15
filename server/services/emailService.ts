@@ -83,7 +83,7 @@ export class EmailService {
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Подтверждение email - FinTrack</title>
+        <title>Подтверждение email - My EPA</title>
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
           .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -98,11 +98,11 @@ export class EmailService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🔐 FinTrack</h1>
+            <h1>🔐 My EPA</h1>
             <p>Подтверждение email адреса</p>
           </div>
           <div class="content">
-            <h2>Добро пожаловать в FinTrack!</h2>
+            <h2>Добро пожаловать в My EPA!</h2>
             <p>Для завершения регистрации введите код подтверждения:</p>
             
             <div class="code">
@@ -113,14 +113,14 @@ export class EmailService {
             <ul>
               <li>Код действителен в течение 10 минут</li>
               <li>Не сообщайте код третьим лицам</li>
-              <li>Если вы не регистрировались на FinTrack, проигнорируйте это письмо</li>
+              <li>Если вы не регистрировались на My EPA, проигнорируйте это письмо</li>
             </ul>
             
-            <p>С уважением,<br>Команда FinTrack</p>
+            <p>С уважением,<br>Команда My EPA</p>
           </div>
           <div class="footer">
             <p>Это автоматическое письмо. Не отвечайте на него.</p>
-            <p>© 2024 FinTrack. Финансовый агрегатор для России.</p>
+            <p>© My EPA. Агрегатор онлайн-обучения.</p>
           </div>
         </div>
       </body>
@@ -129,7 +129,7 @@ export class EmailService {
 
     return this.sendEmail({
       to: email,
-      subject: 'Подтверждение email - FinTrack',
+      subject: 'Подтверждение email - My EPA',
       html: html
     });
   }
@@ -140,7 +140,7 @@ export class EmailService {
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Добро пожаловать в FinTrack</title>
+        <title>Добро пожаловать в My EPA</title>
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
           .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -154,33 +154,26 @@ export class EmailService {
         <div class="container">
           <div class="header">
             <h1>🎉 Добро пожаловать, ${firstName}!</h1>
-            <p>Ваш аккаунт FinTrack успешно создан</p>
+            <p>Ваш аккаунт My EPA успешно создан</p>
           </div>
           <div class="content">
             <h2>Что дальше?</h2>
             
             <div class="features">
-              <h3>📱 Возможности FinTrack:</h3>
+              <h3>📱 Возможности My EPA:</h3>
               <ul>
-                <li><strong>Банковские счета</strong> - подключите все свои карты и счета</li>
-                <li><strong>Бюджетирование</strong> - планируйте расходы и доходы</li>
-                <li><strong>Аналитика</strong> - отслеживайте финансовые цели</li>
-                <li><strong>ИИ-помощник</strong> - получайте персональные советы</li>
+                <li><strong>Платформы и курсы</strong> - собирайте обучение с разных платформ в одном месте</li>
+                <li><strong>Дедлайны</strong> - не пропускайте сроки сдачи заданий</li>
+                <li><strong>Библиотека</strong> - храните конспекты и материалы</li>
+                <li><strong>Запись вебинаров</strong> - сохраняйте трансляции для повторного просмотра</li>
+                <li><strong>ИИ-помощник</strong> - получайте советы по учёбе</li>
               </ul>
             </div>
             
-            <h3>🔒 Повысьте уровень верификации:</h3>
-            <p>Для доступа ко всем возможностям пройдите дополнительную верификацию:</p>
-            <ul>
-              <li>Загрузите документы для увеличения лимитов</li>
-              <li>Подключите Госуслуги для мгновенной верификации</li>
-              <li>Подтвердите банковскую карту</li>
-            </ul>
-            
-            <p>Начните с подключения первого банковского счета!</p>
+            <p>Начните с подключения первой платформы или добавления курса!</p>
           </div>
           <div class="footer">
-            <p>© 2024 FinTrack. Ваш надежный финансовый помощник.</p>
+            <p>© My EPA. Агрегатор онлайн-обучения.</p>
           </div>
         </div>
       </body>
@@ -189,7 +182,7 @@ export class EmailService {
 
     return this.sendEmail({
       to: email,
-      subject: `Добро пожаловать в FinTrack, ${firstName}!`,
+      subject: `Добро пожаловать в My EPA, ${firstName}!`,
       html: html
     });
   }
@@ -226,7 +219,7 @@ export class EmailService {
       <html>
       <head>
         <meta charset="utf-8">
-        <title>${info.title} - FinTrack</title>
+        <title>${info.title} - My EPA</title>
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
           .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -266,7 +259,7 @@ export class EmailService {
             <p>Войдите в личный кабинет для подробной информации.</p>
           </div>
           <div class="footer">
-            <p>© 2024 FinTrack. Надежные финансовые решения.</p>
+            <p>© My EPA. Агрегатор онлайн-обучения.</p>
           </div>
         </div>
       </body>
@@ -275,7 +268,7 @@ export class EmailService {
 
     return this.sendEmail({
       to: email,
-      subject: `${info.title} - FinTrack`,
+      subject: `${info.title} - My EPA`,
       html: html
     });
   }

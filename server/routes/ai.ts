@@ -1,7 +1,6 @@
 import { Router, Response } from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import { aiService } from '../services/aiService.js';
-import { storage } from '../storage';
 import { config } from '../../config/environment';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 
@@ -14,7 +13,7 @@ const router = Router();
  * Routes:
  * - POST /chat/session - Create new AI chat session
  * - POST /chat/message - Send message to AI assistant
- * - GET /insights - Get financial insights from AI
+ * - GET /insights - Get study insights from AI
  * - GET /chat/sessions - Get user's chat sessions
  * - POST /chat - Direct chat with AI assistant (Claude 3.5 Sonnet)
  */
@@ -44,20 +43,20 @@ router.post('/chat/message', authenticateToken, async (req: AuthenticatedRequest
   }
 });
 
-// Get financial insights from AI
+// Get study insights from AI
 router.get('/insights', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
-    const insights = await aiService.getFinancialInsights(req.user!.id);
+    const insights = await aiService.getStudyInsights(req.user!.id);
     res.json({ insights });
   } catch (error) {
-    res.status(500).json({ message: 'Ошибка получения финансовых рекомендаций' });
+    res.status(500).json({ message: 'Ошибка получения рекомендаций' });
   }
 });
 
 // Get user's chat sessions
 router.get('/chat/sessions', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
-    const sessions = await storage.getAiChatSessions(req.user!.id);
+    const sessions = aiService.getChatSessions(req.user!.id);
     res.json(sessions);
   } catch (error) {
     res.status(500).json({ message: 'Ошибка получения сессий чата' });
@@ -76,33 +75,27 @@ router.post('/chat', authenticateToken, async (req: AuthenticatedRequest, res: R
     }
 
     // Формируем контекст для AI
-    const systemPrompt = `Ты - умный помощник для российских пользователей приложения FinTrack. 
+    const systemPrompt = `Ты - ИИ-помощник платформы My EPA, агрегатора онлайн-обучения для российских пользователей.
 
 Твоя основная специализация:
-- Финансовое консультирование и планирование
-- Анализ личных финансов, бюджетирование
-- Практические советы по инвестициям (российский рынок)
-- Объяснение финансовых терминов простым языком
-- Помощь в оптимизации расходов и доходов
-- Консультирование по банковским продуктам в России
+- Помощь в учёбе: объяснение материала курсов простым языком
+- Планирование обучения, расстановка приоритетов, работа с дедлайнами
+- Советы по конспектированию, запоминанию и самоорганизации
+- Помощь в выборе курсов и направлений обучения, карьерные советы
+- Вопросы по использованию платформы: подключение платформ, дедлайны, библиотека, запись вебинаров
 
 Дополнительные возможности:
-- Общие вопросы и поддержка беседы
-- Помощь с планированием и организацией
-- Советы по карьере и образованию
+- Общие познавательные вопросы и поддержка беседы
 - Обсуждение технологий и трендов
-- Ответы на любые познавательные вопросы
 
 Принципы работы:
 - Отвечай на русском языке
 - Будь дружелюбным, понимающим и профессиональным
 - Давай конкретные и практичные советы
-- Для финансовых советов учитывай российские реалии
-- При инвестиционных советах предупреждай о рисках
+- Не выдумывай содержание курсов, сроки и данные пользователя, если их нет в разговоре
 - Если не знаешь ответ, честно скажи об этом
-- Поддерживай естественную беседу на любые темы
 
-Если речь о финансах, но у тебя нет конкретных данных пользователя, предложи получить аналитику в приложении.`;
+Если вопрос про данные пользователя (курсы, дедлайны), предложи посмотреть их в соответствующих разделах приложения.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -118,7 +111,7 @@ router.post('/chat', authenticateToken, async (req: AuthenticatedRequest, res: R
       headers: {
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
-        'X-Title': 'FinTrack AI Assistant'
+        'X-Title': 'My EPA AI Assistant'
       },
       body: JSON.stringify({
         model: 'anthropic/claude-3.5-sonnet',

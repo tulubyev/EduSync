@@ -34,7 +34,7 @@ export class SMSService {
       // Форматируем номер телефона (убираем +, пробелы и дефисы)
       const formattedPhone = phone.replace(/[\s\-\+]/g, '');
       
-      const message = `Ваш код подтверждения FinTrack: ${code}. Действителен 5 минут.`;
+      const message = `Ваш код подтверждения My EPA: ${code}. Действителен 5 минут.`;
 
       // Если API ключ не настроен - режим разработки
       if (!this.SMS_RU_API_KEY) {

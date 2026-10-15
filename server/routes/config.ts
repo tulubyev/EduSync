@@ -33,7 +33,7 @@ router.get('/public', async (req: Request, res: Response) => {
           maxMessageLength: 1000
         },
         sidebar: {
-          cookieName: 'fintrack-sidebar-collapsed',
+          cookieName: 'myepa-sidebar-collapsed',
           cookieMaxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
           width: 280,
           widthMobile: 240,

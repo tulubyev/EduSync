@@ -216,7 +216,7 @@ class ConfigService {
           maxMessageLength: 1000
         },
         sidebar: {
-          cookieName: 'fintrack-sidebar-collapsed',
+          cookieName: 'myepa-sidebar-collapsed',
           cookieMaxAge: 365 * 24 * 60 * 60 * 1000,
           width: 280,
           widthMobile: 240,

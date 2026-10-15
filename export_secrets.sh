@@ -1,8 +1,8 @@
 #!/bin/bash
-# FinTrack Secrets Export Script
+# My EPA Secrets Export Script
 # ВНИМАНИЕ: Запускайте только локально, не коммитьте результат!
 
-echo "# FinTrack Environment Variables Export"
+echo "# My EPA Environment Variables Export"
 echo "# Создано: $(date)"
 echo "# ВНИМАНИЕ: Не коммитьте этот файл с реальными значениями!"
 echo ""

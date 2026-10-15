@@ -34,9 +34,9 @@ export default function Header() {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold text-lg">₽</span>
+                  <span className="text-primary-foreground font-bold text-lg">E</span>
                 </div>
-                <h1 className="text-xl font-bold text-foreground">FinTrack</h1>
+                <h1 className="text-xl font-bold text-foreground">My EPA</h1>
               </div>
             </div>
             

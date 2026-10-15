@@ -16,7 +16,7 @@ export interface SMSCodeResponse {
 }
 
 export class TwoFactorService {
-  private readonly APP_NAME = "FinTrack";
+  private readonly APP_NAME = "My EPA";
   private readonly SMS_CODE_EXPIRY_MINUTES = 5;
 
   /**

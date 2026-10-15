@@ -567,21 +567,21 @@ class AdvancedMetricsCollector {
     const lines: string[] = [];
 
     // Экспорт в формате Prometheus
-    lines.push(`# HELP fintrack_uptime_seconds Application uptime in seconds`);
-    lines.push(`# TYPE fintrack_uptime_seconds counter`);
-    lines.push(`fintrack_uptime_seconds ${metrics.uptime / 1000}`);
+    lines.push(`# HELP myepa_uptime_seconds Application uptime in seconds`);
+    lines.push(`# TYPE myepa_uptime_seconds counter`);
+    lines.push(`myepa_uptime_seconds ${metrics.uptime / 1000}`);
 
-    lines.push(`# HELP fintrack_requests_total Total number of requests`);
-    lines.push(`# TYPE fintrack_requests_total counter`);
-    lines.push(`fintrack_requests_total ${metrics.totalRequests}`);
+    lines.push(`# HELP myepa_requests_total Total number of requests`);
+    lines.push(`# TYPE myepa_requests_total counter`);
+    lines.push(`myepa_requests_total ${metrics.totalRequests}`);
 
-    lines.push(`# HELP fintrack_response_time_seconds Average response time in seconds`);
-    lines.push(`# TYPE fintrack_response_time_seconds gauge`);
-    lines.push(`fintrack_response_time_seconds ${metrics.averageResponseTime / 1000}`);
+    lines.push(`# HELP myepa_response_time_seconds Average response time in seconds`);
+    lines.push(`# TYPE myepa_response_time_seconds gauge`);
+    lines.push(`myepa_response_time_seconds ${metrics.averageResponseTime / 1000}`);
 
-    lines.push(`# HELP fintrack_memory_bytes Memory usage in bytes`);
-    lines.push(`# TYPE fintrack_memory_bytes gauge`);
-    lines.push(`fintrack_memory_bytes ${metrics.performance.memory}`);
+    lines.push(`# HELP myepa_memory_bytes Memory usage in bytes`);
+    lines.push(`# TYPE myepa_memory_bytes gauge`);
+    lines.push(`myepa_memory_bytes ${metrics.performance.memory}`);
 
     return lines.join('\n');
   }

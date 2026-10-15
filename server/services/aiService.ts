@@ -1,6 +1,5 @@
 import OpenAI from "openai";
 import { storage } from "../storage";
-import type { InsertAiChatSession, AiChatSession } from "@shared/schema";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -8,147 +7,114 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-interface FinancialContext {
-  totalBalance: string;
-  monthlyIncome: string;
-  monthlyExpenses: string;
-  topCategories: Array<{ category: string; total: string }>;
-  savingsGoals: Array<{ name: string; progress: number }>;
+export interface AiChatSession {
+  id: string;
+  sessionId: string;
+  userId: string;
+  messages: ChatMessage[];
+  createdAt: Date;
 }
 
+interface StudyContext {
+  activeCourses: Array<{ title: string; progress: number; status: string }>;
+  upcomingDeadlines: Array<{ title: string; dueDate: Date; priority: string }>;
+  completedCourses: number;
+}
+
+const MODEL = "anthropic/claude-3.5-sonnet";
+// Сессии чата хранятся в памяти процесса (отдельной таблицы в БД нет)
+const MAX_SESSIONS_PER_USER = 20;
+const MAX_SESSIONS_TOTAL = 2000;
+
 export class AIService {
-  private openai: OpenAI;
+  private openai: OpenAI | null;
+  private sessions = new Map<string, AiChatSession>();
 
   constructor() {
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       console.warn("⚠️  OPENROUTER_API_KEY не найден, используется мок AI сервиса");
-      this.openai = null as any; // Будем использовать моки
+      this.openai = null;
     } else {
       this.openai = new OpenAI({
         baseURL: "https://openrouter.ai/api/v1",
-        apiKey: apiKey,
+        apiKey,
         defaultHeaders: {
-          "HTTP-Referer": process.env.APP_URL || "http://localhost:5000", // Your site URL
-          "X-Title": "FinTrack AI Assistant", // Your app name
+          "HTTP-Referer": process.env.APP_URL || "http://localhost:5000",
+          "X-Title": "My EPA AI Assistant",
         },
       });
     }
   }
 
   async createChatSession(userId: string): Promise<AiChatSession> {
-    const sessionId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    const initialMessages: ChatMessage[] = [
-      {
-        role: "system",
-        content: this.getSystemPrompt(),
-        timestamp: new Date(),
-      },
-      {
-        role: "assistant",
-        content: "Привет! Я ваш персональный финансовый помощник FinTrack. Могу помочь проанализировать расходы, дать советы по накоплениям или ответить на вопросы о ваших финансах. О чём хотите поговорить?",
-        timestamp: new Date(),
-      },
-    ];
+    const sessionId = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
-    const session = await storage.createAiChatSession({
-      userId,
+    const session: AiChatSession = {
+      id: sessionId,
       sessionId,
-      messages: initialMessages,
-    });
+      userId,
+      messages: [
+        {
+          role: "assistant",
+          content:
+            "Привет! Я ИИ-помощник My EPA. Помогу разобраться в материале курса, спланировать учёбу, расставить приоритеты по дедлайнам и подобрать формат занятий. С чего начнём?",
+          timestamp: new Date(),
+        },
+      ],
+      createdAt: new Date(),
+    };
 
+    this.sessions.set(sessionId, session);
+    this.evictOldSessions(userId);
     return session;
   }
 
+  getChatSessions(userId: string): AiChatSession[] {
+    return Array.from(this.sessions.values()).filter(s => s.userId === userId);
+  }
+
   async sendMessage(userId: string, sessionId: string, message: string): Promise<string> {
-    // Get existing session
-    const sessions = await storage.getAiChatSessions(userId);
-    const session = sessions.find(s => s.sessionId === sessionId);
-    
-    if (!session) {
+    const session = this.sessions.get(sessionId);
+    if (!session || session.userId !== userId) {
       throw new Error("Сессия чата не найдена");
     }
 
-    // Get user's financial context
-    const context = await this.getFinancialContext(userId);
+    const context = await this.getStudyContext(userId);
 
-    // Prepare messages for OpenAI
-    const messages = session.messages as ChatMessage[];
-    
-    // Add user message
-    messages.push({
-      role: "user",
-      content: message,
-      timestamp: new Date(),
-    });
+    session.messages.push({ role: "user", content: message, timestamp: new Date() });
 
-    // Prepare OpenAI request with context
-    const openAIMessages = [
-      {
-        role: "system" as const,
-        content: this.getSystemPromptWithContext(context),
-      },
-      ...messages.slice(-10).map(msg => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-      })),
-    ];
-
-    let assistantReply: string;
-
+    let reply: string;
     if (!this.openai) {
-      // Мок ответы
-      assistantReply = this.getMockResponse(message);
+      reply = this.getMockResponse(message);
     } else {
       try {
         const completion = await this.openai.chat.completions.create({
-          model: "anthropic/claude-3.5-sonnet",
-          messages: openAIMessages,
+          model: MODEL,
+          messages: [
+            { role: "system", content: this.getSystemPromptWithContext(context) },
+            ...session.messages.slice(-10).map(m => ({
+              role: m.role as "user" | "assistant",
+              content: m.content,
+            })),
+          ],
           max_tokens: 500,
           temperature: 0.7,
         });
-
-        assistantReply = completion.choices[0]?.message?.content || "Извините, произошла ошибка. Попробуйте еще раз.";
+        reply = completion.choices[0]?.message?.content || "Извините, произошла ошибка. Попробуйте еще раз.";
       } catch (error) {
-        console.error("OpenAI API error:", error);
-        assistantReply = "Извините, временно не могу обработать ваш запрос. Попробуйте позже.";
+        console.error("OpenRouter API error:", error);
+        reply = "Извините, временно не могу обработать ваш запрос. Попробуйте позже.";
       }
     }
 
-    // Add assistant response
-    messages.push({
-      role: "assistant",
-      content: assistantReply,
-      timestamp: new Date(),
-    });
-
-    // Update session
-    await storage.updateAiChatSession(session.id, {
-      messages: messages,
-    });
-
-    return assistantReply;
+    session.messages.push({ role: "assistant", content: reply, timestamp: new Date() });
+    return reply;
   }
 
-  async getFinancialInsights(userId: string): Promise<string> {
-    const context = await this.getFinancialContext(userId);
-    
-    const prompt = `
-    Проанализируйте финансовую ситуацию пользователя и дайте 3-4 конкретных совета:
-    
-    Общий баланс: ${context.totalBalance} ₽
-    Месячный доход: ${context.monthlyIncome} ₽
-    Месячные расходы: ${context.monthlyExpenses} ₽
-    
-    Топ категории трат:
-    ${context.topCategories.map(cat => `- ${cat.category}: ${cat.total} ₽`).join('\n')}
-    
-    Финансовые цели:
-    ${context.savingsGoals.map(goal => `- ${goal.name}: ${goal.progress}% выполнено`).join('\n')}
-    
-    Дайте практические советы на русском языке.
-    `;
+  /** Советы по учёбе на основе курсов и дедлайнов пользователя. */
+  async getStudyInsights(userId: string): Promise<string> {
+    const context = await this.getStudyContext(userId);
 
     if (!this.openai) {
       return this.getMockInsights(context);
@@ -156,123 +122,134 @@ export class AIService {
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: "anthropic/claude-3.5-sonnet",
+        model: MODEL,
         messages: [
           {
             role: "system",
-            content: "Вы финансовый консультант. Давайте конкретные, практичные советы на русском языке.",
+            content:
+              "Вы наставник по онлайн-обучению. Давайте конкретные, практичные советы на русском языке.",
           },
           {
             role: "user",
-            content: prompt,
+            content: `Проанализируйте учебную ситуацию и дайте 3-4 конкретных совета.\n${this.describeContext(context)}`,
           },
         ],
         max_tokens: 600,
         temperature: 0.7,
       });
-
       return completion.choices[0]?.message?.content || "Не удалось получить рекомендации.";
     } catch (error) {
-      console.error("OpenAI API error:", error);
+      console.error("OpenRouter API error:", error);
       return this.getMockInsights(context);
     }
   }
 
-  private async getFinancialContext(userId: string): Promise<FinancialContext> {
-    const currentDate = new Date();
-    const month = currentDate.getMonth() + 1;
-    const year = currentDate.getFullYear();
-
-    const [totalBalance, monthlyIncome, monthlyExpenses, topCategories, savingsGoals] = await Promise.all([
-      storage.getTotalBalance(userId),
-      storage.getMonthlyIncome(userId, month, year),
-      storage.getMonthlyExpenses(userId, month, year),
-      storage.getMonthlySpendingByCategory(userId, month, year),
-      storage.getSavingsGoals(userId),
+  private async getStudyContext(userId: string): Promise<StudyContext> {
+    const [courses, deadlines] = await Promise.all([
+      storage.getCourses(userId),
+      storage.getDeadlines(userId),
     ]);
 
+    const now = Date.now();
     return {
-      totalBalance,
-      monthlyIncome,
-      monthlyExpenses,
-      topCategories: topCategories.slice(0, 5),
-      savingsGoals: savingsGoals.map(goal => ({
-        name: goal.name,
-        progress: Math.round((parseFloat(goal.currentAmount || '0') / parseFloat(goal.targetAmount)) * 100),
-      })),
+      activeCourses: courses
+        .filter(c => c.status === "in_progress")
+        .slice(0, 10)
+        .map(c => ({ title: c.title, progress: Math.round(Number(c.progress ?? 0)), status: c.status ?? "in_progress" })),
+      upcomingDeadlines: deadlines
+        .filter(d => d.status !== "completed" && d.status !== "cancelled" && new Date(d.dueDate).getTime() >= now)
+        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+        .slice(0, 5)
+        .map(d => ({ title: d.title, dueDate: new Date(d.dueDate), priority: d.priority ?? "medium" })),
+      completedCourses: courses.filter(c => c.status === "completed").length,
     };
+  }
+
+  private describeContext(context: StudyContext): string {
+    const courses = context.activeCourses.length
+      ? context.activeCourses.map(c => `- ${c.title}: ${c.progress}%`).join("\n")
+      : "- нет активных курсов";
+    const deadlines = context.upcomingDeadlines.length
+      ? context.upcomingDeadlines
+          .map(d => `- ${d.title} — до ${d.dueDate.toLocaleDateString("ru-RU")} (приоритет: ${d.priority})`)
+          .join("\n")
+      : "- ближайших дедлайнов нет";
+
+    return `Активные курсы:\n${courses}\n\nБлижайшие дедлайны:\n${deadlines}\n\nЗавершено курсов: ${context.completedCourses}`;
   }
 
   private getSystemPrompt(): string {
     return `
-    Вы - персональный финансовый помощник FinTrack. Вы помогаете пользователям управлять финансами на русском языке.
-    
+    Вы - ИИ-помощник платформы My EPA, агрегатора онлайн-обучения. Вы помогаете пользователям учиться эффективнее, отвечаете на русском языке.
+
     Ваши возможности:
-    - Анализ трат и доходов
-    - Советы по бюджетированию
-    - Рекомендации по накоплениям
-    - Помощь в планировании финансовых целей
-    - Объяснение финансовых концепций простым языком
-    
+    - Объяснение материала курсов простым языком
+    - Планирование учёбы и расстановка приоритетов по дедлайнам
+    - Советы по конспектированию и запоминанию
+    - Помощь в выборе курсов и направлений обучения
+    - Мотивация и борьба с прокрастинацией
+
     Правила общения:
     - Всегда отвечайте на русском языке
     - Будьте дружелюбны и понятны
     - Давайте конкретные, практичные советы
-    - Учитывайте российские реалии (рубли, российские банки)
     - Если не можете дать точный ответ, честно об этом скажите
-    - Не давайте юридических или инвестиционных советов без оговорок
+    - Не выдумывайте содержание курсов и сроки, которых не знаете
     `;
   }
 
-  private getSystemPromptWithContext(context: FinancialContext): string {
+  private getSystemPromptWithContext(context: StudyContext): string {
     return `
     ${this.getSystemPrompt()}
-    
-    Текущая финансовая ситуация пользователя:
-    - Общий баланс: ${context.totalBalance} ₽
-    - Месячный доход: ${context.monthlyIncome} ₽  
-    - Месячные расходы: ${context.monthlyExpenses} ₽
-    - Основные категории трат: ${context.topCategories.map(cat => cat.category).join(', ')}
-    - Активных финансовых целей: ${context.savingsGoals.length}
-    
+
+    Текущая учебная ситуация пользователя:
+    ${this.describeContext(context)}
+
     Используйте эту информацию для персонализированных советов.
     `;
   }
 
   private getMockResponse(message: string): string {
-    const lowerMessage = message.toLowerCase();
-    
-    if (lowerMessage.includes('расход') || lowerMessage.includes('трат')) {
-      return "Анализирую ваши расходы... В этом месяце вы потратили больше всего на продукты (45,230 ₽) и развлечения (18,500 ₽). Рекомендую установить лимит на развлечения в 15,000 ₽ на следующий месяц.";
+    const text = message.toLowerCase();
+
+    if (text.includes("дедлайн") || text.includes("срок")) {
+      return "Начните с ближайшего дедлайна: разбейте задание на небольшие шаги и выделите на каждый конкретное время в календаре.";
     }
-    
-    if (lowerMessage.includes('бюджет')) {
-      return "Для вашего дохода рекомендую правило 50/30/20: 50% на обязательные расходы, 30% на желания, 20% на накопления. Это составит примерно 60,000/36,000/24,000 ₽ соответственно.";
+    if (text.includes("конспект") || text.includes("запомн")) {
+      return "Для запоминания лучше всего работают краткие конспекты своими словами и повторение через 1, 3 и 7 дней.";
     }
-    
-    if (lowerMessage.includes('накопления') || lowerMessage.includes('сбережения')) {
-      return "Отличная идея накапливать! Рекомендую открыть высокодоходный вклад в Тинькофф или Сбере под 17-18% годовых. При ваших доходах можно откладывать 25,000 ₽ в месяц.";
+    if (text.includes("курс")) {
+      return "Выбирая курс, сверьте программу с вашей целью, посмотрите объём практики и отзывы выпускников.";
     }
-    
-    if (lowerMessage.includes('инвестиции')) {
-      return "Для начинающих рекомендую ИИС в Тинькофф с портфелем из российских облигаций (70%) и акций голубых фишек (30%). Налоговый вычет 52,000 ₽ в год дополнительно.";
-    }
-    
-    return "Спасибо за вопрос! Могу помочь с анализом расходов, планированием бюджета, советами по накоплениям и инвестициям. О чём именно хотите узнать?";
+
+    return "Спасибо за вопрос! Могу помочь с планированием учёбы, дедлайнами, конспектами и выбором курсов. Расскажите подробнее, что нужно.";
   }
 
-  private getMockInsights(context: FinancialContext): string {
-    return `📊 Анализ ваших финансов:
+  private getMockInsights(context: StudyContext): string {
+    const next = context.upcomingDeadlines[0];
+    return `Ваша учебная ситуация:
 
-💰 Баланс: ${context.totalBalance} ₽ - это хороший запас на 3-4 месяца
+Активных курсов: ${context.activeCourses.length}, завершено: ${context.completedCourses}
+${next ? `Ближайший дедлайн: «${next.title}» — ${next.dueDate.toLocaleDateString("ru-RU")}` : "Ближайших дедлайнов нет"}
 
-📈 Рекомендации:
-1. **Оптимизируйте расходы**: Траты на развлечения выше среднего на 23%
-2. **Увеличьте накопления**: При текущем доходе можете откладывать на 5,000 ₽ больше
-3. **Рассмотрите инвестиции**: Часть средств можно разместить в ИИС под 18% годовых
-4. **Автоматизируйте**: Настройте автоперевод 15% дохода на накопления
+Рекомендации:
+1. Выделите постоянное время для учёбы, лучше короткими сессиями
+2. Начинайте с задач с ближайшим сроком
+3. Записывайте конспекты в библиотеку, чтобы возвращаться к ним
+4. Не берите больше 2-3 курсов одновременно`;
+  }
 
-🎯 До цели "Отпуск" осталось 3 месяца при текущих темпах`;
+  private evictOldSessions(userId: string): void {
+    const own = this.getChatSessions(userId);
+    if (own.length > MAX_SESSIONS_PER_USER) {
+      own.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      for (const s of own.slice(0, own.length - MAX_SESSIONS_PER_USER)) this.sessions.delete(s.sessionId);
+    }
+    while (this.sessions.size > MAX_SESSIONS_TOTAL) {
+      const oldest = this.sessions.keys().next().value;
+      if (oldest === undefined) break;
+      this.sessions.delete(oldest);
+    }
   }
 }
 
