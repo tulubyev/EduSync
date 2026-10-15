@@ -2,19 +2,9 @@ node_modules
 dist
 .env
 
-# Deployment optimization - exclude from build
+# Загрузки пользователей и временные файлы (на сервере живут в томах/БД)
 attached_assets/
 saveddata/
-docs/
-mobile/
-scripts/
 server/uploads/
 public/uploads/
 .config/
-*.zip
-*.png
-*.jpg
-*.jpeg
-*.webp
-*.md
-!README.md
