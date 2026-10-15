@@ -6,6 +6,9 @@ import { BegetStorage } from './begetStorage';
 import { logger } from '../../logger';
 import { executorConfig } from './config';
 import { validateStreamUrl } from './urlValidator';
+import { StartTracker, recordStartFailure } from './startTracker';
+
+const MAX_ATTEMPTS = 3;
 
 export class TaskPoller {
   private recorder: StreamingRecorder;
@@ -132,6 +135,7 @@ export class TaskPoller {
       const orphans = await db
         .select({
           id: recordingTasks.id,
+          userId: recordingTasks.userId,
           title: recordingTasks.title,
           attemptCount: recordingTasks.attemptCount,
           currentPart: recordingTasks.currentPart,
@@ -167,6 +171,7 @@ export class TaskPoller {
             })
             .where(eq(recordingTasks.id, task.id));
 
+          await recordStartFailure(task, `Воркер перезапустился во время записи ${chunkLabel}`, { attempt: attempts, maxAttempts: MAX_ATTEMPTS, willRetry: true });
           logger.info(`Orphaned task ${task.id} "${task.title}" → reset to 'ready' for retry (attempt ${attempts}, ${chunkLabel})`);
         } else {
           await db
@@ -179,6 +184,7 @@ export class TaskPoller {
             })
             .where(eq(recordingTasks.id, task.id));
 
+          await recordStartFailure(task, `Воркер перезапускался ${attempts} раз во время записи ${chunkLabel}`, { attempt: attempts, maxAttempts: MAX_ATTEMPTS, willRetry: false });
           logger.warn(`Orphaned task ${task.id} "${task.title}" → failed (too many attempts: ${attempts}, ${chunkLabel})`);
         }
       }
@@ -367,9 +373,10 @@ export class TaskPoller {
           lt(recordingTasks.lastHeartbeat, timeoutThreshold)
         )
       )
-      .returning({ id: recordingTasks.id, workerId: recordingTasks.workerId });
+      .returning({ id: recordingTasks.id, userId: recordingTasks.userId, workerId: recordingTasks.workerId, attemptCount: recordingTasks.attemptCount });
 
     for (const t of result) {
+      await recordStartFailure(t, `Воркер не отвечал более ${timeoutMinutes} минут — heartbeat timeout`, { attempt: t.attemptCount ?? undefined, maxAttempts: MAX_ATTEMPTS, willRetry: false });
       logger.warn(`Task ${t.id} failed: heartbeat timeout (worker: ${t.workerId ?? 'unknown'})`);
     }
   }
@@ -416,6 +423,11 @@ export class TaskPoller {
 
     const safeTitle = (task.title as string).replace(/[^a-zA-Z0-9а-яА-ЯёЁ._-]/g, '_').slice(0, 60);
 
+    // Статус старта: этапы, подтверждение по первому кадру, причина отказа
+    const tracker = new StartTracker({ id: task.id, userId: task.userId }, task.attemptCount ?? 1, MAX_ATTEMPTS);
+    tracker.enter('validating_url');
+    let uploadError: Error | null = null;
+
     try {
       logger.info(`Validating URL: ${task.streamUrl}`);
       const urlCheck = await validateStreamUrl(task.streamUrl);
@@ -454,6 +466,7 @@ export class TaskPoller {
         // the totalParts computed above (based on task.maxPartDuration) and
         // the actual chunk boundaries used during recording disagree.
         chunkDurationMs: maxPartMin * 60 * 1000,
+        onStage: (stage) => tracker.enter(stage),
 
         onChunk: async (chunk) => {
           logger.info(`[CHUNK] Part ${chunk.partNumber} ready (${chunk.frameCount} frames, ${Math.round(chunk.durationMs / 1000)}s) — uploading to S3...`);
@@ -467,7 +480,13 @@ export class TaskPoller {
           }
 
           const partFileName = `${task.id}_part${chunk.partNumber}_${safeTitle}.mp4`;
-          const publicUrl = await this.storage.uploadVideo(chunk.filePath, partFileName);
+          let publicUrl: string;
+          try {
+            publicUrl = await this.storage.uploadVideo(chunk.filePath, partFileName);
+          } catch (uploadErr) {
+            uploadError = uploadErr as Error;
+            throw uploadErr;
+          }
 
           uploadedChunks.push({
             partNumber: chunk.partNumber,
@@ -506,8 +525,14 @@ export class TaskPoller {
       clearInterval(heartbeatInterval);
 
       if (uploadedChunks.length === 0) {
-        throw new Error('Запись завершена, но ни один чанк не был загружен в S3');
+        throw new Error(
+          uploadError
+            ? `Запись завершена, но ни один чанк не был загружен в S3: ${(uploadError as Error).message}`
+            : 'Запись завершена, но ни один чанк не был загружен в S3'
+        );
       }
+
+      await tracker.flush();
 
       // Все чанки уже в S3 — помечаем задачу выполненной
       await db
@@ -529,11 +554,15 @@ export class TaskPoller {
 
       const errMsg = (error as Error).message;
       const attemptsDone = task.attemptCount ?? 1;
-      const MAX_ATTEMPTS = 3;
       const failedChunkNumber = uploadedChunks.length + 1;
       const chunkLabel = `чанк ${failedChunkNumber}${expectedParts ? `/${expectedParts}` : ''}`;
 
       logger.error(`Failed task ${task.id} (attempt ${attemptsDone}/${MAX_ATTEMPTS}, ${chunkLabel}): ${errMsg}`);
+
+      // Причина отказа (код + текст + подсказка) и событие в журнале задачи
+      const willRetry = uploadedChunks.length === 0 && attemptsDone < MAX_ATTEMPTS;
+      const failure = await tracker.fail(error, willRetry);
+      logger.warn(`[START] ${tracker.recordingConfirmed ? 'recording was running' : 'recording did not start'} (stage: ${tracker.currentStage}, code: ${failure.code}): ${failure.reason}`);
 
       // Если хоть один чанк уже загружен — сохраняем частичный результат, не повторяем
       if (uploadedChunks.length > 0) {

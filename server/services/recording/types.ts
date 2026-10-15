@@ -1,3 +1,5 @@
+import type { StartStatus } from './startStatus';
+
 export interface RecordingPart {
   partNumber: number;
   fileName: string;
@@ -47,6 +49,8 @@ export interface RecordingTaskData {
   mergeProgress?: string;
   mergedUrl?: string;
   mergeError?: string;
+  /** Запись стартовала или нет и почему (см. startStatus.ts) */
+  start?: StartStatus;
 }
 
 export interface RecordingConfig {
