@@ -52,6 +52,21 @@ interface RecordingPart {
   fileSize?: number;
 }
 
+interface StartInfo {
+  state: 'waiting' | 'starting' | 'recording' | 'retrying' | 'failed';
+  stage?: string;
+  stageLabel?: string;
+  attempt?: number;
+  maxAttempts?: number;
+  recordingConfirmed?: boolean;
+  recordingStartedAt?: string;
+  code?: string;
+  reason?: string;
+  hint?: string;
+  detail?: string;
+  severity?: 'info' | 'warn' | 'error';
+}
+
 interface RecordingTask {
   id: string;
   title: string;
@@ -80,6 +95,7 @@ interface RecordingTask {
   mergeProgress?: string;
   mergedUrl?: string;
   mergeError?: string;
+  start?: StartInfo;
 }
 
 interface RecordingTasksListProps {
@@ -95,6 +111,85 @@ function useNow(intervalMs = 5000) {
     return () => clearInterval(id);
   }, [intervalMs]);
   return now;
+}
+
+function StartStatusPanel({ task }: { task: RecordingTask }) {
+  const st = task.start;
+  const attempt = st?.attempt && st?.maxAttempts ? ` · попытка ${st.attempt}/${st.maxAttempts}` : '';
+
+  if (task.status === 'failed' || st?.state === 'retrying') {
+    const started = !!st?.recordingConfirmed;
+    const retrying = st?.state === 'retrying' && task.status !== 'failed';
+    return (
+      <div className={`border rounded p-2 mt-2 ${retrying ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
+        <p className={`text-xs font-medium ${retrying ? 'text-amber-800' : 'text-red-800'}`}>
+          {started ? 'Запись началась, но прервалась' : 'Запись не стартовала'}
+          {retrying ? ' — будет повторная попытка' : ''}
+          {attempt}
+        </p>
+        <p className={`text-xs mt-0.5 ${retrying ? 'text-amber-700' : 'text-red-700'}`}>
+          {st?.reason ?? task.errorMessage ?? 'Причина не определена'}
+        </p>
+        {st?.hint && <p className="text-xs text-gray-600 mt-1">Что делать: {st.hint}</p>}
+        {(st?.code || task.errorMessage) && (
+          <details className="mt-1">
+            <summary className="text-xs text-gray-400 cursor-pointer">Технические детали</summary>
+            <p className="text-xs text-gray-500 mt-1 break-words">
+              {st?.code && <span className="font-mono">{st.code}</span>}
+              {st?.stage && <> · этап: {st.stage}</>}
+              {task.errorMessage && <><br />{task.errorMessage}</>}
+            </p>
+          </details>
+        )}
+      </div>
+    );
+  }
+
+  if (task.status === 'in_progress' || task.status === 'uploading') {
+    if (st?.recordingConfirmed || task.status === 'uploading') {
+      return (
+        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded p-2 mt-2">
+          <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+          <p className="text-xs text-green-800">
+            Запись стартовала: видео получено
+            {st?.recordingStartedAt ? ` в ${fmtMoscowTime(st.recordingStartedAt)} МСК` : ''}
+            {attempt}
+          </p>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded p-2 mt-2">
+        <Loader className="h-4 w-4 text-blue-600 animate-spin flex-shrink-0" />
+        <p className="text-xs text-blue-800">
+          Запуск ещё не подтверждён: {st?.stageLabel ?? 'подготовка'}…{attempt}
+        </p>
+      </div>
+    );
+  }
+
+  if ((task.status === 'ready' || task.status === 'scheduled') && st?.reason) {
+    const sev = st.severity ?? 'info';
+    const box =
+      sev === 'error' ? 'bg-red-50 border-red-200 text-red-800'
+      : sev === 'warn' ? 'bg-amber-50 border-amber-200 text-amber-800'
+      : 'bg-gray-50 border-gray-200 text-gray-700';
+    return (
+      <div className={`border rounded p-2 mt-2 ${box}`}>
+        <p className="text-xs font-medium">{st.reason}</p>
+        {st.hint && <p className="text-xs mt-0.5 opacity-80">{st.hint}</p>}
+      </div>
+    );
+  }
+
+  if (task.errorMessage) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded p-2 mt-2">
+        <p className="text-xs text-red-700">{task.errorMessage}</p>
+      </div>
+    );
+  }
+  return null;
 }
 
 export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: RecordingTasksListProps) {
@@ -675,11 +770,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             </div>
           )}
 
-          {task.errorMessage && (
-            <div className="bg-red-50 border border-red-200 rounded p-2 mt-2">
-              <p className="text-xs text-red-700">{task.errorMessage}</p>
-            </div>
-          )}
+          <StartStatusPanel task={task} />
         </div>
       ))}
 
@@ -697,7 +788,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 <Alert className="border-red-200 bg-red-50">
                   <AlertCircle className="h-4 w-4 text-red-600" />
                   <AlertDescription className="text-red-700 text-sm">
-                    <span className="font-medium">Причина ошибки:</span> {editingTask.errorMessage}
+                    <span className="font-medium">Причина ошибки:</span> {editingTask.start?.reason ?? editingTask.errorMessage}
                   </AlertDescription>
                 </Alert>
               )}

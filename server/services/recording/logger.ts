@@ -15,7 +15,9 @@ type EventType =
   | 'task_cancelled'
   | 'navigation_error'
   | 'browser_cleanup'
-  | 'auto_recovery';
+  | 'auto_recovery'
+  | 'start_stage'
+  | 'start_failed';
 
 interface LogEventOptions {
   taskId: string;

@@ -1,9 +1,10 @@
 import { db } from '../../db';
-import { recordingTasks } from '@shared/schema';
+import { recordingTasks, recordingWorkerStatus } from '@shared/schema';
 import { eq, and, or, lte, gte, lt, desc, sql, isNull } from 'drizzle-orm';
 import { logger } from '../logger';
 import { RecordingTaskData, RecordingPart } from './types';
 import { recordingLogger } from './logger';
+import { buildStartStatus, type WaitingContext, type StartRecord } from './startStatus';
 import { randomUUID } from 'crypto';
 
 const TRANSLIT_MAP: Record<string, string> = {
@@ -106,7 +107,32 @@ class RecordingTaskManager {
     const [task] = await db.select().from(recordingTasks).where(eq(recordingTasks.id, taskId));
     if (!task) return null;
 
-    return this.mapTaskToData(task);
+    return this.mapTaskToData(task, await this.loadWaitingContext());
+  }
+
+  /** Контекст для диагностики «почему запись не стартует»: живые воркеры и поправка времени. */
+  private async loadWaitingContext(): Promise<WaitingContext> {
+    let workers: WaitingContext['workers'] = [];
+    try {
+      workers = await db
+        .select({
+          workerId: recordingWorkerStatus.workerId,
+          isActive: recordingWorkerStatus.isActive,
+          lastSeenAt: recordingWorkerStatus.lastSeenAt,
+          activeTaskId: recordingWorkerStatus.activeTaskId,
+        })
+        .from(recordingWorkerStatus);
+    } catch (e) {
+      logger.warn('loadWaitingContext: cannot read worker status', e);
+    }
+    // Воркер пишет статус раз в ~6 циклов опроса; считаем живым, если был на связи в пределах 3 таких интервалов
+    const pollMs = parseInt(process.env.POLL_INTERVAL_MS || '5000', 10);
+    return {
+      now: new Date(),
+      tzOffsetH: parseInt(process.env.SCHEDULED_TIME_TZ_OFFSET_H || '0', 10),
+      workers,
+      workerAliveMs: Math.max(90_000, pollMs * 6 * 3),
+    };
   }
 
   async getUserTasks(userId: string): Promise<RecordingTaskData[]> {
@@ -115,7 +141,8 @@ class RecordingTaskManager {
       .where(eq(recordingTasks.userId, userId))
       .orderBy(desc(recordingTasks.scheduledTime));
 
-    return tasks.map(task => this.mapTaskToData(task));
+    const ctx = await this.loadWaitingContext();
+    return tasks.map(task => this.mapTaskToData(task, ctx));
   }
 
   async getScheduledTasks(): Promise<RecordingTaskData[]> {
@@ -340,7 +367,7 @@ class RecordingTaskManager {
     logger.info(`Task deleted: ${taskId}`);
   }
 
-  private mapTaskToData(task: any): RecordingTaskData {
+  private mapTaskToData(task: any, waitingCtx?: WaitingContext): RecordingTaskData {
     return {
       id: task.id,
       userId: task.userId,
@@ -374,6 +401,21 @@ class RecordingTaskManager {
       mergeProgress: (task.metadata as any)?.mergeProgress || undefined,
       mergedUrl: (task.metadata as any)?.mergedUrl || undefined,
       mergeError: (task.metadata as any)?.mergeError || undefined,
+      start: waitingCtx
+        ? buildStartStatus(
+            {
+              id: task.id,
+              status: task.status,
+              scheduledTime: task.scheduledTime,
+              attemptCount: task.attemptCount,
+              errorMessage: task.errorMessage,
+              urlCheckStatus: task.urlCheckStatus,
+              urlCheckMessage: task.urlCheckMessage,
+              start: ((task.metadata as any)?.start as StartRecord | undefined) ?? null,
+            },
+            waitingCtx,
+          )
+        : undefined,
     };
   }
 }

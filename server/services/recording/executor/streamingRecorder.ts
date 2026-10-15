@@ -8,6 +8,7 @@ import { RecordingConfig } from '../types';
 import { AudioSetup } from './audioSetup';
 import { executorConfig } from './config';
 import { previewBus } from './previewBus';
+import type { StartStage } from '../startStatus';
 
 const BASE_RECORDINGS_DIR = executorConfig.recording.outputDir;
 const DEFAULT_VIEWPORT = executorConfig.recording.viewport;
@@ -200,7 +201,14 @@ export class StreamingRecorder {
     };
   }
 
-  async navigateToStream(url: string, password?: string, joinName?: string, joinEmail?: string, joinPhone?: string): Promise<void> {
+  async navigateToStream(
+    url: string,
+    password?: string,
+    joinName?: string,
+    joinEmail?: string,
+    joinPhone?: string,
+    onStage?: (stage: StartStage) => void,
+  ): Promise<void> {
     if (this.page) {
       try {
         await this.page.close().catch(() => {});
@@ -209,8 +217,11 @@ export class StreamingRecorder {
     }
 
     if (!this.browser) {
+      onStage?.('launching_browser');
       await this.startBrowser();
     }
+
+    onStage?.('opening_page');
 
     try {
       const context = await this.browser!.newContext({
@@ -269,6 +280,8 @@ export class StreamingRecorder {
       const finalUrl = this.page.url();
       const title = await this.page.title().catch(() => '(no title)');
       logger.info(`[NAV] ✅ Loaded — title: "${title}", finalUrl: ${finalUrl}`);
+
+      onStage?.('joining');
 
       if (password) {
         await this.enterPassword(password);
@@ -1116,6 +1129,25 @@ export class StreamingRecorder {
     }
   }
 
+  /**
+   * Вызывает onFrame один раз, когда в текущую сессию пришёл первый кадр —
+   * это и есть подтверждение, что запись реально началась.
+   * Сам заканчивается, если сессия остановлена до первого кадра.
+   */
+  private watchFirstFrame(onFrame: () => void): void {
+    const timer = setInterval(() => {
+      const session = this.currentSession;
+      if (!session || !session.isActive) {
+        clearInterval(timer);
+        return;
+      }
+      if (session.frameCount > 0) {
+        clearInterval(timer);
+        try { onFrame(); } catch (_e) { /* статус не должен ломать запись */ }
+      }
+    }, 1000);
+  }
+
   async recordStream(options: {
     url: string;
     duration: number;
@@ -1133,6 +1165,8 @@ export class StreamingRecorder {
       isFinal: boolean;
     }) => Promise<void>;
     chunkDurationMs?: number;
+    /** Этапы запуска записи (для статуса «стартовала ли запись») */
+    onStage?: (stage: StartStage) => void;
   }): Promise<string> {
     await this.initialize();
 
@@ -1145,7 +1179,7 @@ export class StreamingRecorder {
     let lastFilePath = '';
 
     try {
-      await this.navigateToStream(options.url, options.password, options.joinName, options.joinEmail, options.joinPhone);
+      await this.navigateToStream(options.url, options.password, options.joinName, options.joinEmail, options.joinPhone, options.onStage);
 
       while (remainingMs > 0) {
         const thisChunkMs = Math.min(chunkDurationMs, remainingMs);
@@ -1154,6 +1188,10 @@ export class StreamingRecorder {
         logger.info(`[CHUNK] Starting part ${partNumber} (${Math.round(thisChunkMs / 60000)} min, final=${isFinal})`);
 
         await this.startStreamingRecording(taskId, partNumber, thisChunkMs);
+        if (partNumber === 1 && options.onStage) {
+          options.onStage('capturing');
+          this.watchFirstFrame(() => options.onStage?.('recording'));
+        }
         const result = await this.waitForRecordingComplete(thisChunkMs);
 
         if (!result.success && result.frameCount === 0) {
