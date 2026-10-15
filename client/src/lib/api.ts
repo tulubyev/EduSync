@@ -24,16 +24,7 @@ const getEndpoints = async (): Promise<any> => {
       profile: {
         uploadImage: '/api/profile/upload-image'
       },
-      verification: {
-        sendSms: '/api/verification/send-sms',
-        sendEmail: '/api/verification/send-email',
-        verifySms: '/api/verification/verify-sms',
-        verifyEmail: '/api/verification/verify-email'
-      },
-      ai: '/api/ai',
-      esia: {
-        auth: '/api/auth/esia'
-      }
+      ai: '/api/ai'
     };
   }
 };

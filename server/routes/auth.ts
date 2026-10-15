@@ -499,6 +499,5 @@ authRouter.post('/reset-password', async (req, res) => {
   }
 });
 
-// ESIA routes moved to dedicated module: server/routes/esia.ts
 
 export default authRouter;

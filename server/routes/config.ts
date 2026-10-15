@@ -61,38 +61,6 @@ router.get('/public', async (req: Request, res: Response) => {
             logout: '/api/auth/logout'
           },
           
-          // Verification endpoints
-          verification: {
-            sendSms: '/api/verification/send-sms',
-            sendEmail: '/api/verification/send-email',
-            verifySms: '/api/verification/verify-sms',
-            verifyEmail: '/api/verification/verify-email'
-          },
-          
-          // Bank endpoints
-          banks: {
-            connections: '/api/banks/connections',
-            available: '/api/banks/available',
-            connect: '/api/banks/connect',
-            realConnect: '/api/banks/real/connect',
-            sync: '/api/banks/real/sync',
-            oauthCallback: '/api/banks/oauth-callback'
-          },
-          
-          // Dashboard endpoints
-          dashboard: {
-            stats: '/api/dashboard/stats',
-            spendingCategories: '/api/dashboard/spending-categories'
-          },
-          
-          // Account & Transaction endpoints
-          accounts: '/api/accounts',
-          transactions: '/api/transactions',
-          
-          // Savings & Budget endpoints
-          savingsGoals: '/api/savings-goals',
-          budgets: '/api/budgets',
-          
           // Profile endpoints
           profile: {
             update: '/api/profile/update',
@@ -119,12 +87,6 @@ router.get('/public', async (req: Request, res: Response) => {
             setup: '/api/auth/2fa/setup',
             enable: '/api/auth/2fa/enable',
             disable: '/api/auth/2fa/disable'
-          },
-          
-          // ESIA endpoints
-          esia: {
-            authorize: '/api/auth/esia/authorize',
-            mock: '/api/auth/esia/mock'
           }
         },
         
@@ -135,19 +97,6 @@ router.get('/public', async (req: Request, res: Response) => {
       
       // Business Rules Configuration
       business: {
-        verification: {
-          limits: {
-            unverified: '15 000 ₽/мес',
-            phone: '100 000 ₽/мес', 
-            documents: '1 000 000 ₽/мес'
-          },
-          requirements: [
-            'Подтверждение телефона',
-            'Подтверждение email',
-            'Загрузка документов'
-          ]
-        },
-        
         sync: {
           defaultInterval: '15 минут',
           maxRetries: 5
