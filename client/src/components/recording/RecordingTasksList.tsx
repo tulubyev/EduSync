@@ -98,7 +98,7 @@ interface RecordingTask {
   urlCheckStatus?: 'pending' | 'ok' | 'warning' | 'failed';
   urlCheckMessage?: string;
   urlCheckedAt?: string;
-  mergeStatus?: 'idle' | 'merging' | 'completed' | 'failed';
+  mergeStatus?: 'idle' | 'queued' | 'merging' | 'completed' | 'failed';
   mergeProgress?: string;
   mergedUrl?: string;
   mergeError?: string;
@@ -550,32 +550,32 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 </Button>
               )}
 
-              {task.status === 'completed' && (task.parts?.length ?? 0) >= 2 && task.mergeStatus !== 'completed' && (
+              {(task.status === 'completed' || task.status === 'failed') && (task.parts?.length ?? 0) >= 2 && task.mergeStatus !== 'completed' && (
                 <Button
                   size="sm"
                   variant="outline"
                   className={`h-8 px-2 text-xs gap-1 ${
-                    task.mergeStatus === 'merging'
+                    task.mergeStatus === 'merging' || task.mergeStatus === 'queued'
                       ? 'text-blue-500 border-blue-300 cursor-wait'
                       : task.mergeStatus === 'failed'
                       ? 'text-red-500 border-red-300'
                       : 'text-indigo-600 hover:text-indigo-800 hover:border-indigo-300'
                   }`}
                   title={
-                    task.mergeStatus === 'merging'
+                    task.mergeStatus === 'merging' || task.mergeStatus === 'queued'
                       ? (task.mergeProgress ?? 'Слияние...')
                       : task.mergeStatus === 'failed'
                       ? `Ошибка: ${task.mergeError ?? 'неизвестно'}`
                       : `Слить ${task.parts?.length} части в один файл`
                   }
-                  disabled={task.mergeStatus === 'merging'}
+                  disabled={task.mergeStatus === 'merging' || task.mergeStatus === 'queued'}
                   onClick={() => handleMerge(task.id)}
                 >
-                  {task.mergeStatus === 'merging'
+                  {task.mergeStatus === 'merging' || task.mergeStatus === 'queued'
                     ? <Loader className="h-3.5 w-3.5 animate-spin" />
                     : <Merge className="h-3.5 w-3.5" />
                   }
-                  {task.mergeStatus === 'merging' ? 'Слияние...' : task.mergeStatus === 'failed' ? 'Повтор слияния' : 'Слить'}
+                  {task.mergeStatus === 'merging' ? 'Слияние...' : task.mergeStatus === 'queued' ? 'В очереди…' : task.mergeStatus === 'failed' ? 'Повтор слияния' : 'Слить'}
                 </Button>
               )}
 

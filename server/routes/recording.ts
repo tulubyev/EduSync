@@ -242,18 +242,17 @@ router.post('/tasks/:taskId/merge', authenticateToken as any, async (req: AuthRe
       return res.status(400).json({ message: `Нужно минимум 2 части для слияния (найдено: ${urls.length})` });
     }
 
-    if (task.mergeStatus === 'merging') {
-      return res.status(400).json({ message: 'Слияние уже выполняется, подождите' });
+    if (task.mergeStatus === 'merging' || task.mergeStatus === 'queued') {
+      return res.status(400).json({ message: 'Слияние уже выполняется или стоит в очереди, подождите' });
     }
 
     logger.info(`[MERGE] Starting merge for task ${taskId}: ${urls.length} parts`);
 
-    const { chunkMerger } = await import('../services/recording/executor/mergeChunks');
-    chunkMerger.merge(taskId, urls, task.title).catch(async (err: Error) => {
-      logger.error(`[MERGE] Background merge failed for ${taskId}:`, err);
-    });
+    // Слияние выполняет воркер (в веб-контейнере нет ffmpeg) — ставим в очередь
+    const { queueMerge } = await import('../services/recording/executor/mergeQueue');
+    await queueMerge(taskId, `В очереди на слияние (${urls.length} частей)`);
 
-    res.json({ success: true, message: `Слияние ${urls.length} частей запущено в фоне` });
+    res.json({ success: true, message: `Слияние ${urls.length} частей поставлено в очередь` });
   } catch (error) {
     logger.error('Error starting merge:', error);
     res.status(500).json({ message: 'Ошибка запуска слияния' });

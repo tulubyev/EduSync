@@ -5,9 +5,10 @@ import { logger } from '../../logger';
 import { BegetStorage } from './begetStorage';
 import { db } from '../../../db';
 import { recordingTasks } from '../../../../shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
+import { executorConfig } from './config';
 
-export type MergeStatus = 'idle' | 'merging' | 'completed' | 'failed';
+export type MergeStatus = 'idle' | 'queued' | 'merging' | 'completed' | 'failed';
 
 export class ChunkMerger {
   private storage: BegetStorage;
@@ -108,6 +109,11 @@ export class ChunkMerger {
     });
   }
 
+  /** Отметить слияние неудачным без запуска ffmpeg (например, частей меньше двух). */
+  async markFailed(taskId: string, reason: string): Promise<void> {
+    await this.updateMergeStatus(taskId, 'failed', reason);
+  }
+
   private async updateMergeStatus(
     taskId: string,
     status: MergeStatus,
@@ -115,24 +121,17 @@ export class ChunkMerger {
     mergedUrl?: string,
   ): Promise<void> {
     try {
-      const [task] = await db
-        .select({ metadata: recordingTasks.metadata })
-        .from(recordingTasks)
-        .where(eq(recordingTasks.id, taskId));
-
-      const meta = ((task?.metadata as Record<string, unknown>) ?? {});
-      const newMeta: Record<string, unknown> = {
-        ...meta,
-        mergeStatus: status,
-        mergeProgress: progress,
-      };
-      if (mergedUrl) newMeta.mergedUrl = mergedUrl;
-      if (status === 'failed') newMeta.mergeError = progress;
+      // Точечное обновление ключей metadata (jsonb ||), чтобы не затереть то, что параллельно
+      // пишет воркер (например, metadata.start)
+      const patch: Record<string, unknown> = { mergeStatus: status, mergeProgress: progress };
+      if (mergedUrl) patch.mergedUrl = mergedUrl;
+      if (status === 'failed') patch.mergeError = progress;
+      if (status === 'completed') patch.mergeError = null;
 
       await db
         .update(recordingTasks)
         .set({
-          metadata: newMeta,
+          metadata: sql`coalesce(${recordingTasks.metadata}, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb`,
           ...(mergedUrl ? { begetUrl: mergedUrl } : {}),
           updatedAt: new Date(),
         })
@@ -143,4 +142,5 @@ export class ChunkMerger {
   }
 }
 
-export const chunkMerger = new ChunkMerger('/tmp/recordings');
+// Слияние идёт на диске воркера (том /data/recordings), а не в /tmp контейнера
+export const chunkMerger = new ChunkMerger(path.join(executorConfig.recording.outputDir, 'merge'));

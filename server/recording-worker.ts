@@ -26,6 +26,7 @@ import { pollerController } from './services/recording/pollerController';
 import { recordingTaskManager } from './services/recording/taskManager';
 import { logger } from './services/logger';
 import { executorConfig } from './services/recording/executor/config';
+import { startMergeLoop } from './services/recording/executor/mergeQueue';
 
 const SCHEDULER_INTERVAL_MS = 60_000;
 const WATCHDOG_INTERVAL_MS  = 2 * 60_000;
@@ -72,11 +73,15 @@ async function main() {
   }
   logger.info(`[executor] ${result.message}`);
 
+  // ── Слияние частей записи в один файл (ffmpeg есть только в воркере) ─────
+  const stopMergeLoop = startMergeLoop(executorConfig.worker.id);
+
   // ── Graceful shutdown ────────────────────────────────────────────────────
   const shutdown = (signal: string) => {
     logger.info(`\n[worker] ${signal} received — shutting down...`);
     clearInterval(schedulerTimer);
     clearInterval(watchdogTimer);
+    stopMergeLoop();
     const { message } = pollerController.stop();
     logger.info(`[executor] ${message}`);
     logger.info('[worker] Shutdown complete. Bye.');

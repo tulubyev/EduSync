@@ -9,7 +9,13 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 /** Все загрузки воркера лежат под этим префиксом (см. BegetStorage.uploadVideo) */
 const KEY_PREFIX = 'myepa/recordings/';
-const DOWNLOAD_URL_TTL_SEC = 60 * 60;
+/**
+ * Срок действия ссылки на скачивание. RECORDING_DOWNLOAD_TTL_HOURS, по умолчанию 12 ч
+ * (записи часто идут ночью и скачиваются утром). Предел подписи S3 — 7 суток.
+ */
+const DOWNLOAD_URL_TTL_SEC = Math.round(
+  Math.min(168, Math.max(1, parseFloat(process.env.RECORDING_DOWNLOAD_TTL_HOURS || '12') || 12)) * 3600,
+);
 
 export interface TaskVideo {
   /** 'merged' — объединённый файл, иначе номер части */
@@ -80,7 +86,7 @@ function s3(): S3Client | null {
 }
 
 /**
- * Подписанная ссылка на скачивание (действует час). null — если хранилище не настроено или
+ * Подписанная ссылка на скачивание (по умолчанию действует 12 часов). null — если хранилище не настроено или
  * ссылка не из нашего бакета (например, старые записи) — тогда клиент скачивает по исходной ссылке.
  */
 export async function presignDownload(video: TaskVideo, fileName: string): Promise<string | null> {

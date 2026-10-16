@@ -31,7 +31,8 @@ function slugify(text: string): string {
     .slice(0, 60);
 }
 
-const MAX_PART_DURATION_MIN = 20;
+/** Длина одной части записи, мин (RECORDING_PART_MINUTES, 5–60, по умолчанию 20). Части потом склеиваются. */
+const MAX_PART_DURATION_MIN = Math.min(60, Math.max(5, parseInt(process.env.RECORDING_PART_MINUTES || '20', 10) || 20));
 
 class RecordingTaskManager {
   async createTask(data: {
