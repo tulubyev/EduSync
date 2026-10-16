@@ -6,6 +6,7 @@ import { yandexDiskService } from "../services/yandexDiskService";
 import { recordingTaskManager, recordingLogger, pollerController } from "../services/recording";
 import { executorModeService } from "../services/recording/executorModeService";
 import { resolveBegetPublicUrl } from "../services/recording/s3PublicUrl";
+import { readRuntimeSettings, writeRuntimeSettings, HARD_MAX_CONCURRENCY } from "../services/recording/runtimeSettings";
 import { logger } from "../services/logger";
 import { db } from "../db";
 import { recordingTasks, recordingWorkerStatus, recordingLogs } from "@shared/schema";
@@ -1253,6 +1254,62 @@ router.post('/admin/executor/worker/:workerId/stop', authenticateToken as any, a
   logger.info(`Admin ${adminId} requested STOP worker ${workerId}`);
   const result = pollerController.stopWorker(workerId);
   res.status(result.ok ? 200 : 404).json({ success: result.ok, message: result.message, executor: pollerController.getStatus() });
+});
+
+// ── Рабочие настройки записи (пауза / параллельность / лимит на клиента) ─────
+// Применяются на лету: воркер перечитывает их каждые несколько секунд, перезапуск не нужен.
+
+router.get('/admin/executor/settings', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    const settings = await readRuntimeSettings();
+    const workers = await db.select().from(recordingWorkerStatus);
+    const aliveSince = Date.now() - 90_000;
+    const alive = workers.filter((w) => w.lastSeenAt && new Date(w.lastSeenAt).getTime() >= aliveSince);
+    // Потолок задаёт MAX_WORKERS воркера (воркер сообщает его в metadata.maxWorkers)
+    const reported = alive
+      .map((w) => Number((w.metadata as any)?.maxWorkers))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const maxConcurrency = reported.length > 0
+      ? Math.max(...reported)
+      : Math.max(1, Math.min(HARD_MAX_CONCURRENCY, parseInt(process.env.MAX_WORKERS || '1', 10)));
+    const active = alive.filter((w) => w.activeTaskId).length;
+    res.json({
+      success: true,
+      settings: { ...settings, concurrency: settings.concurrency ?? maxConcurrency },
+      maxConcurrency,
+      aliveWorkers: alive.length,
+      activeRecordings: active,
+    });
+  } catch (error) {
+    logger.error('Admin executor settings GET error:', error);
+    res.status(500).json({ message: 'Ошибка получения настроек записи' });
+  }
+});
+
+router.post('/admin/executor/settings', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  if (!requireAdminRole(req, res)) return;
+  try {
+    const { paused, concurrency, perUserLimit } = req.body ?? {};
+    const patch: Record<string, unknown> = {};
+    if (paused !== undefined) {
+      if (typeof paused !== 'boolean') return res.status(400).json({ message: 'paused должен быть true/false' });
+      patch.paused = paused;
+    }
+    for (const [name, value, min] of [['concurrency', concurrency, 1], ['perUserLimit', perUserLimit, 0]] as const) {
+      if (value === undefined) continue;
+      if (!Number.isInteger(value) || value < min || value > HARD_MAX_CONCURRENCY) {
+        return res.status(400).json({ message: `${name}: целое число от ${min} до ${HARD_MAX_CONCURRENCY}` });
+      }
+      patch[name] = value;
+    }
+    logger.info(`Admin ${req.user!.id} changed recording settings: ${JSON.stringify(patch)}`);
+    const settings = await writeRuntimeSettings(patch);
+    res.json({ success: true, settings });
+  } catch (error) {
+    logger.error('Admin executor settings POST error:', error);
+    res.status(500).json({ message: 'Ошибка сохранения настроек записи' });
+  }
 });
 
 // ── Executor Mode (Replit / VPS) ──────────────────────────────────────────────

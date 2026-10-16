@@ -1,12 +1,13 @@
 import { db } from '../../../db';
 import { recordingTasks, recordingWorkerStatus } from '@shared/schema';
-import { eq, and, lt, sql, inArray } from 'drizzle-orm';
+import { eq, and, lt, sql, inArray, asc } from 'drizzle-orm';
 import { StreamingRecorder } from './streamingRecorder';
 import { BegetStorage } from './begetStorage';
 import { logger } from '../../logger';
 import { executorConfig } from './config';
 import { validateStreamUrl } from './urlValidator';
 import { StartTracker, recordStartFailure } from './startTracker';
+import { getRuntimeSettings, slotFromWorkerId } from '../runtimeSettings';
 
 const MAX_ATTEMPTS = 3;
 
@@ -24,13 +25,27 @@ export class TaskPoller {
   private dbOk = false;
   private s3Ok = false;
   private running = false;
+  /** Номер слота воркера (1..MAX_WORKERS): слот работает, только если он ≤ разрешённой админом параллельности */
+  private slot: number;
+  private slotEnabled = true;
+  private paused = false;
 
   constructor(workerId?: string) {
     this.workerId = workerId ?? executorConfig.worker.id;
+    this.slot = slotFromWorkerId(this.workerId);
     this.pollIntervalMs = executorConfig.worker.pollIntervalMs;
     this.heartbeatTimeoutMs = executorConfig.worker.heartbeatTimeoutMs;
     this.recorder = new StreamingRecorder(this.workerId);
     this.storage = new BegetStorage();
+  }
+
+  private statusMetadata() {
+    return {
+      slot: this.slot,
+      maxWorkers: executorConfig.worker.maxWorkers,
+      slotEnabled: this.slotEnabled,
+      paused: this.paused,
+    };
   }
 
   private async reportStatus() {
@@ -51,6 +66,7 @@ export class TaskPoller {
           lastSeenAt: now,
           startedAt: now,
           buildVersion: '2.0.0',
+          metadata: this.statusMetadata(),
         })
         .onConflictDoUpdate({
           target: recordingWorkerStatus.workerId,
@@ -64,6 +80,7 @@ export class TaskPoller {
             tasksSuccessful: this.tasksSuccessful,
             tasksFailed: this.tasksFailed,
             lastSeenAt: now,
+            metadata: this.statusMetadata(),
           },
         });
     } catch (_e) {
@@ -93,7 +110,12 @@ export class TaskPoller {
 
         await this.checkScheduledTaskUrls();
 
-        const task = await this.claimNextTask();
+        // Админ может поставить приём на паузу или ограничить число одновременных записей
+        const rs = await getRuntimeSettings();
+        this.paused = rs.paused;
+        this.slotEnabled = !rs.paused && this.slot <= (rs.concurrency ?? executorConfig.worker.maxWorkers);
+
+        const task = this.slotEnabled ? await this.claimNextTask(rs.perUserLimit) : null;
 
         if (task) {
           await this.executeTask(task);
@@ -287,10 +309,17 @@ export class TaskPoller {
    * Атомарный захват задачи: UPDATE ... WHERE status='ready' ... RETURNING id.
    * Защита от дублирования при нескольких воркерах.
    */
-  private async claimNextTask(): Promise<any | null> {
+  private async claimNextTask(perUserLimit = 0): Promise<any | null> {
     const now = new Date();
     const offsetMs = executorConfig.worker.scheduledTimeTzOffsetH * 60 * 60 * 1000;
     const nowLocal = new Date(now.getTime() + offsetMs);
+
+    // Очередь по времени: раньше запланированная — раньше стартует.
+    // Лимит на пользователя: не берём задачу, если у него уже идёт perUserLimit записей
+    // (его задачи ждут, остальные клиенты не блокируются).
+    const userLimitCond = perUserLimit > 0
+      ? sql`(SELECT count(*) FROM recording_tasks rt2 WHERE rt2.user_id = ${recordingTasks.userId} AND rt2.status IN ('in_progress', 'uploading')) < ${perUserLimit}`
+      : sql`true`;
 
     const candidates = await db
       .select({ id: recordingTasks.id, title: recordingTasks.title, scheduledTime: recordingTasks.scheduledTime })
@@ -298,9 +327,11 @@ export class TaskPoller {
       .where(
         and(
           eq(recordingTasks.status, 'ready'),
-          sql`(${recordingTasks.scheduledTime} IS NULL OR ${recordingTasks.scheduledTime} <= ${nowLocal})`
+          sql`(${recordingTasks.scheduledTime} IS NULL OR ${recordingTasks.scheduledTime} <= ${nowLocal})`,
+          userLimitCond
         )
       )
+      .orderBy(asc(recordingTasks.scheduledTime), asc(recordingTasks.createdAt))
       .limit(1);
 
     if (candidates.length === 0) {
