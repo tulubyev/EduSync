@@ -11,6 +11,7 @@
 
 export type StartStage =
   | 'validating_url'
+  | 'resolving_stream'
   | 'launching_browser'
   | 'opening_page'
   | 'joining'
@@ -20,6 +21,7 @@ export type StartStage =
 
 export const STAGE_LABELS: Record<StartStage, string> = {
   validating_url: 'Проверяем ссылку',
+  resolving_stream: 'Получаем адрес потока',
   launching_browser: 'Запускаем браузер',
   opening_page: 'Открываем страницу трансляции',
   joining: 'Входим в трансляцию',
@@ -44,6 +46,9 @@ export type StartFailureCode =
   | 'DISK_SPACE_LOW'
   | 'S3_UPLOAD_FAILED'
   | 'NO_WORKER'
+  | 'STREAM_NOT_STARTED'
+  | 'STREAM_RESOLVE_FAILED'
+  | 'BROWSER_BUSY'
   | 'PAUSED'
   | 'USER_LIMIT'
   | 'WORKER_RESTARTED'
@@ -67,6 +72,16 @@ export interface StartRecord {
   hint?: string;
   /** Сырой текст ошибки для диагностики */
   detail?: string;
+  /** Способ записи: direct | extractor | browser (см. sourceStrategy.ts) */
+  method?: 'direct' | 'extractor' | 'browser';
+  methodLabel?: string;
+  platform?: string;
+  /** Чем достали поток (yt-dlp / streamlink) */
+  tool?: string;
+  /** Подсказка по площадке (например, что для Zoom лучше штатная запись) */
+  note?: string;
+  /** Почему пришлось перейти на браузер */
+  fallback?: string;
 }
 
 /** Что отдаётся клиенту в task.start (запись воркера + вычисленное сервером ожидание) */
@@ -93,6 +108,42 @@ const PROXY_HINT =
 export function classifyRecordingError(err: unknown, stage?: StartStage): Classified {
   const raw = err instanceof Error ? err.message : String(err ?? '');
   const msg = raw.toLowerCase();
+
+  // --- Запись потока без браузера (yt-dlp / streamlink / ffmpeg copy) ---
+  if (raw.includes('трансляция ещё не началась') || raw.includes('трансляция не началась') || raw.includes('трансляция не идёт')) {
+    return {
+      code: 'STREAM_NOT_STARTED',
+      reason: 'Трансляция на площадке ещё не началась (или уже закончилась)',
+      hint: 'Проверьте время начала и ссылку на эфир. Задача будет повторена автоматически.',
+    };
+  }
+  if (/private video|sign in to confirm|members[- ]only|requires? (login|authentication)|login required/i.test(raw)) {
+    return {
+      code: 'URL_FORBIDDEN',
+      reason: 'Видео закрыто: приватное, только для участников или требует входа',
+      hint: 'Сделайте трансляцию доступной по ссылке или используйте источник без авторизации.',
+    };
+  }
+  if (/not available in your country|geo[- ]?restrict|blocked in your/i.test(raw)) {
+    return { code: 'URL_BLOCKED_RF', reason: 'Площадка не показывает эту трансляцию для IP сервера (гео-ограничение)', hint: PROXY_HINT };
+  }
+  if (raw.includes('Не удалось получить адрес потока') || /^(yt-dlp|streamlink):/.test(raw)) {
+    return {
+      code: 'STREAM_RESOLVE_FAILED',
+      reason: 'Не удалось получить адрес потока с площадки',
+      hint: 'Ссылка должна вести на само видео/эфир. Если площадка изменилась — обновите образ воркера (новые yt-dlp/streamlink).',
+    };
+  }
+  if (raw.includes('поток не дал данных') && !/\b40[34]\b/.test(raw)) {
+    return {
+      code: 'NO_FRAMES',
+      reason: 'Поток открылся, но данные не пошли',
+      hint: 'Трансляция не идёт или адрес потока устарел. Проверьте, что эфир идёт.',
+    };
+  }
+  if (raw.includes('ждёт свободный браузер')) {
+    return { code: 'BROWSER_BUSY', reason: 'Нужна запись через браузер, а все браузерные места заняты', hint: 'Задача начнётся, когда освободится браузер (MAX_BROWSER_RECORDINGS).' };
+  }
 
   // --- Предпроверка URL (urlValidator) ---
   if (raw.includes('Некорректный URL') || raw.includes('Неподдерживаемый протокол')) {

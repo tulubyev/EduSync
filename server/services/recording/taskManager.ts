@@ -5,6 +5,7 @@ import { logger } from '../logger';
 import { RecordingTaskData, RecordingPart } from './types';
 import { recordingLogger } from './logger';
 import { readRuntimeSettings } from './runtimeSettings';
+import { planRecording, METHOD_LABELS } from './sourceStrategy';
 import { buildStartStatus, type WaitingContext, type StartRecord } from './startStatus';
 import { randomUUID } from 'crypto';
 
@@ -419,6 +420,11 @@ class RecordingTaskManager {
       mergeProgress: (task.metadata as any)?.mergeProgress || undefined,
       mergedUrl: (task.metadata as any)?.mergedUrl || undefined,
       mergeError: (task.metadata as any)?.mergeError || undefined,
+      plannedMethod: (() => {
+        const forced = (task.metadata as any)?.forceBrowserFor === task.streamUrl || process.env.RECORDING_FAST_PATH === 'false';
+        const plan = planRecording(task.streamUrl, { forceBrowser: forced });
+        return { method: plan.method, label: METHOD_LABELS[plan.method], platform: plan.platform, note: plan.note };
+      })(),
       start: waitingCtx
         ? buildStartStatus(
             {

@@ -72,6 +72,10 @@ services:
       PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium
       CHROMIUM_HEADLESS: "true"
       SCHEDULED_TIME_TZ_OFFSET_H: ${SCHEDULED_TIME_TZ_OFFSET_H:-3}
+      # Браузерная запись: 720p и 10 к/с — в 2–3 раза легче 1080p/15, для вебинаров со слайдами достаточно
+      VIEWPORT_WIDTH: ${VIEWPORT_WIDTH:-1280}
+      VIEWPORT_HEIGHT: ${VIEWPORT_HEIGHT:-720}
+      FRAME_RATE: ${FRAME_RATE:-10}
     volumes:
       - myepa_recordings:/data/recordings
     # Каждая запись = Chromium + ffmpeg (libx264) на 1920×1080. Лимит с запасом

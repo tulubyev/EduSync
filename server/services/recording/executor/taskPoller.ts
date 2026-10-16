@@ -8,6 +8,27 @@ import { executorConfig } from './config';
 import { validateStreamUrl } from './urlValidator';
 import { StartTracker, recordStartFailure } from './startTracker';
 import { getRuntimeSettings, slotFromWorkerId } from '../runtimeSettings';
+import { planRecording, METHOD_LABELS, type SourcePlan } from '../sourceStrategy';
+import { resolveStream, StreamNotStartedError } from './streamResolver';
+import { FfmpegStreamRecorder } from './ffmpegStreamRecorder';
+import { browserSlots } from './browserSlots';
+
+/** Запись потоков без браузера (ffmpeg copy / yt-dlp / streamlink). RECORDING_FAST_PATH=false — всё через браузер. */
+const FAST_PATH = process.env.RECORDING_FAST_PATH !== 'false';
+/** Сколько ждать начала запланированной трансляции на площадке */
+const MAX_STREAM_WAIT_MS = 15 * 60 * 1000;
+
+/** Поток без браузера не удался, а браузер занят — вернуть задачу в очередь без траты попытки. */
+class RequeueForBrowserError extends Error {}
+
+/** Задача уже переводилась на браузер для этой же ссылки (запись потока не удалась). */
+function forcedBrowser(task: { streamUrl: string; metadata?: unknown }): boolean {
+  return (task.metadata as any)?.forceBrowserFor === task.streamUrl;
+}
+
+function planFor(task: { streamUrl: string; metadata?: unknown }): SourcePlan {
+  return planRecording(task.streamUrl, { forceBrowser: !FAST_PATH || forcedBrowser(task) });
+}
 
 const MAX_ATTEMPTS = 3;
 
@@ -45,6 +66,9 @@ export class TaskPoller {
       maxWorkers: executorConfig.worker.maxWorkers,
       slotEnabled: this.slotEnabled,
       paused: this.paused,
+      fastPath: FAST_PATH,
+      browserLimit: browserSlots.limit,
+      browserInUse: browserSlots.inUse,
     };
   }
 
@@ -322,7 +346,13 @@ export class TaskPoller {
       : sql`true`;
 
     const candidates = await db
-      .select({ id: recordingTasks.id, title: recordingTasks.title, scheduledTime: recordingTasks.scheduledTime })
+      .select({
+        id: recordingTasks.id,
+        title: recordingTasks.title,
+        scheduledTime: recordingTasks.scheduledTime,
+        streamUrl: recordingTasks.streamUrl,
+        metadata: recordingTasks.metadata,
+      })
       .from(recordingTasks)
       .where(
         and(
@@ -332,7 +362,7 @@ export class TaskPoller {
         )
       )
       .orderBy(asc(recordingTasks.scheduledTime), asc(recordingTasks.createdAt))
-      .limit(1);
+      .limit(20);
 
     if (candidates.length === 0) {
       const pending = await db
@@ -354,7 +384,14 @@ export class TaskPoller {
 
     if (candidates.length === 0) return null;
 
-    const taskId = candidates[0].id;
+    // Браузерных записей одновременно — не больше MAX_BROWSER_RECORDINGS; задачи без браузера
+    // (потоки) берём и тогда, когда браузеры заняты. Порядок очереди сохраняется.
+    const pick = candidates.find((c) => planFor(c).method !== 'browser' || browserSlots.available());
+    if (!pick) return null;
+    const needsBrowser = planFor(pick).method === 'browser';
+    if (needsBrowser && !browserSlots.tryAcquire()) return null;
+
+    const taskId = pick.id;
 
     const claimed = await db
       .update(recordingTasks)
@@ -375,12 +412,13 @@ export class TaskPoller {
       .returning();
 
     if (claimed.length === 0) {
+      if (needsBrowser) browserSlots.release();
       logger.warn(`Task ${taskId} was already claimed by another worker`);
       return null;
     }
 
-    logger.info(`Worker ${this.workerId} claimed task ${taskId}`);
-    return claimed[0];
+    logger.info(`Worker ${this.workerId} claimed task ${taskId}${needsBrowser ? ` (браузер ${browserSlots.inUse}/${browserSlots.limit})` : ''}`);
+    return { ...claimed[0], __browserSlot: needsBrowser };
   }
 
   /**
@@ -458,6 +496,60 @@ export class TaskPoller {
     const tracker = new StartTracker({ id: task.id, userId: task.userId }, task.attemptCount ?? 1, MAX_ATTEMPTS);
     tracker.enter('validating_url');
     let uploadError: Error | null = null;
+    let holdsBrowserSlot = task.__browserSlot === true;
+
+    const handleChunk = async (chunk: { partNumber: number; filePath: string; frameCount: number; durationMs: number }) => {
+      logger.info(`[CHUNK] Part ${chunk.partNumber} ready (${chunk.frameCount} frames, ${Math.round(chunk.durationMs / 1000)}s) — uploading to S3...`);
+
+      // Переходим в статус uploading при первом чанке
+      if (uploadedChunks.length === 0) {
+        await db
+          .update(recordingTasks)
+          .set({ status: 'uploading', lastHeartbeat: new Date(), updatedAt: new Date() })
+          .where(eq(recordingTasks.id, task.id));
+      }
+
+      const partFileName = `${task.id}_part${chunk.partNumber}_${safeTitle}.mp4`;
+      let publicUrl: string;
+      try {
+        publicUrl = await this.storage.uploadVideo(chunk.filePath, partFileName);
+      } catch (uploadErr) {
+        uploadError = uploadErr as Error;
+        throw uploadErr;
+      }
+
+      uploadedChunks.push({
+        partNumber: chunk.partNumber,
+        publicUrl,
+        durationMs: chunk.durationMs,
+        frameCount: chunk.frameCount,
+        status: 'completed',
+      });
+
+      // Сохраняем прогресс в БД после каждого чанка
+      const partsPayload = uploadedChunks.map((c) => ({
+        partNumber: c.partNumber,
+        fileName: `${task.id}_part${c.partNumber}_${safeTitle}.mp4`,
+        startTime: new Date().toISOString(),
+        duration: c.durationMs,
+        status: 'completed' as const,
+        publicUrl: c.publicUrl,
+      }));
+
+      await db
+        .update(recordingTasks)
+        .set({
+          parts: partsPayload,
+          currentPart: uploadedChunks.length,
+          // begetUrl — первый загруженный чанк (обратная совместимость)
+          begetUrl: uploadedChunks[0].publicUrl,
+          lastHeartbeat: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(recordingTasks.id, task.id));
+
+      logger.info(`[CHUNK] ✅ Part ${chunk.partNumber} uploaded: ${publicUrl} (total saved: ${uploadedChunks.length})`);
+    };
 
     try {
       logger.info(`Validating URL: ${task.streamUrl}`);
@@ -483,7 +575,53 @@ export class TaskPoller {
         throw new Error(`URL недоступен: ${urlCheck.error ?? 'неизвестная ошибка'}`);
       }
 
-      await this.recorder.recordStream({
+      // Способ записи по типу источника: поток без браузера — в десятки раз дешевле
+      const plan = planFor(task);
+      tracker.setMethod({ method: plan.method, methodLabel: METHOD_LABELS[plan.method], platform: plan.platform, note: plan.note });
+      logger.info(`[METHOD] ${METHOD_LABELS[plan.method]} — ${plan.platform}${plan.note ? ` (${plan.note})` : ''}`);
+
+      let recordedWithoutBrowser = false;
+      if (plan.method !== 'browser') {
+        try {
+          let inputs = [{ url: task.streamUrl as string }] as Array<{ url: string; headers?: Record<string, string> }>;
+          if (plan.method === 'extractor') {
+            tracker.enter('resolving_stream');
+            const waitMs = Math.min(MAX_STREAM_WAIT_MS, task.duration * 60 * 1000);
+            const resolved = await resolveStream(task.streamUrl, plan.tools ?? ['yt-dlp'], waitMs);
+            tracker.setMethod({ tool: resolved.tool });
+            inputs = resolved.inputs;
+          }
+          await new FfmpegStreamRecorder().record({
+            taskId: task.id,
+            inputs,
+            duration: task.duration,
+            chunkDurationMs: maxPartMin * 60 * 1000,
+            onStage: (stage) => tracker.enter(stage),
+            onChunk: handleChunk,
+          });
+          recordedWithoutBrowser = true;
+        } catch (fastErr) {
+          // Запись уже шла, или трансляция просто ещё не началась — браузер не поможет
+          if (fastErr instanceof StreamNotStartedError || tracker.recordingConfirmed || uploadedChunks.length > 0) throw fastErr;
+          const why = (fastErr as Error).message.slice(0, 300);
+          logger.warn(`[METHOD] Без браузера не получилось (${why}) — переходим на запись через браузер`);
+          tracker.setMethod({ method: 'browser', methodLabel: METHOD_LABELS.browser, fallback: why, tool: undefined });
+          tracker.log(`Запись потока без браузера не удалась — переходим на браузер: ${why}`, { fallback: true });
+          await db
+            .update(recordingTasks)
+            .set({
+              metadata: sql`coalesce(${recordingTasks.metadata}, '{}'::jsonb) || jsonb_build_object('forceBrowserFor', ${task.streamUrl}::text)`,
+              updatedAt: new Date(),
+            })
+            .where(eq(recordingTasks.id, task.id));
+          if (!holdsBrowserSlot) {
+            if (!browserSlots.tryAcquire()) throw new RequeueForBrowserError(`Поток без браузера не удался (${why}) — задача ждёт свободный браузер`);
+            holdsBrowserSlot = true;
+          }
+        }
+      }
+
+      if (!recordedWithoutBrowser) await this.recorder.recordStream({
         url: task.streamUrl,
         duration: task.duration,
         title: task.title,
@@ -499,58 +637,7 @@ export class TaskPoller {
         chunkDurationMs: maxPartMin * 60 * 1000,
         onStage: (stage) => tracker.enter(stage),
 
-        onChunk: async (chunk) => {
-          logger.info(`[CHUNK] Part ${chunk.partNumber} ready (${chunk.frameCount} frames, ${Math.round(chunk.durationMs / 1000)}s) — uploading to S3...`);
-
-          // Переходим в статус uploading при первом чанке
-          if (uploadedChunks.length === 0) {
-            await db
-              .update(recordingTasks)
-              .set({ status: 'uploading', lastHeartbeat: new Date(), updatedAt: new Date() })
-              .where(eq(recordingTasks.id, task.id));
-          }
-
-          const partFileName = `${task.id}_part${chunk.partNumber}_${safeTitle}.mp4`;
-          let publicUrl: string;
-          try {
-            publicUrl = await this.storage.uploadVideo(chunk.filePath, partFileName);
-          } catch (uploadErr) {
-            uploadError = uploadErr as Error;
-            throw uploadErr;
-          }
-
-          uploadedChunks.push({
-            partNumber: chunk.partNumber,
-            publicUrl,
-            durationMs: chunk.durationMs,
-            frameCount: chunk.frameCount,
-            status: 'completed',
-          });
-
-          // Сохраняем прогресс в БД после каждого чанка
-          const partsPayload = uploadedChunks.map((c) => ({
-            partNumber: c.partNumber,
-            fileName: `${task.id}_part${c.partNumber}_${safeTitle}.mp4`,
-            startTime: new Date().toISOString(),
-            duration: c.durationMs,
-            status: 'completed' as const,
-            publicUrl: c.publicUrl,
-          }));
-
-          await db
-            .update(recordingTasks)
-            .set({
-              parts: partsPayload,
-              currentPart: uploadedChunks.length,
-              // begetUrl — первый загруженный чанк (обратная совместимость)
-              begetUrl: uploadedChunks[0].publicUrl,
-              lastHeartbeat: new Date(),
-              updatedAt: new Date(),
-            })
-            .where(eq(recordingTasks.id, task.id));
-
-          logger.info(`[CHUNK] ✅ Part ${chunk.partNumber} uploaded: ${publicUrl} (total saved: ${uploadedChunks.length})`);
-        },
+        onChunk: handleChunk,
       });
 
       clearInterval(heartbeatInterval);
@@ -582,6 +669,23 @@ export class TaskPoller {
       logger.info(`✅ Task ${task.id} completed: ${uploadedChunks.length} chunk(s) in S3, first URL: ${uploadedChunks[0].publicUrl}`);
     } catch (error) {
       clearInterval(heartbeatInterval);
+
+      if (error instanceof RequeueForBrowserError) {
+        // попытку не тратим: задача вернётся в очередь и пойдёт через браузер, когда он освободится
+        await tracker.fail(error, true);
+        await db
+          .update(recordingTasks)
+          .set({
+            status: 'ready',
+            workerId: null,
+            lastHeartbeat: null,
+            attemptCount: sql`greatest(${recordingTasks.attemptCount} - 1, 0)`,
+            updatedAt: new Date(),
+          })
+          .where(eq(recordingTasks.id, task.id));
+        logger.warn(`[METHOD] Task ${task.id} → ready: ждёт свободный браузер`);
+        return;
+      }
 
       const errMsg = (error as Error).message;
       const attemptsDone = task.attemptCount ?? 1;
@@ -680,6 +784,7 @@ export class TaskPoller {
           .where(eq(recordingTasks.id, task.id));
       }
     } finally {
+      if (holdsBrowserSlot) browserSlots.release();
       this.activeTaskId = null;
       this.activeTaskTitle = null;
       await this.reportStatus();

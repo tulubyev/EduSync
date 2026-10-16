@@ -1274,10 +1274,18 @@ router.get('/admin/executor/settings', authenticateToken as any, async (req: Aut
       ? Math.max(...reported)
       : Math.max(1, Math.min(HARD_MAX_CONCURRENCY, parseInt(process.env.MAX_WORKERS || '1', 10)));
     const active = alive.filter((w) => w.activeTaskId).length;
+    // Лимит браузерных записей и режим «без браузера» сообщает сам воркер
+    const browserLimits = alive
+      .map((w) => Number((w.metadata as any)?.browserLimit))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const browserLimit = browserLimits.length > 0 ? Math.max(...browserLimits) : null;
+    const fastPath = alive.some((w) => (w.metadata as any)?.fastPath === true);
     res.json({
       success: true,
       settings: { ...settings, concurrency: settings.concurrency ?? maxConcurrency },
       maxConcurrency,
+      browserLimit,
+      fastPath,
       aliveWorkers: alive.length,
       activeRecordings: active,
     });

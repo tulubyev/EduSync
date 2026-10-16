@@ -46,11 +46,18 @@ ENV NODE_ENV=production \
     HOME=/home/node \
     XDG_RUNTIME_DIR=/tmp/runtime
 # PulseAudio не стартует от root, поэтому работаем под пользователем node.
+# yt-dlp и streamlink (запись потоков без браузера) — из PyPI: версии из Debian быстро устаревают
+# и ломаются на YouTube/Twitch; свежие приходят с каждой пересборкой образа.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      chromium ffmpeg pulseaudio pulseaudio-utils \
+      chromium ffmpeg pulseaudio pulseaudio-utils python3 python3-venv \
       fonts-liberation fonts-noto-color-emoji ca-certificates dumb-init \
  && rm -rf /var/lib/apt/lists/* \
+ && python3 -m venv /opt/streamtools \
+ && /opt/streamtools/bin/pip install --no-cache-dir --upgrade yt-dlp streamlink \
+ && ln -s /opt/streamtools/bin/yt-dlp /usr/local/bin/yt-dlp \
+ && ln -s /opt/streamtools/bin/streamlink /usr/local/bin/streamlink \
+ && yt-dlp --version && streamlink --version \
  && mkdir -p /data/recordings /tmp/runtime \
  && chown -R node:node /data /tmp/runtime \
  && chmod 700 /tmp/runtime

@@ -69,12 +69,25 @@ export class StartTracker {
   private readonly startedAt = new Date().toISOString();
   private recordingStartedAt?: string;
   private chain: Promise<void> = Promise.resolve();
+  private methodInfo: Pick<StartRecord, 'method' | 'methodLabel' | 'platform' | 'tool' | 'note' | 'fallback'> = {};
 
   constructor(
     private readonly task: { id: string; userId: string },
     private readonly attempt: number,
     private readonly maxAttempts: number,
   ) {}
+
+  /** Какой способ записи выбран (пишется в metadata.start вместе со следующим этапом). */
+  setMethod(info: Pick<StartRecord, 'method' | 'methodLabel' | 'platform' | 'tool' | 'note' | 'fallback'>): void {
+    this.methodInfo = { ...this.methodInfo, ...info };
+  }
+
+  /** Событие в журнал задачи (например, переход на браузер). */
+  log(message: string, metadata?: Record<string, unknown>): void {
+    this.chain = this.chain.then(() =>
+      recordingLogger.logEvent({ taskId: this.task.id, userId: this.task.userId, eventType: 'start_stage', message, metadata }),
+    );
+  }
 
   get currentStage(): StartStage {
     return this.stage;
@@ -97,6 +110,7 @@ export class StartTracker {
   private async persist(stage: StartStage): Promise<void> {
     const now = new Date().toISOString();
     await writeStartRecord(this.task.id, {
+      ...this.methodInfo,
       state: stage === 'recording' ? 'recording' : 'starting',
       stage,
       attempt: this.attempt,
@@ -124,6 +138,7 @@ export class StartTracker {
     const c = classifyRecordingError(error, this.stage);
     const raw = error instanceof Error ? error.message : String(error);
     await writeStartRecord(this.task.id, {
+      ...this.methodInfo,
       state: willRetry ? 'retrying' : 'failed',
       stage: this.stage,
       attempt: this.attempt,
