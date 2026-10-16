@@ -65,6 +65,12 @@ interface StartInfo {
   hint?: string;
   detail?: string;
   severity?: 'info' | 'warn' | 'error';
+  method?: 'direct' | 'extractor' | 'browser';
+  methodLabel?: string;
+  platform?: string;
+  tool?: string;
+  note?: string;
+  fallback?: string;
 }
 
 interface RecordingTask {
@@ -96,6 +102,7 @@ interface RecordingTask {
   mergedUrl?: string;
   mergeError?: string;
   start?: StartInfo;
+  plannedMethod?: { method: 'direct' | 'extractor' | 'browser'; label: string; platform: string; note?: string };
 }
 
 interface RecordingTasksListProps {
@@ -113,7 +120,35 @@ function useNow(intervalMs = 5000) {
   return now;
 }
 
+function MethodLine({ task }: { task: RecordingTask }) {
+  const st = task.start;
+  const label = st?.methodLabel ?? task.plannedMethod?.label;
+  if (!label) return null;
+  const platform = st?.platform ?? task.plannedMethod?.platform;
+  const note = st?.note ?? task.plannedMethod?.note;
+  return (
+    <div className="mt-1 space-y-0.5">
+      <p className="text-xs text-gray-500">
+        Способ: {label}{platform ? ` · ${platform}` : ''}{st?.tool ? ` · ${st.tool}` : ''}
+      </p>
+      {st?.fallback && (
+        <p className="text-xs text-amber-700">Запись без браузера не удалась, переключились на браузер: {st.fallback}</p>
+      )}
+      {note && <p className="text-xs text-gray-400">{note}</p>}
+    </div>
+  );
+}
+
 function StartStatusPanel({ task }: { task: RecordingTask }) {
+  return (
+    <>
+      <StartStatusBox task={task} />
+      {task.status !== 'completed' && task.status !== 'cancelled' && <MethodLine task={task} />}
+    </>
+  );
+}
+
+function StartStatusBox({ task }: { task: RecordingTask }) {
   const st = task.start;
   const attempt = st?.attempt && st?.maxAttempts ? ` · попытка ${st.attempt}/${st.maxAttempts}` : '';
 
@@ -151,7 +186,7 @@ function StartStatusPanel({ task }: { task: RecordingTask }) {
         <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded p-2 mt-2">
           <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
           <p className="text-xs text-green-800">
-            Запись стартовала: видео получено
+            Запись стартовала: {st?.method && st.method !== 'browser' ? 'поток идёт' : 'видео получено'}
             {st?.recordingStartedAt ? ` в ${fmtMoscowTime(st.recordingStartedAt)} МСК` : ''}
             {attempt}
           </p>

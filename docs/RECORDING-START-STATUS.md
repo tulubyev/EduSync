@@ -21,7 +21,12 @@
 `URL_INVALID`, `URL_UNREACHABLE`, `URL_BLOCKED_RF` (нужен прокси, см. `RECORDING-PROXY.md`), `URL_FORBIDDEN`,
 `URL_NOT_FOUND`, `PAGE_LOAD_TIMEOUT`, `JOIN_FORM_FAILED`, `BROWSER_LAUNCH_FAILED`, `BROWSER_DISCONNECTED`,
 `NO_FRAMES`, `FFMPEG_FAILED`, `DISK_SPACE_LOW`, `S3_UPLOAD_FAILED`, `NO_WORKER`, `WORKER_RESTARTED`,
-`HEARTBEAT_TIMEOUT`, `UNKNOWN`.
+`HEARTBEAT_TIMEOUT`, `PAUSED`, `USER_LIMIT`, `STREAM_NOT_STARTED` (эфир на площадке не начался),
+`STREAM_RESOLVE_FAILED` (yt-dlp/streamlink не достали поток), `BROWSER_BUSY` (нужен браузер, все заняты), `UNKNOWN`.
+
+В `start` также видно, **каким способом** идёт запись: `method` (`direct` / `extractor` / `browser`),
+`platform`, `tool` (yt-dlp/streamlink) и `fallback` — почему пришлось перейти на браузер.
+См. `RECORDING-SCALING.md`, §2.
 
 ## Где хранится
 

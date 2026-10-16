@@ -284,6 +284,7 @@ export function AdminRecordingDashboard() {
   const [runtime, setRuntime] = useState<{
     paused: boolean; concurrency: number; perUserLimit: number;
     maxConcurrency: number; aliveWorkers: number; activeRecordings: number;
+    browserLimit: number | null; fastPath: boolean;
   } | null>(null);
   const [runtimeSaving, setRuntimeSaving] = useState(false);
   const [runtimeError, setRuntimeError] = useState('');
@@ -364,6 +365,8 @@ export function AdminRecordingDashboard() {
         maxConcurrency: d.maxConcurrency ?? 1,
         aliveWorkers: d.aliveWorkers ?? 0,
         activeRecordings: d.activeRecordings ?? 0,
+        browserLimit: d.browserLimit ?? null,
+        fastPath: !!d.fastPath,
       });
     } catch { /* панель обновится при следующем опросе */ }
   }, []);
@@ -757,6 +760,10 @@ export function AdminRecordingDashboard() {
           {runtimeError && <div style={{ marginTop: 8, fontSize: 12, color: '#f87171' }}>{runtimeError}</div>}
           <div style={{ marginTop: 8, fontSize: 11, color: '#64748b' }}>
             Настройки применяются за несколько секунд, перезапуск воркера не нужен. Очередь идёт по времени начала записи.
+            {runtime.browserLimit != null && (
+              <> Через браузер — не больше {runtime.browserLimit} одновременно (MAX_BROWSER_RECORDINGS);
+                {runtime.fastPath ? ' потоки (HLS/RTMP, YouTube, Rutube, VK, Twitch) пишутся без браузера.' : ' запись без браузера выключена (RECORDING_FAST_PATH=false).'}</>
+            )}
           </div>
         </div>
       )}

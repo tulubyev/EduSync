@@ -51,6 +51,8 @@ export interface RecordingTaskData {
   mergeError?: string;
   /** Запись стартовала или нет и почему (см. startStatus.ts) */
   start?: StartStatus;
+  /** Каким способом задача будет записана (по ссылке, см. sourceStrategy.ts) */
+  plannedMethod?: { method: 'direct' | 'extractor' | 'browser'; label: string; platform: string; note?: string };
 }
 
 export interface RecordingConfig {

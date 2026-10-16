@@ -53,3 +53,15 @@ export function isProxiedHost(hostname: string, proxy: RecordingProxy | null = g
   );
   return !direct;
 }
+
+/**
+ * Полный URL прокси (с логином/паролем) для внешних утилит (yt-dlp, streamlink, ffmpeg),
+ * если запрос к hostname должен идти через прокси; иначе null.
+ */
+export function proxyUrlForHost(hostname: string, proxy: RecordingProxy | null = getRecordingProxy()): string | null {
+  if (!proxy || !isProxiedHost(hostname, proxy)) return null;
+  const u = new URL(proxy.server);
+  if (proxy.username) u.username = encodeURIComponent(proxy.username);
+  if (proxy.password) u.password = encodeURIComponent(proxy.password);
+  return u.toString().replace(/\/$/, '');
+}
