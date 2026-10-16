@@ -82,7 +82,12 @@ async function resolveWithYtDlp(pageUrl: string, waitMs: number): Promise<Resolv
   const args = [
     '-J', '--no-playlist', '--no-warnings',
     // сначала один поток с видео и звуком (HLS у live), иначе лучшие отдельные видео+звук
-    '-f', `b[height<=${maxH}][vcodec!=none][acodec!=none]/bv*[height<=${maxH}]+ba/b`,
+    // Лучшее видео + лучший звук отдельно (у готовых роликов YouTube/VK единый файл часто лишь 360p);
+    // если отдельного звука нет (эфиры, HLS) — единый поток. Фрагментированный DASH пропускаем:
+    // из такого манифеста ffmpeg не выберет нужное качество.
+    '-f', 'bv*[protocol!*=dash]+ba[protocol!*=dash]/b[protocol!*=dash]/b',
+    // Не выше RECORDING_MAX_HEIGHT; при равном разрешении — h264/aac (MP4 играет везде, включая Safari)
+    '-S', `res:${maxH},vcodec:h264,acodec:aac`,
     ...(waitMs > 0 ? ['--wait-for-video', '30-60'] : []),
     ...(proxy ? ['--proxy', proxy] : []),
     ...extra,
