@@ -6,6 +6,7 @@ import { yandexDiskService } from "../services/yandexDiskService";
 import { recordingTaskManager, recordingLogger, pollerController } from "../services/recording";
 import { executorModeService } from "../services/recording/executorModeService";
 import { resolveBegetPublicUrl } from "../services/recording/s3PublicUrl";
+import { listTaskVideos, presignDownload, downloadFileName } from "../services/recording/recordingFiles";
 import { readRuntimeSettings, writeRuntimeSettings, HARD_MAX_CONCURRENCY } from "../services/recording/runtimeSettings";
 import { logger } from "../services/logger";
 import { db } from "../db";
@@ -101,6 +102,71 @@ router.get('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
   } catch (error) {
     logger.error('Error fetching recording task:', error);
     res.status(500).json({ message: 'Ошибка получения задачи' });
+  }
+});
+
+// ── Просмотр, скачивание и сохранение записи ─────────────────────────────────
+
+/** Задача, доступная пользователю (своя или любая — для администратора). */
+async function getAccessibleTask(req: AuthRequest, res: Response) {
+  const task = await recordingTaskManager.getTask(req.params.taskId);
+  if (!task) {
+    res.status(404).json({ message: 'Задача не найдена' });
+    return null;
+  }
+  if (task.userId !== req.user!.id && !req.user!.adminRole) {
+    res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    return null;
+  }
+  return task;
+}
+
+router.get('/tasks/:taskId/videos', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const task = await getAccessibleTask(req, res);
+    if (!task) return;
+    res.json({ title: task.title, videos: listTaskVideos(task) });
+  } catch (error) {
+    logger.error('Error listing task videos:', error);
+    res.status(500).json({ message: 'Ошибка получения записей задачи' });
+  }
+});
+
+router.get('/tasks/:taskId/download', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const task = await getAccessibleTask(req, res);
+    if (!task) return;
+    const videos = listTaskVideos(task);
+    const video = videos.find((v) => v.id === String(req.query.video ?? '')) ?? videos[0];
+    if (!video) return res.status(404).json({ message: 'У задачи нет записанных файлов' });
+    const fileName = downloadFileName(task.title, video);
+    const signed = await presignDownload(video, fileName);
+    res.json({ url: signed ?? video.url, fileName, direct: !signed });
+  } catch (error) {
+    logger.error('Error creating download link:', error);
+    res.status(500).json({ message: 'Ошибка получения ссылки на скачивание' });
+  }
+});
+
+router.post('/tasks/:taskId/save-to-library', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const task = await getAccessibleTask(req, res);
+    if (!task) return;
+    const videos = listTaskVideos(task);
+    const video = videos.find((v) => v.id === String(req.body?.video ?? '')) ?? videos[0];
+    if (!video) return res.status(404).json({ message: 'У задачи нет записанных файлов' });
+    const when = new Date(task.scheduledTime).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
+    const note = await storage.createNote({
+      userId: req.user!.id,
+      title: (videos.length > 1 && video.id !== 'merged' ? `${task.title} — ${video.label.toLowerCase()}` : task.title).slice(0, 255),
+      content: `Запись трансляции от ${when} (МСК).${task.streamUrl ? `\nИсточник: ${task.streamUrl}` : ''}`,
+      resourceUrl: video.url,
+      tags: ['запись'],
+    } as any);
+    res.status(201).json({ success: true, noteId: note.id, message: 'Запись сохранена в библиотеку' });
+  } catch (error) {
+    logger.error('Error saving recording to library:', error);
+    res.status(500).json({ message: 'Ошибка сохранения в библиотеку' });
   }
 });
 

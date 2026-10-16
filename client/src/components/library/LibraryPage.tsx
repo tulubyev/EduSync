@@ -296,6 +296,10 @@ export function LibraryPage() {
     if (url.startsWith('data:audio/')) {
       return <audio src={url} controls className="w-full" />;
     }
+    // Записи трансляций и другие видеофайлы по ссылке — играют прямо в карточке
+    if (/^https?:\/\/.+\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url)) {
+      return <video src={url} controls playsInline preload="metadata" className="max-w-full max-h-96 rounded border bg-black" />;
+    }
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 break-all">
         {getResourceIcon(url)}
