@@ -45,7 +45,7 @@ export interface RecordingTaskData {
   urlCheckStatus?: 'pending' | 'ok' | 'warning' | 'failed';
   urlCheckMessage?: string;
   urlCheckedAt?: Date;
-  mergeStatus?: 'idle' | 'merging' | 'completed' | 'failed';
+  mergeStatus?: 'idle' | 'queued' | 'merging' | 'completed' | 'failed';
   mergeProgress?: string;
   mergedUrl?: string;
   mergeError?: string;

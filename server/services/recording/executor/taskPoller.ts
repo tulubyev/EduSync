@@ -12,6 +12,7 @@ import { planRecording, METHOD_LABELS, type SourcePlan } from '../sourceStrategy
 import { resolveStream, StreamNotStartedError } from './streamResolver';
 import { FfmpegStreamRecorder } from './ffmpegStreamRecorder';
 import { browserSlots } from './browserSlots';
+import { AUTO_MERGE, queueMerge } from './mergeQueue';
 
 /** Запись потоков без браузера (ffmpeg copy / yt-dlp / streamlink). RECORDING_FAST_PATH=false — всё через браузер. */
 const FAST_PATH = process.env.RECORDING_FAST_PATH !== 'false';
@@ -667,6 +668,11 @@ export class TaskPoller {
 
       this.tasksSuccessful++;
       logger.info(`✅ Task ${task.id} completed: ${uploadedChunks.length} chunk(s) in S3, first URL: ${uploadedChunks[0].publicUrl}`);
+      if (AUTO_MERGE && uploadedChunks.length >= 2) {
+        await queueMerge(task.id, `В очереди на слияние (${uploadedChunks.length} частей)`)
+          .then(() => logger.info(`[MERGE] Task ${task.id}: ${uploadedChunks.length} частей поставлено в очередь на слияние`))
+          .catch((e) => logger.warn(`[MERGE] Не удалось поставить в очередь: ${(e as Error).message}`));
+      }
     } catch (error) {
       clearInterval(heartbeatInterval);
 
@@ -725,6 +731,9 @@ export class TaskPoller {
             updatedAt: new Date(),
           })
           .where(eq(recordingTasks.id, task.id));
+        if (AUTO_MERGE && uploadedChunks.length >= 2) {
+          await queueMerge(task.id, `В очереди на слияние (${uploadedChunks.length} сохранённых частей)`).catch(() => {});
+        }
 
       } else if (attemptsDone < MAX_ATTEMPTS) {
         // Нет сохранённых чанков + есть ещё попытки — выжидаем паузу (задача остаётся

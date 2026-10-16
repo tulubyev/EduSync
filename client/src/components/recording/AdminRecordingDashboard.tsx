@@ -9,6 +9,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RecordingPlayerDialog } from './RecordingPlayerDialog';
 import {
   Select,
   SelectContent,
@@ -290,6 +291,7 @@ export function AdminRecordingDashboard() {
   const [runtimeError, setRuntimeError] = useState('');
   const [errorDetail, setErrorDetail] = useState<{ taskId: string; taskTitle: string; message: string } | null>(null);
   const [historyTaskId, setHistoryTaskId]   = useState<string | null>(null);
+  const [playerTask, setPlayerTask]         = useState<{ id: string; title: string } | null>(null);
   const [historyTaskTitle, setHistoryTaskTitle] = useState('');
   const [historyLogs, setHistoryLogs]       = useState<TaskLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -768,6 +770,12 @@ export function AdminRecordingDashboard() {
         </div>
       )}
 
+      <RecordingPlayerDialog
+        taskId={playerTask?.id ?? null}
+        title={playerTask?.title}
+        onClose={() => setPlayerTask(null)}
+      />
+
       {/* ── Stats grid ─────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 12, marginBottom: 20 }}>
         {ALL_STATUSES.map(s => (
@@ -929,6 +937,7 @@ export function AdminRecordingDashboard() {
                   onDelete={handleDelete}
                   onHistory={(id, title) => openHistory(id, title)}
                   onErrorClick={(taskId, taskTitle, msg) => setErrorDetail({ taskId, taskTitle, message: msg })}
+                  onPlay={(id, title) => setPlayerTask({ id, title })}
                 />
               ))}
             </tbody>
@@ -1551,7 +1560,7 @@ function HealthRow({ label, service }: { label: string; service?: HealthService 
   );
 }
 
-function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory, onErrorClick }: {
+function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory, onErrorClick, onPlay }: {
   task: AdminTask;
   onOpen: (id: string) => void;
   onReset: (id: string) => void;
@@ -1559,6 +1568,7 @@ function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory, onError
   onDelete: (id: string, title: string) => void;
   onHistory: (id: string, title: string) => void;
   onErrorClick: (taskId: string, taskTitle: string, message: string) => void;
+  onPlay: (id: string, title: string) => void;
 }) {
   const badge = BADGE_STYLES[task.status] || { background: '#1e2535', color: '#94a3b8' };
   return (
@@ -1617,25 +1627,14 @@ function TaskRow({ task, onOpen, onReset, onCancel, onDelete, onHistory, onError
       </td>
       <td style={S.tdMuted}>{fmtDate(task.lastHeartbeat)}</td>
       <td style={S.td}>
-        {task.parts && task.parts.length > 1 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {task.parts.map((p) => p.publicUrl ? (
-              <a
-                key={p.partNumber}
-                href={p.publicUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: '#3b82f6', fontSize: 11, textDecoration: 'none', whiteSpace: 'nowrap' }}
-              >
-                ▶ Часть {p.partNumber}
-                {p.duration ? ` (${Math.round(p.duration / 60000)} мин)` : ''}
-              </a>
-            ) : (
-              <span key={p.partNumber} style={{ color: '#6b7280', fontSize: 11 }}>Часть {p.partNumber}: {p.status}</span>
-            ))}
-          </div>
-        ) : task.begetUrl ? (
-          <a href={task.begetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 12, textDecoration: 'none' }}>▶ Открыть</a>
+        {(task.begetUrl || (task.parts ?? []).some((p) => p.publicUrl)) ? (
+          <button
+            onClick={() => onPlay(task.id, task.title)}
+            title="Смотреть, скачать или сохранить в библиотеку"
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#3b82f6', fontSize: 12, whiteSpace: 'nowrap' }}
+          >
+            ▶ Смотреть{task.parts && task.parts.length > 1 ? ` (${task.parts.length} ч.)` : ''}
+          </button>
         ) : (
           <span style={{ color: '#2d3748' }}>—</span>
         )}

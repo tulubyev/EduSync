@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { RecordingPlayerDialog } from './RecordingPlayerDialog';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 function utcToMoscow(utcStr: string): Date {
@@ -97,7 +98,7 @@ interface RecordingTask {
   urlCheckStatus?: 'pending' | 'ok' | 'warning' | 'failed';
   urlCheckMessage?: string;
   urlCheckedAt?: string;
-  mergeStatus?: 'idle' | 'merging' | 'completed' | 'failed';
+  mergeStatus?: 'idle' | 'queued' | 'merging' | 'completed' | 'failed';
   mergeProgress?: string;
   mergedUrl?: string;
   mergeError?: string;
@@ -232,6 +233,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
   const [isLoading, setIsLoading] = useState(true);
   const now = useNow(5000);
   const [editingTask, setEditingTask] = useState<RecordingTask | null>(null);
+  const [playerTask, setPlayerTask] = useState<{ id: string; title: string } | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState>({
     open: false,
     title: '',
@@ -536,40 +538,44 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 </span>
               )}
 
-              {task.status === 'completed' && (task.mergedUrl || task.begetUrl || task.playlistUrl) && (
-                <Button size="sm" variant="outline" className="h-8 w-8 p-0" title={task.mergedUrl ? 'Смотреть объединённый файл' : 'Смотреть видео (часть 1)'} asChild>
-                  <a href={task.mergedUrl || task.begetUrl || task.playlistUrl} target="_blank" rel="noopener noreferrer">
-                    <Play className="h-4 w-4" />
-                  </a>
+              {(task.status === 'completed' || task.status === 'failed') && (task.mergedUrl || task.begetUrl || (task.parts?.length ?? 0) > 0) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  title="Смотреть, скачать или сохранить в библиотеку"
+                  onClick={() => setPlayerTask({ id: task.id, title: task.title })}
+                >
+                  <Play className="h-4 w-4" />
                 </Button>
               )}
 
-              {task.status === 'completed' && (task.parts?.length ?? 0) >= 2 && task.mergeStatus !== 'completed' && (
+              {(task.status === 'completed' || task.status === 'failed') && (task.parts?.length ?? 0) >= 2 && task.mergeStatus !== 'completed' && (
                 <Button
                   size="sm"
                   variant="outline"
                   className={`h-8 px-2 text-xs gap-1 ${
-                    task.mergeStatus === 'merging'
+                    task.mergeStatus === 'merging' || task.mergeStatus === 'queued'
                       ? 'text-blue-500 border-blue-300 cursor-wait'
                       : task.mergeStatus === 'failed'
                       ? 'text-red-500 border-red-300'
                       : 'text-indigo-600 hover:text-indigo-800 hover:border-indigo-300'
                   }`}
                   title={
-                    task.mergeStatus === 'merging'
+                    task.mergeStatus === 'merging' || task.mergeStatus === 'queued'
                       ? (task.mergeProgress ?? 'Слияние...')
                       : task.mergeStatus === 'failed'
                       ? `Ошибка: ${task.mergeError ?? 'неизвестно'}`
                       : `Слить ${task.parts?.length} части в один файл`
                   }
-                  disabled={task.mergeStatus === 'merging'}
+                  disabled={task.mergeStatus === 'merging' || task.mergeStatus === 'queued'}
                   onClick={() => handleMerge(task.id)}
                 >
-                  {task.mergeStatus === 'merging'
+                  {task.mergeStatus === 'merging' || task.mergeStatus === 'queued'
                     ? <Loader className="h-3.5 w-3.5 animate-spin" />
                     : <Merge className="h-3.5 w-3.5" />
                   }
-                  {task.mergeStatus === 'merging' ? 'Слияние...' : task.mergeStatus === 'failed' ? 'Повтор слияния' : 'Слить'}
+                  {task.mergeStatus === 'merging' ? 'Слияние...' : task.mergeStatus === 'queued' ? 'В очереди…' : task.mergeStatus === 'failed' ? 'Повтор слияния' : 'Слить'}
                 </Button>
               )}
 
@@ -740,18 +746,14 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             <div className="bg-gray-50 p-2 rounded col-span-2 sm:col-span-1">
               <span className="text-gray-500 text-xs block">URL записи</span>
               {(task.begetUrl || task.playlistUrl) ? (
-                <a
-                  href={task.begetUrl || task.playlistUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline truncate block mt-0.5"
-                  title={task.begetUrl || task.playlistUrl}
+                <button
+                  type="button"
+                  onClick={() => setPlayerTask({ id: task.id, title: task.title })}
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline truncate block mt-0.5 text-left max-w-full"
+                  title="Открыть плеер: просмотр, скачивание, сохранение в библиотеку"
                 >
-                  {(() => {
-                    const url = (task.begetUrl || task.playlistUrl)!;
-                    return url.length > 36 ? url.slice(0, 36) + '…' : url;
-                  })()}
-                </a>
+                  ▶ Смотреть / скачать
+                </button>
               ) : (
                 <p className="text-xs text-gray-400 mt-0.5 italic">
                   {task.status === 'completed' ? 'Нет ссылки' :
@@ -808,6 +810,12 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
           <StartStatusPanel task={task} />
         </div>
       ))}
+
+      <RecordingPlayerDialog
+        taskId={playerTask?.id ?? null}
+        title={playerTask?.title}
+        onClose={() => setPlayerTask(null)}
+      />
 
       {editingTask && (
         <Dialog open={!!editingTask} onOpenChange={() => { setEditingTask(null); setEditError(null); setEditSuccess(false); }}>
