@@ -35,6 +35,11 @@ export class ChunkMerger {
       logger.info(`[MERGE] Concat list written (${chunkUrls.length} chunks) → ${concatListPath}`);
       logger.info(`[MERGE] URLs:\n${listContent}`);
 
+      // Склейка идёт без перекодирования (-c copy): у всех частей должен совпадать формат,
+      // иначе получится битый файл. Особенно важно для частей из разных записей.
+      await this.updateMergeStatus(taskId, 'merging', `Проверка формата ${chunkUrls.length} частей...`);
+      await this.checkSameFormat(chunkUrls);
+
       await this.updateMergeStatus(taskId, 'merging', `Слияние ${chunkUrls.length} частей через FFmpeg...`);
 
       await this.runFFmpegConcat(concatListPath, outputPath);
@@ -44,7 +49,9 @@ export class ChunkMerger {
 
       await this.updateMergeStatus(taskId, 'merging', `Загрузка итогового файла (${fileSizeMb} МБ) в S3...`);
 
-      const mergedFileName = `${taskId}_merged_${safeTitle}.mp4`;
+      // Метка времени в имени: повторная склейка (другой набор частей) — новый адрес, и CDN
+      // не отдаст из кэша прежний файл
+      const mergedFileName = `${taskId}_merged_${Date.now().toString(36)}_${safeTitle}.mp4`;
       const mergedUrl = await this.storage.uploadVideo(outputPath, mergedFileName);
 
       await this.updateMergeStatus(taskId, 'completed', 'Слияние завершено', mergedUrl);
@@ -79,12 +86,14 @@ export class ChunkMerger {
       const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
 
       let lastProgressLine = '';
+      let lastErrorLine = '';
       proc.stderr?.on('data', (data: Buffer) => {
         const text = data.toString();
         const lines = text.split('\n');
         for (const raw of lines) {
           const line = raw.trim();
           if (!line) continue;
+          if (/error|invalid|failed|not found|forbidden|denied/i.test(line)) lastErrorLine = line.slice(0, 300);
           if (line.startsWith('frame=') || line.includes('time=')) {
             if (line !== lastProgressLine) {
               logger.info(`[MERGE PROGRESS] ${line.slice(0, 150)}`);
@@ -101,12 +110,30 @@ export class ChunkMerger {
           logger.info('[MERGE] FFmpeg concat completed successfully');
           resolve();
         } else {
-          reject(new Error(`FFmpeg concat завершился с кодом ${code}`));
+          reject(new Error(`FFmpeg concat завершился с кодом ${code}${lastErrorLine ? `: ${lastErrorLine}` : ''}`));
         }
       });
 
       proc.on('error', (err) => reject(new Error(`FFmpeg не запустился: ${err.message}`)));
     });
+  }
+
+  /**
+   * Формат каждой части (кодеки, разрешение, звук) через ffprobe. Несовпадение — понятная ошибка
+   * вместо битого файла. Если часть не удалось прочитать — не мешаем склейке, ошибку покажет ffmpeg.
+   */
+  private async checkSameFormat(urls: string[]): Promise<void> {
+    const formats: Array<string | null> = [];
+    for (const u of urls) formats.push(await probeFormat(u)); // по очереди — не нагружаем сеть и CPU
+    const known = formats.map((f, i) => ({ f, n: i + 1 })).filter((x): x is { f: string; n: number } => !!x.f);
+    const first = known[0];
+    const other = known.find((x) => x.f !== first?.f);
+    if (first && other) {
+      throw new Error(
+        `Части разного формата — без перекодирования не склеить: №${first.n} — ${first.f}, №${other.n} — ${other.f}. ` +
+          'Выберите части одной записи или одного качества.',
+      );
+    }
   }
 
   /** Отметить слияние неудачным без запуска ffmpeg (например, частей меньше двух). */
@@ -140,6 +167,45 @@ export class ChunkMerger {
       logger.warn('[MERGE] Failed to update merge status in DB:', err);
     }
   }
+}
+
+/** «h264 1920×1080 + aac 48000 Гц стерео» или null, если ffprobe не смог прочитать файл. */
+function probeFormat(url: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const args = [
+      '-v', 'error',
+      '-protocol_whitelist', 'file,http,https,tcp,tls,crypto',
+      '-show_entries', 'stream=codec_type,codec_name,width,height,sample_rate,channels',
+      '-of', 'json',
+      url,
+    ];
+    let out = '';
+    let proc;
+    try {
+      proc = spawn('ffprobe', args, { stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      resolve(null);
+      return;
+    }
+    const timer = setTimeout(() => proc.kill('SIGKILL'), 60_000);
+    proc.stdout?.on('data', (d: Buffer) => { out += d.toString(); });
+    proc.on('error', () => { clearTimeout(timer); resolve(null); });
+    proc.on('close', (code) => {
+      clearTimeout(timer);
+      if (code !== 0) return resolve(null);
+      try {
+        const streams: any[] = JSON.parse(out).streams ?? [];
+        const v = streams.find((s) => s.codec_type === 'video');
+        const a = streams.find((s) => s.codec_type === 'audio');
+        const video = v ? `${v.codec_name} ${v.width}×${v.height}` : 'без видео';
+        const ch = a?.channels === 1 ? 'моно' : a?.channels === 2 ? 'стерео' : `${a?.channels} кан`;
+        const audio = a ? `${a.codec_name} ${a.sample_rate} Гц ${ch}` : 'без звука';
+        resolve(`${video} + ${audio}`);
+      } catch {
+        resolve(null);
+      }
+    });
+  });
 }
 
 // Слияние идёт на диске воркера (том /data/recordings), а не в /tmp контейнера

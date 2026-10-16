@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RecordingPlayerDialog } from './RecordingPlayerDialog';
+import { RecordingMergeDialog } from './RecordingMergeDialog';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 function utcToMoscow(utcStr: string): Date {
@@ -234,6 +235,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
   const now = useNow(5000);
   const [editingTask, setEditingTask] = useState<RecordingTask | null>(null);
   const [playerTask, setPlayerTask] = useState<{ id: string; title: string } | null>(null);
+  const [mergeTaskId, setMergeTaskId] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState>({
     open: false,
     title: '',
@@ -268,6 +270,17 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
   const filteredTasks = statusFilter 
     ? tasks.filter(task => task.status === statusFilter)
     : tasks;
+
+  // Склейка: свои части (≥2) или части других завершённых записей пользователя
+  const isFinished = (t: RecordingTask) => t.status === 'completed' || t.status === 'failed';
+  const hasVideo = (t: RecordingTask) => (t.parts?.length ?? 0) > 0 || !!t.begetUrl;
+  const finishedWithVideo = tasks.filter(t => isFinished(t) && hasVideo(t)).length;
+  const canMerge = (t: RecordingTask) =>
+    isFinished(t) &&
+    ((t.parts?.length ?? 0) >= 2 ||
+      (hasVideo(t) && finishedWithVideo >= 2) ||
+      (!!t.mergeStatus && t.mergeStatus !== 'idle'));
+  const mergeTask = tasks.find(t => t.id === mergeTaskId) ?? null;
 
   const fetchTasks = async () => {
     try {
@@ -410,20 +423,6 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     }
   };
 
-  const handleMerge = async (taskId: string) => {
-    try {
-      const response = await authService.authenticatedFetch(`/api/recording/tasks/${taskId}/merge`, { method: 'POST' });
-      if (response.ok) {
-        await fetchTasks();
-      } else {
-        const data = await response.json().catch(() => ({}));
-        alert(data.message || 'Ошибка запуска слияния');
-      }
-    } catch (error) {
-      console.error('Error starting merge:', error);
-    }
-  };
-
   const handleEditStart = (task: RecordingTask) => {
     setEditingTask(task);
     setEditError(null);
@@ -550,39 +549,42 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 </Button>
               )}
 
-              {(task.status === 'completed' || task.status === 'failed') && (task.parts?.length ?? 0) >= 2 && task.mergeStatus !== 'completed' && (
+              {canMerge(task) && (
                 <Button
                   size="sm"
                   variant="outline"
                   className={`h-8 px-2 text-xs gap-1 ${
                     task.mergeStatus === 'merging' || task.mergeStatus === 'queued'
-                      ? 'text-blue-500 border-blue-300 cursor-wait'
+                      ? 'text-blue-600 border-blue-300'
                       : task.mergeStatus === 'failed'
                       ? 'text-red-500 border-red-300'
+                      : task.mergeStatus === 'completed' && task.mergedUrl
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                       : 'text-indigo-600 hover:text-indigo-800 hover:border-indigo-300'
                   }`}
                   title={
                     task.mergeStatus === 'merging' || task.mergeStatus === 'queued'
-                      ? (task.mergeProgress ?? 'Слияние...')
+                      ? (task.mergeProgress ?? 'Склейка...')
                       : task.mergeStatus === 'failed'
-                      ? `Ошибка: ${task.mergeError ?? 'неизвестно'}`
-                      : `Слить ${task.parts?.length} части в один файл`
+                      ? `Ошибка склейки: ${task.mergeError ?? 'неизвестно'}`
+                      : 'Склеить части в один файл: выбор частей и порядка, части других записей'
                   }
-                  disabled={task.mergeStatus === 'merging' || task.mergeStatus === 'queued'}
-                  onClick={() => handleMerge(task.id)}
+                  onClick={() => setMergeTaskId(task.id)}
                 >
                   {task.mergeStatus === 'merging' || task.mergeStatus === 'queued'
                     ? <Loader className="h-3.5 w-3.5 animate-spin" />
                     : <Merge className="h-3.5 w-3.5" />
                   }
-                  {task.mergeStatus === 'merging' ? 'Слияние...' : task.mergeStatus === 'queued' ? 'В очереди…' : task.mergeStatus === 'failed' ? 'Повтор слияния' : 'Слить'}
+                  {task.mergeStatus === 'merging'
+                    ? 'Склейка…'
+                    : task.mergeStatus === 'queued'
+                    ? 'В очереди…'
+                    : task.mergeStatus === 'failed'
+                    ? 'Склейка: ошибка'
+                    : task.mergeStatus === 'completed' && task.mergedUrl
+                    ? '✅ Склеено'
+                    : 'Склеить'}
                 </Button>
-              )}
-
-              {task.status === 'completed' && task.mergeStatus === 'completed' && task.mergedUrl && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700" title={task.mergedUrl}>
-                  ✅ Слито
-                </span>
               )}
 
               {(task.status === 'scheduled' || task.status === 'in_progress' || task.status === 'uploading') && (
@@ -815,6 +817,16 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
         taskId={playerTask?.id ?? null}
         title={playerTask?.title}
         onClose={() => setPlayerTask(null)}
+      />
+
+      <RecordingMergeDialog
+        task={mergeTask}
+        onClose={() => setMergeTaskId(null)}
+        onChanged={fetchTasks}
+        onWatch={(t) => {
+          setMergeTaskId(null);
+          setPlayerTask(t);
+        }}
       />
 
       {editingTask && (
