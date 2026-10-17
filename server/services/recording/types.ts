@@ -49,6 +49,8 @@ export interface RecordingTaskData {
   mergeProgress?: string;
   mergedUrl?: string;
   mergeError?: string;
+  /** Последний список частей склейки (задача + часть), в порядке склейки */
+  mergeSources?: Array<{ taskId: string; video: string }>;
   /** Запись стартовала или нет и почему (см. startStatus.ts) */
   start?: StartStatus;
   /** Каким способом задача будет записана (по ссылке, см. sourceStrategy.ts) */

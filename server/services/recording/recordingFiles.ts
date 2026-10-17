@@ -44,6 +44,18 @@ export function listTaskVideos(task: TaskLike): TaskVideo[] {
   return videos;
 }
 
+/** Что можно склеивать: сами части записи (объединённый файл задачи — нет, он результат склейки). */
+export function mergeableVideos(task: TaskLike): TaskVideo[] {
+  return listTaskVideos(task).filter((v) => v.id !== 'merged');
+}
+
+/** Одна часть в списке склейки: какая задача, какое видео и откуда его читать. */
+export interface MergeSource {
+  taskId: string;
+  video: string;
+  url: string;
+}
+
 /** Ключ объекта по публичной ссылке (CDN или прямой адрес хранилища — без разницы). */
 export function objectKeyFromUrl(url: string): string | null {
   let path: string;

@@ -421,6 +421,9 @@ class RecordingTaskManager {
       mergeProgress: (task.metadata as any)?.mergeProgress || undefined,
       mergedUrl: (task.metadata as any)?.mergedUrl || undefined,
       mergeError: (task.metadata as any)?.mergeError || undefined,
+      mergeSources: Array.isArray((task.metadata as any)?.mergeSources)
+        ? (task.metadata as any).mergeSources.map((s: any) => ({ taskId: String(s.taskId), video: String(s.video) }))
+        : undefined,
       plannedMethod: (() => {
         const forced = (task.metadata as any)?.forceBrowserFor === task.streamUrl || process.env.RECORDING_FAST_PATH === 'false';
         const plan = planRecording(task.streamUrl, { forceBrowser: forced });
