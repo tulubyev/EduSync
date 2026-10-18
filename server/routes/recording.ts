@@ -6,7 +6,7 @@ import { yandexDiskService } from "../services/yandexDiskService";
 import { recordingTaskManager, recordingLogger, pollerController } from "../services/recording";
 import { executorModeService } from "../services/recording/executorModeService";
 import { resolveBegetPublicUrl } from "../services/recording/s3PublicUrl";
-import { listTaskVideos, presignDownload, downloadFileName } from "../services/recording/recordingFiles";
+import { listTaskVideos, mergeableVideos, presignDownload, downloadFileName, type MergeSource } from "../services/recording/recordingFiles";
 import { readRuntimeSettings, writeRuntimeSettings, HARD_MAX_CONCURRENCY } from "../services/recording/runtimeSettings";
 import { logger } from "../services/logger";
 import { db } from "../db";
@@ -220,42 +220,137 @@ router.post('/tasks/:taskId/recover', authenticateToken as any, async (req: Auth
   }
 });
 
+// ── Склейка частей в один файл (личный кабинет) ─────────────────────────────
+
+const MERGEABLE_STATUSES = ['completed', 'failed'];
+
+/** Записи владельца задачи, части которых можно склеивать: сама задача первой, затем остальные. */
+router.get('/tasks/:taskId/merge-options', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const task = await getAccessibleTask(req, res);
+    if (!task) return;
+    const all = await recordingTaskManager.getUserTasks(task.userId);
+    const describe = (t: typeof task) => {
+      const byNumber = new Map((t.parts ?? []).map((p) => [String(p.partNumber), p as any]));
+      return {
+        taskId: t.id,
+        title: t.title,
+        scheduledTime: t.scheduledTime,
+        status: t.status,
+        parts: mergeableVideos(t).map((v) => {
+          const p = byNumber.get(v.id);
+          return {
+            video: v.id,
+            label: v.label,
+            url: v.url,
+            durationMs: typeof p?.duration === 'number' ? p.duration : undefined,
+            fileSize: typeof p?.fileSize === 'number' ? p.fileSize : undefined,
+          };
+        }),
+      };
+    };
+    const others = all
+      .filter((t) => t.id !== task.id && MERGEABLE_STATUSES.includes(t.status))
+      .map(describe)
+      .filter((r) => r.parts.length > 0)
+      .slice(0, 50);
+    res.json({ current: describe(task), others, lastSelection: task.mergeSources ?? null });
+  } catch (error) {
+    logger.error('Error loading merge options:', error);
+    res.status(500).json({ message: 'Ошибка загрузки частей для склейки' });
+  }
+});
+
+const mergeBodySchema = z.object({
+  sources: z
+    .array(z.object({ taskId: z.string().min(1), video: z.string().min(1) }))
+    .min(2, 'Выберите минимум 2 части')
+    .max(200, 'Слишком много частей')
+    .optional(),
+});
+
+/**
+ * Поставить склейку в очередь. Без тела — все части задачи по порядку; с `sources` — выбранные части
+ * в заданном порядке, в том числе из других записей того же пользователя. Результат сохраняется
+ * в эту задачу как «Вся запись (объединённая)».
+ */
 router.post('/tasks/:taskId/merge', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
+    const task = await getAccessibleTask(req, res);
+    if (!task) return;
     const { taskId } = req.params;
-    const userId = req.user!.id;
-
-    const task = await recordingTaskManager.getTask(taskId);
-    if (!task) return res.status(404).json({ message: 'Задача не найдена' });
-    if (task.userId !== userId) return res.status(403).json({ message: 'Нет доступа к этой задаче' });
-    if (task.status !== 'completed' && task.status !== 'failed') {
-      return res.status(400).json({ message: 'Слияние доступно только для завершённых задач' });
+    if (!MERGEABLE_STATUSES.includes(task.status)) {
+      return res.status(400).json({ message: 'Склейка доступна только для завершённых записей' });
     }
-
-    const parts = (task.parts ?? []) as Array<{ publicUrl?: string; partNumber: number }>;
-    const urls = parts
-      .filter(p => p.publicUrl)
-      .sort((a, b) => a.partNumber - b.partNumber)
-      .map(p => p.publicUrl!);
-
-    if (urls.length < 2) {
-      return res.status(400).json({ message: `Нужно минимум 2 части для слияния (найдено: ${urls.length})` });
-    }
-
     if (task.mergeStatus === 'merging' || task.mergeStatus === 'queued') {
-      return res.status(400).json({ message: 'Слияние уже выполняется или стоит в очереди, подождите' });
+      return res.status(400).json({ message: 'Склейка уже выполняется или стоит в очереди, подождите' });
     }
 
-    logger.info(`[MERGE] Starting merge for task ${taskId}: ${urls.length} parts`);
+    const parsed = mergeBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.errors[0]?.message || 'Некорректный список частей' });
+    }
 
-    // Слияние выполняет воркер (в веб-контейнере нет ffmpeg) — ставим в очередь
+    let sources: MergeSource[];
+    if (!parsed.data.sources) {
+      sources = mergeableVideos(task).map((v) => ({ taskId, video: v.id, url: v.url }));
+    } else {
+      // Ссылки берём из базы, а не от клиента; части — только из записей того же владельца
+      const tasks = new Map<string, typeof task>([[taskId, task]]);
+      const seen = new Set<string>();
+      sources = [];
+      for (const s of parsed.data.sources) {
+        const key = `${s.taskId}:${s.video}`;
+        if (seen.has(key)) return res.status(400).json({ message: 'Одна и та же часть выбрана дважды' });
+        seen.add(key);
+        let src = tasks.get(s.taskId);
+        if (!src) {
+          const loaded = await recordingTaskManager.getTask(s.taskId);
+          if (!loaded || loaded.userId !== task.userId) {
+            return res.status(400).json({ message: 'Часть из чужой или удалённой записи' });
+          }
+          if (!MERGEABLE_STATUSES.includes(loaded.status)) {
+            return res.status(400).json({ message: `Запись «${loaded.title}» ещё не завершена` });
+          }
+          tasks.set(s.taskId, loaded);
+          src = loaded;
+        }
+        const video = mergeableVideos(src).find((v) => v.id === s.video);
+        if (!video) return res.status(400).json({ message: `В записи «${src.title}» нет части ${s.video}` });
+        sources.push({ taskId: s.taskId, video: video.id, url: video.url });
+      }
+    }
+
+    if (sources.length < 2) {
+      return res.status(400).json({ message: `Нужно минимум 2 части для склейки (найдено: ${sources.length})` });
+    }
+
+    logger.info(`[MERGE] Queue merge for task ${taskId}: ${sources.length} parts from ${new Set(sources.map((s) => s.taskId)).size} recording(s)`);
+
+    // Склейку выполняет воркер (в веб-контейнере нет ffmpeg) — ставим в очередь
     const { queueMerge } = await import('../services/recording/executor/mergeQueue');
-    await queueMerge(taskId, `В очереди на слияние (${urls.length} частей)`);
+    await queueMerge(taskId, `В очереди на склейку (${sources.length} частей)`, sources);
 
-    res.json({ success: true, message: `Слияние ${urls.length} частей поставлено в очередь` });
+    res.json({ success: true, message: `Склейка ${sources.length} частей поставлена в очередь` });
   } catch (error) {
     logger.error('Error starting merge:', error);
-    res.status(500).json({ message: 'Ошибка запуска слияния' });
+    res.status(500).json({ message: 'Ошибка запуска склейки' });
+  }
+});
+
+/** Убрать склейку из очереди (пока воркер её не взял). */
+router.post('/tasks/:taskId/merge/cancel', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const task = await getAccessibleTask(req, res);
+    if (!task) return;
+    const { cancelQueuedMerge } = await import('../services/recording/executor/mergeQueue');
+    if (!(await cancelQueuedMerge(task.id))) {
+      return res.status(409).json({ message: 'Склейка уже идёт или завершилась — отменить нельзя' });
+    }
+    res.json({ success: true, message: 'Склейка отменена' });
+  } catch (error) {
+    logger.error('Error cancelling merge:', error);
+    res.status(500).json({ message: 'Ошибка отмены склейки' });
   }
 });
 
