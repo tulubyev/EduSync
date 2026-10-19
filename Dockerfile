@@ -32,6 +32,8 @@ WORKDIR /app
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
+# Служебные скрипты обслуживания (запуск: docker exec myepa-app node scripts/<имя>)
+COPY scripts ./scripts
 USER node
 EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
