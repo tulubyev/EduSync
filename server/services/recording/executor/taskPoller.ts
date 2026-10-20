@@ -13,6 +13,7 @@ import { resolveStream, StreamNotStartedError } from './streamResolver';
 import { FfmpegStreamRecorder } from './ffmpegStreamRecorder';
 import { browserSlots } from './browserSlots';
 import { AUTO_MERGE, queueMerge } from './mergeQueue';
+import { notifyRecordingResult } from '../recordingNotify';
 
 /** Запись потоков без браузера (ffmpeg copy / yt-dlp / streamlink). RECORDING_FAST_PATH=false — всё через браузер. */
 const FAST_PATH = process.env.RECORDING_FAST_PATH !== 'false';
@@ -232,6 +233,7 @@ export class TaskPoller {
             .where(eq(recordingTasks.id, task.id));
 
           await recordStartFailure(task, `Воркер перезапускался ${attempts} раз во время записи ${chunkLabel}`, { attempt: attempts, maxAttempts: MAX_ATTEMPTS, willRetry: false });
+          await notifyRecordingResult(task.id);
           logger.warn(`Orphaned task ${task.id} "${task.title}" → failed (too many attempts: ${attempts}, ${chunkLabel})`);
         }
       }
@@ -448,6 +450,7 @@ export class TaskPoller {
     for (const t of result) {
       await recordStartFailure(t, `Воркер не отвечал более ${timeoutMinutes} минут — heartbeat timeout`, { attempt: t.attemptCount ?? undefined, maxAttempts: MAX_ATTEMPTS, willRetry: false });
       logger.warn(`Task ${t.id} failed: heartbeat timeout (worker: ${t.workerId ?? 'unknown'})`);
+      await notifyRecordingResult(t.id);
     }
   }
 
@@ -464,7 +467,13 @@ export class TaskPoller {
     const expectedParts = task.duration > 0 ? Math.ceil(task.duration / maxPartMin) : 1;
     await db
       .update(recordingTasks)
-      .set({ totalParts: expectedParts, currentPart: 0, updatedAt: new Date() })
+      .set({
+        totalParts: expectedParts,
+        currentPart: 0,
+        // Новый запуск (в т.ч. перезапуск после ошибки) — о его итоге снова придёт письмо
+        metadata: sql`coalesce(${recordingTasks.metadata}, '{}'::jsonb) - 'notifiedAt' - 'notifyAfterMerge'`,
+        updatedAt: new Date(),
+      })
       .where(eq(recordingTasks.id, task.id));
 
     const HEARTBEAT_DB_TIMEOUT_MS = 5000;
@@ -673,6 +682,8 @@ export class TaskPoller {
           .then(() => logger.info(`[MERGE] Task ${task.id}: ${uploadedChunks.length} частей поставлено в очередь на слияние`))
           .catch((e) => logger.warn(`[MERGE] Не удалось поставить в очередь: ${(e as Error).message}`));
       }
+      // Письмо «Запись выполнена» (при автосклейке — после неё, со ссылкой на весь файл)
+      await notifyRecordingResult(task.id);
     } catch (error) {
       clearInterval(heartbeatInterval);
 
@@ -734,6 +745,7 @@ export class TaskPoller {
         if (AUTO_MERGE && uploadedChunks.length >= 2) {
           await queueMerge(task.id, `В очереди на слияние (${uploadedChunks.length} сохранённых частей)`).catch(() => {});
         }
+        await notifyRecordingResult(task.id);
 
       } else if (attemptsDone < MAX_ATTEMPTS) {
         // Нет сохранённых чанков + есть ещё попытки — выжидаем паузу (задача остаётся
@@ -791,6 +803,7 @@ export class TaskPoller {
             updatedAt: new Date(),
           })
           .where(eq(recordingTasks.id, task.id));
+        await notifyRecordingResult(task.id);
       }
     } finally {
       if (holdsBrowserSlot) browserSlots.release();

@@ -13,9 +13,8 @@ const KEY_PREFIX = 'myepa/recordings/';
  * Срок действия ссылки на скачивание. RECORDING_DOWNLOAD_TTL_HOURS, по умолчанию 12 ч
  * (записи часто идут ночью и скачиваются утром). Предел подписи S3 — 7 суток.
  */
-const DOWNLOAD_URL_TTL_SEC = Math.round(
-  Math.min(168, Math.max(1, parseFloat(process.env.RECORDING_DOWNLOAD_TTL_HOURS || '12') || 12)) * 3600,
-);
+export const DOWNLOAD_URL_TTL_HOURS = Math.min(168, Math.max(1, parseFloat(process.env.RECORDING_DOWNLOAD_TTL_HOURS || '12') || 12));
+const DOWNLOAD_URL_TTL_SEC = Math.round(DOWNLOAD_URL_TTL_HOURS * 3600);
 
 export interface TaskVideo {
   /** 'merged' — объединённый файл, иначе номер части */
