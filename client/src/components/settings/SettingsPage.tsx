@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Upload, Mail, Phone, BookOpen, Shield } from 'lucide-react';
 import { StepikConnectionPage } from './StepikConnectionPage';
+import { NotificationSettingsCard } from './NotificationSettingsCard';
 
 interface UserProfile {
   id: string;
@@ -430,6 +431,8 @@ export function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+
+          <NotificationSettingsCard />
 
           {/* Role Status */}
           <Card>

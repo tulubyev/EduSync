@@ -10,7 +10,7 @@ import { listTaskVideos, mergeableVideos, presignDownload, downloadFileName, typ
 import { readRuntimeSettings, writeRuntimeSettings, HARD_MAX_CONCURRENCY } from "../services/recording/runtimeSettings";
 import { logger } from "../services/logger";
 import { db } from "../db";
-import { recordingTasks, recordingWorkerStatus, recordingLogs } from "@shared/schema";
+import { recordingTasks, recordingWorkerStatus, recordingLogs, userSettings } from "@shared/schema";
 import { eq, and, or, desc, sql, gte, count } from "drizzle-orm";
 import { S3Client, HeadBucketCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 
@@ -102,6 +102,37 @@ router.get('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
   } catch (error) {
     logger.error('Error fetching recording task:', error);
     res.status(500).json({ message: 'Ошибка получения задачи' });
+  }
+});
+
+// ── Письма об итогах записей (user_settings.email_notifications) ─────────────
+
+router.get('/notify-settings', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const [row] = await db
+      .select({ emailNotifications: userSettings.emailNotifications })
+      .from(userSettings)
+      .where(eq(userSettings.userId, req.user!.id));
+    res.json({ emailNotifications: row?.emailNotifications !== false });
+  } catch (error) {
+    logger.error('Error loading notify settings:', error);
+    res.status(500).json({ message: 'Ошибка загрузки настроек уведомлений' });
+  }
+});
+
+router.put('/notify-settings', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = z.object({ emailNotifications: z.boolean() }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: 'Ожидается emailNotifications: true/false' });
+    const value = parsed.data.emailNotifications;
+    await db
+      .insert(userSettings)
+      .values({ userId: req.user!.id, emailNotifications: value })
+      .onConflictDoUpdate({ target: userSettings.userId, set: { emailNotifications: value, updatedAt: new Date() } });
+    res.json({ emailNotifications: value });
+  } catch (error) {
+    logger.error('Error saving notify settings:', error);
+    res.status(500).json({ message: 'Ошибка сохранения настроек уведомлений' });
   }
 });
 
@@ -347,6 +378,9 @@ router.post('/tasks/:taskId/merge/cancel', authenticateToken as any, async (req:
     if (!(await cancelQueuedMerge(task.id))) {
       return res.status(409).json({ message: 'Склейка уже идёт или завершилась — отменить нельзя' });
     }
+    // Если письмо о записи ждало автосклейку — отправляем его без склейки
+    const { notifyRecordingResult } = await import('../services/recording/recordingNotify');
+    await notifyRecordingResult(task.id, { afterMerge: true });
     res.json({ success: true, message: 'Склейка отменена' });
   } catch (error) {
     logger.error('Error cancelling merge:', error);

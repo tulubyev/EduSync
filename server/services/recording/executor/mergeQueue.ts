@@ -3,6 +3,7 @@ import { db } from '../../../db';
 import { recordingTasks } from '@shared/schema';
 import { logger } from '../../logger';
 import type { MergeSource } from '../recordingFiles';
+import { notifyRecordingResult } from '../recordingNotify';
 
 /**
  * Очередь склейки частей записи в один файл.
@@ -105,6 +106,7 @@ async function tick(workerId: string): Promise<void> {
     const { chunkMerger } = await import('./mergeChunks');
     if (urls.length < 2) {
       await chunkMerger.markFailed(task.id, `Нечего объединять: частей ${urls.length}`);
+      await notifyRecordingResult(task.id, { afterMerge: true });
       return;
     }
     const recordings = task.sources ? new Set(task.sources.map((s) => s.taskId)).size : 1;
@@ -112,6 +114,8 @@ async function tick(workerId: string): Promise<void> {
     await chunkMerger.merge(task.id, urls, task.title).catch(() => {
       /* статус failed уже записан в merge() */
     });
+    // Письмо, отложенное до окончания автосклейки (после ручной склейки не отправляется)
+    await notifyRecordingResult(task.id, { afterMerge: true });
   } catch (e) {
     logger.error('[MERGE] Ошибка очереди слияния:', e);
   } finally {
