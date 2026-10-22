@@ -4,6 +4,7 @@ import { recordingTasks } from '@shared/schema';
 import { logger } from '../../logger';
 import type { MergeSource } from '../recordingFiles';
 import { notifyRecordingResult } from '../recordingNotify';
+import { NOT_HR_TASK } from '../../helpRecorder/config';
 
 /**
  * Очередь склейки частей записи в один файл.
@@ -64,7 +65,7 @@ async function claimNextMerge(workerId: string): Promise<ClaimedMerge | null> {
            updated_at = now()
      WHERE id = (
        SELECT id FROM recording_tasks
-        WHERE metadata->>'mergeStatus' = 'queued'
+        WHERE metadata->>'mergeStatus' = 'queued' AND ${NOT_HR_TASK} -- записи Help Recorder склеивает он
         ORDER BY updated_at
         LIMIT 1
         FOR UPDATE SKIP LOCKED)

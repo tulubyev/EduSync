@@ -27,7 +27,8 @@ export interface RecordingTaskData {
   duration: number;
   maxPartDuration: number;
   status: 'scheduled' | 'ready' | 'in_progress' | 'uploading' | 'completed' | 'failed' | 'cancelled';
-  saveTarget: 'library' | 'yandex_disk' | 'beget';
+  /** help_recorder — запись ведёт Help Recorder (server/services/helpRecorder) */
+  saveTarget: 'library' | 'yandex_disk' | 'beget' | 'help_recorder';
   currentPart: number;
   totalParts: number;
   parts: RecordingPart[];

@@ -8,6 +8,8 @@ import { readRuntimeSettings } from './runtimeSettings';
 import { planRecording, METHOD_LABELS } from './sourceStrategy';
 import { buildStartStatus, type WaitingContext, type StartRecord } from './startStatus';
 import { randomUUID } from 'crypto';
+import { NOT_HR_TASK, isHrTask } from '../helpRecorder/config';
+import { hrStartStatus } from '../helpRecorder/mapping';
 
 const TRANSLIT_MAP: Record<string, string> = {
   'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z',
@@ -46,10 +48,13 @@ class RecordingTaskManager {
     joinPhone?: string;
     scheduledTime: Date;
     duration: number;
-    saveTarget: 'library' | 'yandex_disk' | 'beget';
+    saveTarget: 'library' | 'yandex_disk' | 'beget' | 'help_recorder';
+    /** id зеркала записи Help Recorder (его же Idempotency-Key), иначе — новый */
+    id?: string;
+    metadata?: Record<string, unknown>;
   }): Promise<string> {
     const totalParts = Math.ceil(data.duration / MAX_PART_DURATION_MIN);
-    const taskId = randomUUID();
+    const taskId = data.id ?? randomUUID();
 
     const dateStr = data.scheduledTime.toISOString().slice(0, 10); // YYYY-MM-DD
     const s3Prefix = `myepa/recordings/${data.userId}/${taskId}/`;
@@ -87,6 +92,7 @@ class RecordingTaskManager {
       parts,
       s3Prefix,
       s3Filename,
+      ...(data.metadata ? { metadata: data.metadata } : {}),
     }).returning();
 
     await recordingLogger.logEvent({
@@ -135,7 +141,7 @@ class RecordingTaskManager {
       const active = await db
         .select({ userId: recordingTasks.userId, n: sql<number>`count(*)::int` })
         .from(recordingTasks)
-        .where(inArray(recordingTasks.status, ['in_progress', 'uploading']))
+        .where(and(inArray(recordingTasks.status, ['in_progress', 'uploading']), NOT_HR_TASK))
         .groupBy(recordingTasks.userId);
       activeByUser = Object.fromEntries(active.map((r) => [r.userId, Number(r.n)]));
     } catch (e) {
@@ -227,7 +233,8 @@ class RecordingTaskManager {
       .where(
         and(
           eq(recordingTasks.status, 'scheduled'),
-          lte(recordingTasks.scheduledTime, readyAt)
+          lte(recordingTasks.scheduledTime, readyAt),
+          NOT_HR_TASK,
         )
       )
       .returning({ id: recordingTasks.id, title: recordingTasks.title });
@@ -262,6 +269,7 @@ class RecordingTaskManager {
               lt(recordingTasks.updatedAt, staleThreshold),
             ),
           ),
+          NOT_HR_TASK, // записи Help Recorder сторож не трогает: сигнал воркера там свой
         )
       );
 
@@ -424,12 +432,17 @@ class RecordingTaskManager {
       mergeSources: Array.isArray((task.metadata as any)?.mergeSources)
         ? (task.metadata as any).mergeSources.map((s: any) => ({ taskId: String(s.taskId), video: String(s.video) }))
         : undefined,
-      plannedMethod: (() => {
+      plannedMethod: isHrTask(task) && (task.metadata as any)?.hr?.method?.label
+        ? { method: planRecording(task.streamUrl).method, label: task.metadata.hr.method.label, platform: task.metadata.hr.method.platform ?? '', note: task.metadata.hr.method.note }
+        : (() => {
         const forced = (task.metadata as any)?.forceBrowserFor === task.streamUrl || process.env.RECORDING_FAST_PATH === 'false';
         const plan = planRecording(task.streamUrl, { forceBrowser: forced });
         return { method: plan.method, label: METHOD_LABELS[plan.method], platform: plan.platform, note: plan.note };
       })(),
-      start: waitingCtx
+      // у записи Help Recorder статус старта — из его карточки (свои воркеры её не ведут)
+      start: isHrTask(task)
+        ? hrStartStatus(task.metadata, task.status)
+        : waitingCtx
         ? buildStartStatus(
             {
               id: task.id,
