@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, RotateCcw, TriangleAlert, XCircle, StopCircle, Merge } from 'lucide-react';
@@ -267,6 +267,16 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       (!!t.mergeStatus && t.mergeStatus !== 'idle'));
   const mergeTask = tasks.find(t => t.id === mergeTaskId) ?? null;
 
+  // Ссылка из библиотеки или письма: /recordings?task=<id> — сразу открыть плеер этой записи (один раз)
+  const linkedTaskHandled = useRef(false); // список опрашивается каждые 10 с — открываем только при первой загрузке
+  const openLinkedTask = (list: RecordingTask[]) => {
+    if (linkedTaskHandled.current) return;
+    linkedTaskHandled.current = true;
+    const id = new URLSearchParams(window.location.search).get('task');
+    const t = id ? list.find((x) => x.id === id) : undefined;
+    if (t) setPlayerTask({ id: t.id, title: t.title });
+  };
+
   const fetchTasks = async () => {
     try {
       const response = await authService.authenticatedFetch('/api/recording/tasks', {
@@ -277,6 +287,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
         const data = await response.json();
         setTasks(data);
         onTasksLoaded?.(data);
+        openLinkedTask(data);
       } else if (response.status === 401) {
         console.warn('Recording tasks: сессия истекла, требуется повторный вход');
       } else {
