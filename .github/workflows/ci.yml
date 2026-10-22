@@ -17,6 +17,8 @@ jobs:
       - run: npm ci
       - name: Type check
         run: npm run check
+      - name: Tests
+        run: npm test
       - name: Validate docker-compose.prod.yml with .env.example
         run: |
           cp .env.example .env

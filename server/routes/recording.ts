@@ -11,13 +11,24 @@ import { readRuntimeSettings, writeRuntimeSettings, HARD_MAX_CONCURRENCY } from 
 import { logger } from "../services/logger";
 import { db } from "../db";
 import { recordingTasks, recordingWorkerStatus, recordingLogs, userSettings } from "@shared/schema";
-import { eq, and, or, desc, sql, gte, count } from "drizzle-orm";
+import { eq, and, or, desc, sql, gte, count, inArray } from "drizzle-orm";
 import { S3Client, HeadBucketCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { HrError, hrEnabled, hrErrorResponse, isHrTask, NOT_HR_TASK, syncHrTaskById } from "../services/helpRecorder";
+import * as hr from "../services/helpRecorder/actions";
 
 const router = Router();
 
 interface AuthRequest extends Request {
   user?: { id: string; role?: string | null; adminRole?: string | null };
+}
+
+/** Ошибка Help Recorder (запись ведёт он, server/services/helpRecorder) — ответ с понятным текстом. true — ответ отправлен. */
+function sendHrError(res: Response, error: unknown): boolean {
+  if (!(error instanceof HrError)) return false;
+  const { status, message } = hrErrorResponse(error);
+  if (status === 502) logger.error(`[HR] ${error.status} ${error.code}: ${error.message}`);
+  res.status(status).json({ message });
+  return true;
 }
 
 const recordingSchema = z.object({
@@ -31,12 +42,29 @@ const recordingSchema = z.object({
   scheduledTime: z.string().datetime("Некорректное время"),
   duration: z.number().int().min(1).max(1440).default(60),
   saveTarget: z.enum(['yandex_disk', 'library', 'beget']).default('beget'),
+  /** Пользователь подтвердил, что вправе записывать событие (обязательно для записи через Help Recorder) */
+  rightsConfirmed: z.boolean().optional(),
 });
 
 router.post('/schedule', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const validData = recordingSchema.parse(req.body);
+
+    if (hrEnabled()) {
+      if (validData.rightsConfirmed !== true) {
+        return res.status(400).json({ message: 'Подтвердите, что вы вправе записывать это событие' });
+      }
+      const taskId = await hr.createHrRecording(userId, validData);
+      logger.info(`Recording task created in Help Recorder: ${taskId} for user ${userId}`);
+      return res.status(201).json({
+        success: true,
+        message: 'Запись запланирована успешно',
+        taskId,
+        scheduledTime: validData.scheduledTime,
+        saveTarget: 'help_recorder',
+      });
+    }
 
     const taskId = await recordingTaskManager.createTask({
       userId,
@@ -66,6 +94,7 @@ router.post('/schedule', authenticateToken as any, async (req: AuthRequest, res:
       const message = error.errors[0]?.message || 'Ошибка валидации';
       return res.status(400).json({ message });
     }
+    if (sendHrError(res, error)) return;
 
     logger.error('Error scheduling recording:', error);
     res.status(500).json({ message: 'Ошибка при планировании записи' });
@@ -88,7 +117,7 @@ router.get('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
     const { taskId } = req.params;
     const userId = req.user!.id;
 
-    const task = await recordingTaskManager.getTask(taskId);
+    let task = await recordingTaskManager.getTask(taskId);
     
     if (!task) {
       return res.status(404).json({ message: 'Задача не найдена' });
@@ -96,6 +125,12 @@ router.get('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
 
     if (task.userId !== userId) {
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    }
+
+    // запись Help Recorder, которая ещё идёт, — свежий статус из него
+    if (isHrTask(task) && !['completed', 'failed', 'cancelled'].includes(task.status)) {
+      await syncHrTaskById(taskId).catch((e) => logger.warn(`[HR] Синхронизация ${taskId}: ${(e as Error).message}`));
+      task = (await recordingTaskManager.getTask(taskId)) ?? task;
     }
 
     res.json(task);
@@ -152,12 +187,28 @@ async function getAccessibleTask(req: AuthRequest, res: Response) {
   return task;
 }
 
+/** Строка зеркала записи (для записей Help Recorder) */
+async function taskRow(id: string) {
+  const [row] = await db.select().from(recordingTasks).where(eq(recordingTasks.id, id));
+  if (!row) throw new HrError(404, 'not_found', 'Задача не найдена');
+  return row;
+}
+
+function appUrl(): string {
+  return (process.env.APP_URL || '').replace(/\/+$/, '') || `https://${process.env.APP_DOMAIN || 'myepa.ru'}`;
+}
+
 router.get('/tasks/:taskId/videos', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const task = await getAccessibleTask(req, res);
     if (!task) return;
+    if (isHrTask(task)) {
+      const files = await hr.hrVideos(await taskRow(task.id));
+      return res.json({ title: task.title, videos: files.map((f) => ({ id: f.id, label: f.label, url: f.url })) });
+    }
     res.json({ title: task.title, videos: listTaskVideos(task) });
   } catch (error) {
+    if (sendHrError(res, error)) return;
     logger.error('Error listing task videos:', error);
     res.status(500).json({ message: 'Ошибка получения записей задачи' });
   }
@@ -167,6 +218,12 @@ router.get('/tasks/:taskId/download', authenticateToken as any, async (req: Auth
   try {
     const task = await getAccessibleTask(req, res);
     if (!task) return;
+    if (isHrTask(task)) {
+      const files = await hr.hrVideos(await taskRow(task.id));
+      const f = files.find((x) => x.id === String(req.query.video ?? '')) ?? files[0];
+      if (!f) return res.status(404).json({ message: 'У задачи нет записанных файлов' });
+      return res.json({ url: f.url, fileName: f.file_name, direct: false });
+    }
     const videos = listTaskVideos(task);
     const video = videos.find((v) => v.id === String(req.query.video ?? '')) ?? videos[0];
     if (!video) return res.status(404).json({ message: 'У задачи нет записанных файлов' });
@@ -174,6 +231,7 @@ router.get('/tasks/:taskId/download', authenticateToken as any, async (req: Auth
     const signed = await presignDownload(video, fileName);
     res.json({ url: signed ?? video.url, fileName, direct: !signed });
   } catch (error) {
+    if (sendHrError(res, error)) return;
     logger.error('Error creating download link:', error);
     res.status(500).json({ message: 'Ошибка получения ссылки на скачивание' });
   }
@@ -191,7 +249,8 @@ router.post('/tasks/:taskId/save-to-library', authenticateToken as any, async (r
       userId: req.user!.id,
       title: (videos.length > 1 && video.id !== 'merged' ? `${task.title} — ${video.label.toLowerCase()}` : task.title).slice(0, 255),
       content: `Запись трансляции от ${when} (МСК).${task.streamUrl ? `\nИсточник: ${task.streamUrl}` : ''}`,
-      resourceUrl: video.url,
+      // у записи Help Recorder ссылки на файлы временные — в библиотеке ссылка на страницу записей
+      resourceUrl: isHrTask(task) ? `${appUrl()}/recordings` : video.url,
       tags: ['запись'],
     } as any);
     res.status(201).json({ success: true, noteId: note.id, message: 'Запись сохранена в библиотеку' });
@@ -220,9 +279,14 @@ router.post('/tasks/:taskId/cancel', authenticateToken as any, async (req: AuthR
       return res.status(400).json({ message: 'Нельзя отменить завершённую или уже отменённую задачу' });
     }
 
+    if (isHrTask(task)) {
+      await hr.cancelHrRecording(taskId);
+      return res.json({ success: true, message: 'Задача отменена' });
+    }
     await recordingTaskManager.cancelTask(taskId);
     res.json({ success: true, message: 'Задача отменена' });
   } catch (error) {
+    if (sendHrError(res, error)) return;
     logger.error('Error cancelling recording task:', error);
     res.status(500).json({ message: 'Ошибка отмены задачи' });
   }
@@ -243,9 +307,18 @@ router.post('/tasks/:taskId/recover', authenticateToken as any, async (req: Auth
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
     }
 
+    if (isHrTask(task)) {
+      const id = await hr.retryHrRecording(taskId);
+      return res.json({
+        success: true,
+        taskId: id,
+        message: id === taskId ? 'Задача восстановлена и перезапланирована' : 'Сохранённые части не тронуты — оставшееся время пишется новой записью',
+      });
+    }
     await recordingTaskManager.recoverTask(taskId);
     res.json({ success: true, message: 'Задача восстановлена и перезапланирована' });
   } catch (error: any) {
+    if (sendHrError(res, error)) return;
     logger.error('Error recovering recording task:', error);
     res.status(500).json({ message: error.message || 'Ошибка восстановления задачи' });
   }
@@ -260,6 +333,7 @@ router.get('/tasks/:taskId/merge-options', authenticateToken as any, async (req:
   try {
     const task = await getAccessibleTask(req, res);
     if (!task) return;
+    if (isHrTask(task)) return res.json(await hr.hrMergeOptions(task.id));
     const all = await recordingTaskManager.getUserTasks(task.userId);
     const describe = (t: typeof task) => {
       const byNumber = new Map((t.parts ?? []).map((p) => [String(p.partNumber), p as any]));
@@ -281,12 +355,13 @@ router.get('/tasks/:taskId/merge-options', authenticateToken as any, async (req:
       };
     };
     const others = all
-      .filter((t) => t.id !== task.id && MERGEABLE_STATUSES.includes(t.status))
+      .filter((t) => t.id !== task.id && MERGEABLE_STATUSES.includes(t.status) && !isHrTask(t))
       .map(describe)
       .filter((r) => r.parts.length > 0)
       .slice(0, 50);
     res.json({ current: describe(task), others, lastSelection: task.mergeSources ?? null });
   } catch (error) {
+    if (sendHrError(res, error)) return;
     logger.error('Error loading merge options:', error);
     res.status(500).json({ message: 'Ошибка загрузки частей для склейки' });
   }
@@ -322,6 +397,11 @@ router.post('/tasks/:taskId/merge', authenticateToken as any, async (req: AuthRe
       return res.status(400).json({ message: parsed.error.errors[0]?.message || 'Некорректный список частей' });
     }
 
+    if (isHrTask(task)) {
+      const n = await hr.hrMerge(taskId, parsed.data.sources);
+      return res.json({ success: true, message: n ? `Склейка ${n} частей поставлена в очередь` : 'Склейка поставлена в очередь' });
+    }
+
     let sources: MergeSource[];
     if (!parsed.data.sources) {
       sources = mergeableVideos(task).map((v) => ({ taskId, video: v.id, url: v.url }));
@@ -337,7 +417,7 @@ router.post('/tasks/:taskId/merge', authenticateToken as any, async (req: AuthRe
         let src = tasks.get(s.taskId);
         if (!src) {
           const loaded = await recordingTaskManager.getTask(s.taskId);
-          if (!loaded || loaded.userId !== task.userId) {
+          if (!loaded || loaded.userId !== task.userId || isHrTask(loaded)) {
             return res.status(400).json({ message: 'Часть из чужой или удалённой записи' });
           }
           if (!MERGEABLE_STATUSES.includes(loaded.status)) {
@@ -364,6 +444,7 @@ router.post('/tasks/:taskId/merge', authenticateToken as any, async (req: AuthRe
 
     res.json({ success: true, message: `Склейка ${sources.length} частей поставлена в очередь` });
   } catch (error) {
+    if (sendHrError(res, error)) return;
     logger.error('Error starting merge:', error);
     res.status(500).json({ message: 'Ошибка запуска склейки' });
   }
@@ -374,6 +455,10 @@ router.post('/tasks/:taskId/merge/cancel', authenticateToken as any, async (req:
   try {
     const task = await getAccessibleTask(req, res);
     if (!task) return;
+    if (isHrTask(task)) {
+      await hr.hrMergeCancel(task.id); // письмо, если ждало склейку, уйдёт при синхронизации
+      return res.json({ success: true, message: 'Склейка отменена' });
+    }
     const { cancelQueuedMerge } = await import('../services/recording/executor/mergeQueue');
     if (!(await cancelQueuedMerge(task.id))) {
       return res.status(409).json({ message: 'Склейка уже идёт или завершилась — отменить нельзя' });
@@ -383,6 +468,7 @@ router.post('/tasks/:taskId/merge/cancel', authenticateToken as any, async (req:
     await notifyRecordingResult(task.id, { afterMerge: true });
     res.json({ success: true, message: 'Склейка отменена' });
   } catch (error) {
+    if (sendHrError(res, error)) return;
     logger.error('Error cancelling merge:', error);
     res.status(500).json({ message: 'Ошибка отмены склейки' });
   }
@@ -402,6 +488,12 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
 
     if (task.userId !== userId) {
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    }
+
+    if (isHrTask(task)) {
+      // Help Recorder меняет запись, только пока она не началась; пустые поля формы — «не менять»
+      await hr.editHrRecording(taskId, req.body ?? {});
+      return res.json({ success: true, message: 'Задача обновлена' });
     }
 
     if (!['ready', 'failed', 'scheduled', 'cancelled', 'in_progress'].includes(task.status)) {
@@ -464,6 +556,7 @@ router.put('/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, 
     logger.info(`Recording task ${taskId} ${action} by user ${userId}`);
     res.json({ success: true, message: `Задача ${action}` });
   } catch (error) {
+    if (sendHrError(res, error)) return;
     logger.error('Error updating recording task:', error);
     res.status(500).json({ message: 'Ошибка обновления задачи' });
   }
@@ -477,6 +570,10 @@ router.post('/tasks/:taskId/recheck', authenticateToken as any, async (req: Auth
     const task = await recordingTaskManager.getTask(taskId);
     if (!task) return res.status(404).json({ message: 'Задача не найдена' });
     if (task.userId !== userId) return res.status(403).json({ message: 'Нет доступа к этой задаче' });
+    if (isHrTask(task)) {
+      await hr.recheckHrRecording(taskId);
+      return res.json({ success: true, message: 'Проверка запущена, результат появится в течение минуты' });
+    }
     if (!['ready', 'failed'].includes(task.status!)) {
       return res.status(400).json({ message: 'Перепроверка возможна только для ожидающих или неудавшихся задач' });
     }
@@ -493,6 +590,7 @@ router.post('/tasks/:taskId/recheck', authenticateToken as any, async (req: Auth
     logger.info(`URL recheck requested for task ${taskId} by user ${userId}`);
     res.json({ success: true, message: 'Проверка запущена, результат появится в течение 5 секунд' });
   } catch (error) {
+    if (sendHrError(res, error)) return;
     logger.error('Error requesting recheck:', error);
     res.status(500).json({ message: 'Ошибка запуска перепроверки' });
   }
@@ -534,16 +632,12 @@ router.get('/yandex-disk/files', authenticateToken as any, async (req: AuthReque
 router.post('/tasks/clear-queue', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    await db.delete(recordingTasks)
-      .where(
-        and(
-          eq(recordingTasks.userId, userId),
-          or(
-            eq(recordingTasks.status, 'scheduled'),
-            eq(recordingTasks.status, 'failed')
-          )
-        )
-      );
+    const queued = await db.select().from(recordingTasks).where(
+      and(eq(recordingTasks.userId, userId), or(eq(recordingTasks.status, 'scheduled'), eq(recordingTasks.status, 'failed'))));
+    // записи Help Recorder удаляются и там; не удалилась там (идёт склейка) — остаётся и здесь
+    const removable = await hr.deleteHrRecordings(queued);
+    const ids = queued.filter((t) => removable.has(t.id)).map((t) => t.id);
+    if (ids.length) await db.delete(recordingTasks).where(inArray(recordingTasks.id, ids));
     
     logger.info(`Cleared recording queue for user ${userId}`);
     res.json({ success: true, message: 'Очередь записей очищена' });
@@ -568,12 +662,18 @@ router.delete('/tasks/:taskId', authenticateToken as any, async (req: AuthReques
       return res.status(403).json({ message: 'Нет доступа к этой задаче' });
     }
 
+    if (isHrTask(task)) {
+      await hr.deleteHrRecording(taskId); // файлы удаляются в Help Recorder сразу
+      return res.json({ success: true, message: 'Задача удалена' });
+    }
+
     // Delete the task from database
     await db.delete(recordingTasks).where(eq(recordingTasks.id, taskId));
 
     logger.info(`Deleted recording task: ${taskId} for user ${userId}`);
     res.json({ success: true, message: 'Задача удалена' });
   } catch (error) {
+    if (sendHrError(res, error)) return;
     logger.error('Error deleting recording task:', error);
     res.status(500).json({ message: 'Ошибка удаления задачи' });
   }
@@ -1281,9 +1381,19 @@ router.get('/admin/tasks/:taskId', authenticateToken as any, async (req: AuthReq
   }
 });
 
+/** Записью Help Recorder управляет он: из панели My EPA её можно только посмотреть и удалить */
+const HR_ADMIN_MESSAGE = 'Эту запись ведёт Help Recorder: менять её статус и поля отсюда нельзя (только удалить)';
+async function isHrTaskId(id: string): Promise<boolean> {
+  const [row] = await db.select({ saveTarget: recordingTasks.saveTarget, metadata: recordingTasks.metadata }).from(recordingTasks).where(eq(recordingTasks.id, id));
+  return isHrTask(row);
+}
+
 router.patch('/admin/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
   try {
+    if (await isHrTaskId(req.params.taskId)) {
+      return res.status(409).json({ message: HR_ADMIN_MESSAGE });
+    }
     const body = req.body;
     const allowed = ['title', 'description', 'streamUrl', 'streamPassword', 'joinName', 'joinEmail', 'joinPhone', 'duration', 'scheduledTime', 'saveTarget', 'status', 'begetUrl', 'errorMessage'] as const;
     const update: Record<string, any> = { updatedAt: new Date() };
@@ -1314,6 +1424,9 @@ router.patch('/admin/tasks/:taskId', authenticateToken as any, async (req: AuthR
 router.patch('/admin/tasks/:taskId/reset', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
   try {
+    if (await isHrTaskId(req.params.taskId)) {
+      return res.status(409).json({ message: HR_ADMIN_MESSAGE });
+    }
     await db.update(recordingTasks)
       .set({ status: 'ready', errorMessage: null, workerId: null, lastHeartbeat: null, updatedAt: new Date() })
       .where(eq(recordingTasks.id, req.params.taskId));
@@ -1328,6 +1441,9 @@ router.patch('/admin/tasks/:taskId/reset', authenticateToken as any, async (req:
 router.patch('/admin/tasks/:taskId/cancel', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
   try {
+    if (await isHrTaskId(req.params.taskId)) {
+      return res.status(409).json({ message: HR_ADMIN_MESSAGE });
+    }
     await db.update(recordingTasks)
       .set({ status: 'cancelled', errorMessage: 'Отменено администратором', updatedAt: new Date() })
       .where(eq(recordingTasks.id, req.params.taskId));
@@ -1342,8 +1458,9 @@ router.patch('/admin/tasks/:taskId/cancel', authenticateToken as any, async (req
 router.delete('/admin/tasks/failed/clear', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
   try {
+    // записи Help Recorder (их файлы хранятся там) этой кнопкой не удаляются
     const result = await db.delete(recordingTasks)
-      .where(eq(recordingTasks.status, 'failed'))
+      .where(and(eq(recordingTasks.status, 'failed'), NOT_HR_TASK))
       .returning({ id: recordingTasks.id });
     logger.info(`Admin cleared ${result.length} failed tasks, by ${req.user!.id}`);
     res.json({ success: true, deleted: result.length });
@@ -1356,10 +1473,12 @@ router.delete('/admin/tasks/failed/clear', authenticateToken as any, async (req:
 router.delete('/admin/tasks/:taskId', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   if (!requireAdminRole(req, res)) return;
   try {
+    if (await isHrTaskId(req.params.taskId)) await hr.deleteHrRecording(req.params.taskId); // и файлы в Help Recorder
     await db.delete(recordingTasks).where(eq(recordingTasks.id, req.params.taskId));
     logger.info(`Admin deleted task ${req.params.taskId} by ${req.user!.id}`);
     res.json({ success: true });
   } catch (error) {
+    if (sendHrError(res, error)) return;
     logger.error('Admin delete task error:', error);
     res.status(500).json({ message: 'Ошибка удаления задачи' });
   }

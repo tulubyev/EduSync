@@ -14,6 +14,8 @@ import { recordingTasks, users, userSettings } from '@shared/schema';
 import { logger } from '../logger';
 import { emailService } from '../emailService';
 import { listTaskVideos, presignDownload, downloadFileName, DOWNLOAD_URL_TTL_HOURS } from './recordingFiles';
+import { hrTaskIdOf } from '../helpRecorder/config';
+import { hrFileUrls } from '../helpRecorder/files';
 
 const ENABLED = process.env.RECORDING_NOTIFY_EMAIL !== 'false';
 /** Сколько ссылок на части перечислять в письме (дальше — «все части в кабинете») */
@@ -105,10 +107,14 @@ async function buildEmail(task: any, meta: any, firstName?: string | null) {
         ? `⚠️ Запись прервана: «${title}» — сохранено частей: ${parts.length || 1}`
         : `❌ Запись не выполнена: «${title}»`;
 
-  // Ссылки на скачивание прямо из письма (подписанные, срок — RECORDING_DOWNLOAD_TTL_HOURS)
+  // Ссылки на скачивание прямо из письма (подписанные, срок — RECORDING_DOWNLOAD_TTL_HOURS).
+  // Запись Help Recorder: ссылки выдаёт он (в зеркале только метки hr:<id>); не выдал — остаётся ссылка на кабинет.
+  const hrId = hrTaskIdOf(task);
+  const hrUrls = hrId ? await hrFileUrls(task.userId, hrId).catch(() => null) : null;
   const links: string[] = [];
   for (const v of videos.slice(0, MAX_PART_LINKS + 1)) {
-    const url = (await presignDownload(v, downloadFileName(title, v)).catch(() => null)) ?? v.url;
+    const url = hrId ? hrUrls?.get(v.id) : (await presignDownload(v, downloadFileName(title, v)).catch(() => null)) ?? v.url;
+    if (!url) continue;
     const label = v.id === 'merged' ? '<strong>Вся запись одним файлом</strong>' : esc(v.label);
     links.push(`<li style="margin:4px 0"><a href="${esc(url)}">${label}</a></li>`);
   }

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -38,6 +39,8 @@ export interface RecordingData {
   scheduledTime: string;
   duration?: number;
   saveTarget: 'yandex_disk' | 'library' | 'beget';
+  /** Пользователь подтвердил, что вправе записывать событие */
+  rightsConfirmed?: boolean;
 }
 
 export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: RecordingModalProps) {
@@ -52,12 +55,13 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
     scheduledTime: '',
     duration: 60,
     saveTarget: 'beget',
+    rightsConfirmed: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!open) {
-      setFormData({ title: '', description: '', streamUrl: '', streamPassword: '', joinName: '', joinEmail: '', joinPhone: '', scheduledTime: '', duration: 60, saveTarget: 'beget' });
+      setFormData({ title: '', description: '', streamUrl: '', streamPassword: '', joinName: '', joinEmail: '', joinPhone: '', scheduledTime: '', duration: 60, saveTarget: 'beget', rightsConfirmed: false });
       setErrors({});
     }
   }, [open]);
@@ -81,6 +85,10 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
 
     if (formData.duration && (formData.duration < 1 || formData.duration > 1440)) {
       newErrors.duration = 'Длительность должна быть от 1 до 1440 минут';
+    }
+
+    if (!formData.rightsConfirmed) {
+      newErrors.rightsConfirmed = 'Подтвердите, что вы вправе записывать это событие';
     }
 
     setErrors(newErrors);
@@ -296,6 +304,31 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
               {formData.saveTarget === 'beget' && ' Видео будет загружено на Beget S3 хранилище.'}
               {formData.saveTarget === 'yandex_disk' && ' Файлы будут загружены на ваш Яндекс.Диск.'}
             </p>
+          </div>
+
+          {/* Право на запись */}
+          <div className="space-y-1">
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="rightsConfirmed"
+                checked={!!formData.rightsConfirmed}
+                onCheckedChange={(v) => {
+                  setFormData({ ...formData, rightsConfirmed: v === true });
+                  if (errors.rightsConfirmed) setErrors({ ...errors, rightsConfirmed: '' });
+                }}
+                className="mt-0.5"
+              />
+              <Label htmlFor="rightsConfirmed" className="text-sm font-normal leading-snug">
+                Я вправе записывать это событие: я его участник, а запись нужна мне для личного использования
+                или организатор разрешил запись
+              </Label>
+            </div>
+            {errors.rightsConfirmed && (
+              <p className="text-sm text-red-500 flex items-center gap-1">
+                <AlertCircle className="h-4 w-4" />
+                {errors.rightsConfirmed}
+              </p>
+            )}
           </div>
 
           {/* Ошибка от сервера */}

@@ -8,9 +8,13 @@ import { PaymentFactory } from "./services/payments/paymentFactory";
 import { courseDiscoveryService } from "./services/courseDiscoveryService";
 import { recordingTaskManager, pollerController } from "./services/recording";
 import { executorModeService } from "./services/recording/executorModeService";
+import { registerHelpRecorderWebhook } from "./routes/helpRecorderWebhook";
+import { hrEnabled, syncDueHrTasks } from "./services/helpRecorder";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
+// Вебхук Help Recorder — до express.json: подпись проверяется по сырому телу
+registerHelpRecorderWebhook(app);
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: false, limit: '20mb' }));
 
@@ -187,6 +191,14 @@ app.use((req, res, next) => {
     setInterval(runRecordingWatchdog, 2 * 60 * 1000); // every 2 minutes
     runRecordingWatchdog(); // run immediately on start
     logger.info('Recording watchdog started (runs every 2 min, stale threshold: 12 min)');
+
+    // Записи через Help Recorder — статусы идущих записей и склеек раз в 30 с (итог приходит и вебхуком)
+    if (hrEnabled()) {
+      const runHrSync = () => syncDueHrTasks().catch((err) => logger.error('Help Recorder sync error:', err));
+      setInterval(runHrSync, 30 * 1000);
+      runHrSync();
+      logger.info('Help Recorder: новые записи идут через партнёрский API, синхронизация каждые 30 с');
+    }
 
     // Recording executor — mode controlled by executorModeService (DB-persisted)
     // env DISABLE_RECORDING_EXECUTOR=true forces VPS mode

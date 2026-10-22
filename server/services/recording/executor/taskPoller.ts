@@ -14,6 +14,7 @@ import { FfmpegStreamRecorder } from './ffmpegStreamRecorder';
 import { browserSlots } from './browserSlots';
 import { AUTO_MERGE, queueMerge } from './mergeQueue';
 import { notifyRecordingResult } from '../recordingNotify';
+import { NOT_HR_TASK } from '../../helpRecorder/config';
 
 /** Запись потоков без браузера (ffmpeg copy / yt-dlp / streamlink). RECORDING_FAST_PATH=false — всё через браузер. */
 const FAST_PATH = process.env.RECORDING_FAST_PATH !== 'false';
@@ -260,6 +261,7 @@ export class TaskPoller {
       .where(
         and(
           sql`${recordingTasks.status} IN ('scheduled', 'ready')`,
+          NOT_HR_TASK, // ссылки записей Help Recorder проверяет он сам
           sql`(
             ${recordingTasks.urlCheckStatus} IS NULL
             OR ${recordingTasks.urlCheckStatus} = 'pending'
@@ -322,7 +324,8 @@ export class TaskPoller {
       .where(
         and(
           eq(recordingTasks.status, 'scheduled'),
-          sql`(${recordingTasks.scheduledTime} IS NULL OR ${recordingTasks.scheduledTime} <= ${nowLocal})`
+          sql`(${recordingTasks.scheduledTime} IS NULL OR ${recordingTasks.scheduledTime} <= ${nowLocal})`,
+          NOT_HR_TASK,
         )
       )
       .returning({ id: recordingTasks.id, title: recordingTasks.title });
@@ -345,7 +348,8 @@ export class TaskPoller {
     // Лимит на пользователя: не берём задачу, если у него уже идёт perUserLimit записей
     // (его задачи ждут, остальные клиенты не блокируются).
     const userLimitCond = perUserLimit > 0
-      ? sql`(SELECT count(*) FROM recording_tasks rt2 WHERE rt2.user_id = ${recordingTasks.userId} AND rt2.status IN ('in_progress', 'uploading')) < ${perUserLimit}`
+      ? sql`(SELECT count(*) FROM recording_tasks rt2 WHERE rt2.user_id = ${recordingTasks.userId} AND rt2.status IN ('in_progress', 'uploading')
+           AND coalesce(rt2.save_target, '') <> 'help_recorder') < ${perUserLimit}`
       : sql`true`;
 
     const candidates = await db
@@ -361,7 +365,8 @@ export class TaskPoller {
         and(
           eq(recordingTasks.status, 'ready'),
           sql`(${recordingTasks.scheduledTime} IS NULL OR ${recordingTasks.scheduledTime} <= ${nowLocal})`,
-          userLimitCond
+          userLimitCond,
+          NOT_HR_TASK, // записи Help Recorder пишет он, а не этот воркер
         )
       )
       .orderBy(asc(recordingTasks.scheduledTime), asc(recordingTasks.createdAt))
@@ -374,7 +379,8 @@ export class TaskPoller {
         .where(
           and(
             eq(recordingTasks.status, 'ready'),
-            sql`${recordingTasks.scheduledTime} > ${nowLocal}`
+            sql`${recordingTasks.scheduledTime} > ${nowLocal}`,
+            NOT_HR_TASK,
           )
         )
         .limit(3);
@@ -442,7 +448,8 @@ export class TaskPoller {
       .where(
         and(
           eq(recordingTasks.status, 'in_progress'),
-          lt(recordingTasks.lastHeartbeat, timeoutThreshold)
+          lt(recordingTasks.lastHeartbeat, timeoutThreshold),
+          NOT_HR_TASK,
         )
       )
       .returning({ id: recordingTasks.id, userId: recordingTasks.userId, workerId: recordingTasks.workerId, attemptCount: recordingTasks.attemptCount });
