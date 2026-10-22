@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { RecordingTasksList } from './RecordingTasksList';
 import { RecordingModal, RecordingData } from './RecordingModal';
+import { DEFAULT_TIME_ZONE, zonedInputToUtcIso } from './timezones';
 
 interface DashboardStats {
   scheduled: number;
@@ -64,7 +65,9 @@ export function RecordingSchedulePage() {
         method: 'POST',
         body: JSON.stringify({
           ...data,
-          scheduledTime: new Date(data.scheduledTime + ':00+03:00').toISOString(),
+          timeZone: undefined,
+          // время из формы — на часах в выбранном поясе; на сервер — UTC
+          scheduledTime: zonedInputToUtcIso(data.scheduledTime, data.timeZone ?? DEFAULT_TIME_ZONE),
         }),
       });
 

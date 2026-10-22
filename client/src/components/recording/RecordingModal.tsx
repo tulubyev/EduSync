@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AlertCircle } from 'lucide-react';
+import { TIME_ZONE_OPTIONS, browserTimeZone, fmtZoned, timeZoneShort, useRecordingTimeZone, zonedInputToUtcIso, type TimeZoneChoice } from './timezones';
 
 interface RecordingModalProps {
   open: boolean;
@@ -41,6 +42,8 @@ export interface RecordingData {
   saveTarget: 'yandex_disk' | 'library' | 'beget';
   /** Пользователь подтвердил, что вправе записывать событие */
   rightsConfirmed?: boolean;
+  /** Пояс, в котором указано scheduledTime (на сервер уходит уже UTC — RecordingSchedulePage) */
+  timeZone?: TimeZoneChoice;
 }
 
 export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: RecordingModalProps) {
@@ -58,6 +61,8 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
     rightsConfirmed: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [timeZone, setTimeZone] = useRecordingTimeZone();
+  const startUtc = zonedInputToUtcIso(formData.scheduledTime, timeZone);
 
   useEffect(() => {
     if (!open) {
@@ -108,6 +113,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
     if (validateForm()) {
       onSubmit({
         ...formData,
+        timeZone,
         joinName: formData.joinName?.trim() || undefined,
         joinEmail: formData.joinEmail?.trim() || undefined,
         joinPhone: formData.joinPhone?.trim() || undefined,
@@ -240,17 +246,32 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
 
           {/* Время трансляции */}
           <div className="space-y-2">
-            <Label htmlFor="scheduledTime">
-              Время начала трансляции{' '}
-              <span className="text-xs font-normal text-gray-500">(по Москве, UTC+3)</span>
-            </Label>
-            <Input
-              id="scheduledTime"
-              type="datetime-local"
-              value={formData.scheduledTime}
-              onChange={handleDateTimeChange}
-              className={errors.scheduledTime ? 'border-red-500' : ''}
-            />
+            <Label htmlFor="scheduledTime">Время начала трансляции</Label>
+            <div className="flex flex-col gap-2">
+              <Input
+                id="scheduledTime"
+                type="datetime-local"
+                value={formData.scheduledTime}
+                onChange={handleDateTimeChange}
+                className={`${errors.scheduledTime ? 'border-red-500' : ''}`}
+              />
+              <Select value={timeZone} onValueChange={(v) => setTimeZone(v as TimeZoneChoice)}>
+                <SelectTrigger aria-label="Часовой пояс">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_ZONE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.value === 'local' ? `Местное время (${browserTimeZone()})` : o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {startUtc && timeZone !== 'Europe/Moscow' && (
+              <p className="text-xs text-gray-500">
+                Это {fmtZoned(startUtc, 'Europe/Moscow').date} {fmtZoned(startUtc, 'Europe/Moscow').time} по Москве
+                {timeZone !== 'UTC' ? `, ${fmtZoned(startUtc, 'UTC').time} UTC` : ''}
+              </p>
+            )}
             {errors.scheduledTime && (
               <p className="text-sm text-red-500 flex items-center gap-1">
                 <AlertCircle className="h-4 w-4" />
