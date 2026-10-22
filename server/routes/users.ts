@@ -4,6 +4,8 @@ import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import multer from "multer";
+import { HrError, hrErrorResponse } from "../services/helpRecorder";
+import { deleteUserRecordings } from "../services/helpRecorder/users";
 
 interface AuthRequest extends Request {
   user?: { id: string; role?: string | null };
@@ -250,6 +252,17 @@ router.delete("/admin/:userId", authenticateToken as any, async (req: AuthReques
 
     if (user.isEmailVerified || user.isPhoneVerified) {
       return res.status(400).json({ message: "Можно удалять только неподтвержденных пользователей" });
+    }
+
+    // Записи пользователя — в Help Recorder и у себя (иначе удаление упрётся в recording_tasks)
+    try {
+      await deleteUserRecordings(userId);
+    } catch (e) {
+      if (e instanceof HrError) {
+        const { status, message } = hrErrorResponse(e);
+        return res.status(e.code === 'task_busy' ? 409 : status).json({ message: e.code === 'task_busy' || e.status === 0 ? e.message : message });
+      }
+      throw e;
     }
 
     // Delete user

@@ -249,8 +249,9 @@ router.post('/tasks/:taskId/save-to-library', authenticateToken as any, async (r
       userId: req.user!.id,
       title: (videos.length > 1 && video.id !== 'merged' ? `${task.title} — ${video.label.toLowerCase()}` : task.title).slice(0, 255),
       content: `Запись трансляции от ${when} (МСК).${task.streamUrl ? `\nИсточник: ${task.streamUrl}` : ''}`,
-      // у записи Help Recorder ссылки на файлы временные — в библиотеке ссылка на страницу записей
-      resourceUrl: isHrTask(task) ? `${appUrl()}/recordings` : video.url,
+      // ссылки на файлы временные (у Help Recorder — 12 ч): в карточке — ссылка на запись и часть,
+      // библиотека берёт свежую ссылку на файл при показе (client/src/components/recording/RecordingVideo.tsx)
+      resourceUrl: `${appUrl()}/recordings?task=${task.id}&video=${encodeURIComponent(video.id)}`,
       tags: ['запись'],
     } as any);
     res.status(201).json({ success: true, noteId: note.id, message: 'Запись сохранена в библиотеку' });

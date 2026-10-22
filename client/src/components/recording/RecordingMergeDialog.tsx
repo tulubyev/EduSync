@@ -3,6 +3,7 @@ import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertCircle, ArrowDown, ArrowUp, CheckCircle, Loader, Merge, Play, Plus, X } from 'lucide-react';
+import { fmtZoned, useRecordingTimeZone, type TimeZoneChoice } from './timezones';
 
 /** Поля задачи, которые показывает окно склейки (обновляются списком записей каждые 10 с). */
 export interface MergeDialogTask {
@@ -52,8 +53,10 @@ interface RecordingMergeDialogProps {
   onWatch: (task: { id: string; title: string }) => void;
 }
 
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const fmtDate = (iso: string, tz: TimeZoneChoice) => {
+  const { date, time } = fmtZoned(iso, tz);
+  return `${date.slice(0, 5)}, ${time}`;
+};
 
 function fmtDuration(ms?: number): string {
   if (!ms || ms <= 0) return '';
@@ -83,6 +86,7 @@ function toItems(rec: OptionRecording, own: boolean, checked: boolean): Item[] {
  * Склеивает воркер, здесь — выбор, очередь, статус и переход к готовому файлу.
  */
 export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: RecordingMergeDialogProps) {
+  const [timeZone] = useRecordingTimeZone();
   const taskId = task?.id ?? null;
   const [options, setOptions] = useState<MergeOptions | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -319,7 +323,7 @@ export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: Reco
                   <option value="">Добавить части другой записи…</option>
                   {addable.map((o) => (
                     <option key={o.taskId} value={o.taskId}>
-                      {fmtDate(o.scheduledTime)} — {o.title} ({o.parts.length} ч.)
+                      {fmtDate(o.scheduledTime, timeZone)} — {o.title} ({o.parts.length} ч.)
                     </option>
                   ))}
                 </select>

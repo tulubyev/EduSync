@@ -2,6 +2,7 @@ import { db } from "../db";
 import { users, payments, subscriptions, subscriptionPlans, adminLogs, type User, type AdminLog, type InsertAdminLog } from "@shared/schema";
 import { eq, desc, sql, gte, lte, and, or } from "drizzle-orm";
 import type { IAdminStorage } from "./types";
+import { deleteUserRecordings } from "../services/helpRecorder/users";
 
 export class AdminStorage implements IAdminStorage {
   async getTotalUsersCount(): Promise<number> {
@@ -57,6 +58,7 @@ export class AdminStorage implements IAdminStorage {
   }
 
   async deleteUserByAdmin(userId: string): Promise<void> {
+    await deleteUserRecordings(userId); // записи — и в Help Recorder
     await db.delete(users).where(eq(users.id, userId));
   }
 

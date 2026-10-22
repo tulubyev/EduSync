@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { LibraryTreeNav } from './LibraryTreeNav';
 import { ResizeHandle } from './ResizeHandle';
+import { RecordingVideo } from '../recording/RecordingVideo';
+import { parseRecordingRef } from '../recording/recordingLink';
 import {
   Dialog,
   DialogContent,
@@ -273,7 +275,7 @@ export function LibraryPage() {
 
   const getResourceIcon = (url: string) => {
     if (!url) return null;
-    if (url.startsWith('data:image/') || url.includes('youtube.com') || url.includes('youtu.be') || url.includes('.mp4') || url.includes('.webm')) {
+    if (parseRecordingRef(url) || url.startsWith('data:image/') || url.includes('youtube.com') || url.includes('youtu.be') || url.includes('.mp4') || url.includes('.webm')) {
       return <Video className="h-4 w-4 text-red-500" />;
     }
     if (url.includes('.mp3') || url.includes('.wav') || url.includes('.ogg') || url.startsWith('data:audio/')) {
@@ -296,7 +298,10 @@ export function LibraryPage() {
     if (url.startsWith('data:audio/')) {
       return <audio src={url} controls className="w-full" />;
     }
-    // Записи трансляций и другие видеофайлы по ссылке — играют прямо в карточке
+    // Запись трансляции из «Записи по расписанию»: свежая ссылка на файл — при показе
+    const recording = parseRecordingRef(url);
+    if (recording) return <RecordingVideo recording={recording} />;
+    // Видеофайлы по ссылке — играют прямо в карточке
     if (/^https?:\/\/.+\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url)) {
       return <video src={url} controls playsInline preload="metadata" className="max-w-full max-h-96 rounded border bg-black" />;
     }

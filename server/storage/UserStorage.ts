@@ -5,6 +5,7 @@ import {
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { IUserStorage } from "./types";
+import { deleteUserRecordings } from "../services/helpRecorder/users";
 
 export class UserStorage implements IUserStorage {
   async getUser(id: string): Promise<User | undefined> {
@@ -41,6 +42,7 @@ export class UserStorage implements IUserStorage {
   }
 
   async deleteUserData(userId: string): Promise<void> {
+    await deleteUserRecordings(userId); // записи — и в Help Recorder
     await db.delete(library).where(eq(library.userId, userId));
     await db.delete(deadlines).where(eq(deadlines.userId, userId));
     await db.delete(studySessions).where(eq(studySessions.userId, userId));

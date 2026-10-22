@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle, Clock, Play, Trash2, Loader, Edit2, RefreshCw, RotateCcw, TriangleAlert, XCircle, StopCircle, Merge } from 'lucide-react';
@@ -13,29 +13,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RecordingPlayerDialog } from './RecordingPlayerDialog';
 import { RecordingMergeDialog } from './RecordingMergeDialog';
+import { TIME_ZONE_OPTIONS, browserTimeZone, fmtZoned, timeZoneShort, useRecordingTimeZone, utcToZonedInput, zonedInputToUtcIso, type TimeZoneChoice } from './timezones';
 
-const pad = (n: number) => String(n).padStart(2, '0');
-function utcToMoscow(utcStr: string): Date {
-  return new Date(new Date(utcStr).getTime() + 3 * 60 * 60 * 1000);
-}
-function fmtMoscowDate(utcStr: string): string {
-  const d = utcToMoscow(utcStr);
-  return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
-}
-function fmtMoscowTime(utcStr: string): string {
-  const d = utcToMoscow(utcStr);
-  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
-}
-function moscowToInputValue(utcStr: string): string {
-  const d = utcToMoscow(utcStr);
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
-}
-function inputToUtcIso(localDatetime: string): string {
-  return new Date(localDatetime + ':00+03:00').toISOString();
-}
 
 interface ConfirmState {
   open: boolean;
@@ -151,6 +134,7 @@ function StartStatusPanel({ task }: { task: RecordingTask }) {
 }
 
 function StartStatusBox({ task }: { task: RecordingTask }) {
+  const [tz] = useRecordingTimeZone();
   const st = task.start;
   const attempt = st?.attempt && st?.maxAttempts ? ` · попытка ${st.attempt}/${st.maxAttempts}` : '';
 
@@ -189,7 +173,7 @@ function StartStatusBox({ task }: { task: RecordingTask }) {
           <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
           <p className="text-xs text-green-800">
             Запись стартовала: {st?.method && st.method !== 'browser' ? 'поток идёт' : 'видео получено'}
-            {st?.recordingStartedAt ? ` в ${fmtMoscowTime(st.recordingStartedAt)} МСК` : ''}
+            {st?.recordingStartedAt ? ` в ${fmtZoned(st.recordingStartedAt, tz).time} (${timeZoneShort(tz)})` : ''}
             {attempt}
           </p>
         </div>
@@ -233,6 +217,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
   const [tasks, setTasks] = useState<RecordingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const now = useNow(5000);
+  const [timeZone, setTimeZone] = useRecordingTimeZone();
   const [editingTask, setEditingTask] = useState<RecordingTask | null>(null);
   const [playerTask, setPlayerTask] = useState<{ id: string; title: string } | null>(null);
   const [mergeTaskId, setMergeTaskId] = useState<string | null>(null);
@@ -282,6 +267,16 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       (!!t.mergeStatus && t.mergeStatus !== 'idle'));
   const mergeTask = tasks.find(t => t.id === mergeTaskId) ?? null;
 
+  // Ссылка из библиотеки или письма: /recordings?task=<id> — сразу открыть плеер этой записи (один раз)
+  const linkedTaskHandled = useRef(false); // список опрашивается каждые 10 с — открываем только при первой загрузке
+  const openLinkedTask = (list: RecordingTask[]) => {
+    if (linkedTaskHandled.current) return;
+    linkedTaskHandled.current = true;
+    const id = new URLSearchParams(window.location.search).get('task');
+    const t = id ? list.find((x) => x.id === id) : undefined;
+    if (t) setPlayerTask({ id: t.id, title: t.title });
+  };
+
   const fetchTasks = async () => {
     try {
       const response = await authService.authenticatedFetch('/api/recording/tasks', {
@@ -292,6 +287,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
         const data = await response.json();
         setTasks(data);
         onTasksLoaded?.(data);
+        openLinkedTask(data);
       } else if (response.status === 401) {
         console.warn('Recording tasks: сессия истекла, требуется повторный вход');
       } else {
@@ -435,7 +431,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       joinName: task.joinName || '',
       joinEmail: task.joinEmail || '',
       joinPhone: task.joinPhone || '',
-      scheduledTime: moscowToInputValue(task.scheduledTime),
+      scheduledTime: utcToZonedInput(task.scheduledTime, timeZone),
       duration: task.duration,
     });
   };
@@ -473,7 +469,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
           joinName: editFormData.joinName.trim() || undefined,
           joinEmail: editFormData.joinEmail.trim() || undefined,
           joinPhone: editFormData.joinPhone.trim() || undefined,
-          scheduledTime: inputToUtcIso(editFormData.scheduledTime),
+          scheduledTime: zonedInputToUtcIso(editFormData.scheduledTime, timeZone),
           duration: Number(editFormData.duration),
         }),
       });
@@ -653,12 +649,12 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm">
             <div className="bg-gray-50 p-2 rounded">
-              <span className="text-gray-500 text-xs block">Начало записи (МСК)</span>
+              <span className="text-gray-500 text-xs block">Начало записи ({timeZoneShort(timeZone)})</span>
               <p className="font-semibold text-xs leading-tight mt-0.5">
-                {fmtMoscowDate(task.scheduledTime)}
+                {fmtZoned(task.scheduledTime, timeZone).date}
               </p>
               <p className="text-xs text-gray-600">
-                {fmtMoscowTime(task.scheduledTime)}
+                {fmtZoned(task.scheduledTime, timeZone).time}
               </p>
             </div>
             <div className="bg-gray-50 p-2 rounded">
@@ -955,17 +951,36 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-time">
-                  Дата и время начала{' '}
-                  <span className="text-xs font-normal text-gray-500">(по Москве, UTC+3)</span>
-                </Label>
-                <Input
-                  id="edit-time"
-                  type="datetime-local"
-                  value={editFormData.scheduledTime}
-                  onChange={(e) => setEditFormData({ ...editFormData, scheduledTime: e.target.value })}
-                  disabled={isUpdating || editSuccess}
-                />
+                <Label htmlFor="edit-time">Дата и время начала</Label>
+                <div className="flex flex-col gap-2">
+                  <Input
+                    id="edit-time"
+                    type="datetime-local"
+                    value={editFormData.scheduledTime}
+                    onChange={(e) => setEditFormData({ ...editFormData, scheduledTime: e.target.value })}
+                    disabled={isUpdating || editSuccess}
+                  />
+                  <Select
+                    value={timeZone}
+                    onValueChange={(v) => {
+                      // то же время записи, показанное в другом поясе
+                      const utc = zonedInputToUtcIso(editFormData.scheduledTime, timeZone);
+                      const next = v as TimeZoneChoice;
+                      setTimeZone(next);
+                      if (utc) setEditFormData({ ...editFormData, scheduledTime: utcToZonedInput(utc, next) });
+                    }}
+                    disabled={isUpdating || editSuccess}
+                  >
+                    <SelectTrigger aria-label="Часовой пояс">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_ZONE_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.value === 'local' ? `Местное время (${browserTimeZone()})` : o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-2">
