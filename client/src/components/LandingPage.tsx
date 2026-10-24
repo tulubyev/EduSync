@@ -1,329 +1,165 @@
-import { useState } from 'react';
-import { FooterPage } from './FooterPages';
+import { Link } from 'wouter';
+import { BarChart3, BellRing, BookOpen, CalendarDays, LayoutDashboard, Link2 } from 'lucide-react';
+import { pathForPage } from './FooterPages';
 
 interface LandingPageProps {
   onLoginClick: () => void;
+  onRegisterClick: () => void;
 }
 
-export function LandingPage({ onLoginClick }: LandingPageProps) {
-  const [currentPage, setCurrentPage] = useState<string | null>(null);
+const features = [
+  {
+    icon: Link2,
+    title: 'Интеграции платформ',
+    description: 'Подключайте Coursera, edX, Stepik и другие',
+    page: 'documentation'
+  },
+  {
+    icon: BookOpen,
+    title: 'Управление курсами',
+    description: 'Объединяйте курсы с разных платформ в одном месте',
+    page: 'course-management'
+  },
+  {
+    icon: BarChart3,
+    title: 'Аналитика обучения',
+    description: 'Отслеживайте прогресс и получайте инсайты',
+    page: 'progress-tracking'
+  },
+  {
+    icon: CalendarDays,
+    title: 'Умный календарь',
+    description: 'Единое расписание дедлайнов со всех платформ',
+    page: 'schedule-planning'
+  },
+  {
+    icon: BellRing,
+    title: 'Управление дедлайнами',
+    description: 'Никогда не пропустите важный срок',
+    page: 'deadline-management'
+  },
+  {
+    icon: LayoutDashboard,
+    title: 'Панель управления',
+    description: 'Полный контроль над вашим обучением',
+    page: 'documentation'
+  }
+];
 
-  const features = [
-    {
-      icon: '🔗',
-      title: 'Интеграции платформ',
-      description: 'Подключайте Coursera, edX, Stepik и другие',
-      color: '#5f6368',
-      page: 'documentation'
-    },
-    {
-      icon: '📚',
-      title: 'Управление курсами',
-      description: 'Объединяйте курсы с разных платформ в одном месте',
-      color: '#4285f4',
-      page: 'course-management'
-    },
-    {
-      icon: '📊',
-      title: 'Аналитика обучения',
-      description: 'Отслеживайте прогресс и получайте инсайты',
-      color: '#34a853',
-      page: 'progress-tracking'
-    },
-    {
-      icon: '📅',
-      title: 'Умный календарь',
-      description: 'Единое расписание дедлайнов со всех платформ',
-      color: '#ea4335',
-      page: 'schedule-planning'
-    },
-    {
-      icon: '⏰',
-      title: 'Управление дедлайнами',
-      description: 'Никогда не пропустите важный срок',
-      color: '#fbbc04',
-      page: 'deadline-management'
-    },
-    {
-      icon: '⚙️',
-      title: 'Панель управления',
-      description: 'Полный контроль над вашим обучением',
-      color: '#9c27b0',
-      page: 'documentation'
-    }
-  ];
-
-  const footerLinks = {
-    features: [
+const footerLinks = [
+  {
+    title: 'Возможности',
+    items: [
       { label: 'Управление курсами', page: 'course-management' },
       { label: 'Отслеживание прогресса', page: 'progress-tracking' },
       { label: 'Управление дедлайнами', page: 'deadline-management' },
       { label: 'Планирование расписания', page: 'schedule-planning' }
-    ],
-    support: [
+    ]
+  },
+  {
+    title: 'Поддержка',
+    items: [
       { label: 'Документация', page: 'documentation' },
       { label: 'API Reference', page: 'api-reference' },
       { label: 'Статус системы', page: 'system-status' },
       { label: 'Связаться с нами', page: 'contact' }
-    ],
-    legal: [
+    ]
+  },
+  {
+    title: 'Правовая информация',
+    items: [
       { label: 'Политика конфиденциальности', page: 'privacy-policy' },
       { label: 'Условия использования', page: 'terms-of-service' },
       { label: 'Cookie Policy', page: 'cookie-policy' },
       { label: 'Безопасность', page: 'security' }
     ]
-  };
-
-  if (currentPage) {
-    return <FooterPage page={currentPage} onBack={() => setCurrentPage(null)} />;
   }
+];
 
+const primaryButton =
+  'rounded-lg bg-gradient-to-br from-[#667eea] to-[#764ba2] px-6 py-3 font-medium text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg';
+
+export function LandingPage({ onLoginClick, onRegisterClick }: LandingPageProps) {
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-      {/* Header */}
-      <header style={{
-        backgroundColor: 'white',
-        padding: '20px 40px',
-        borderBottom: '1px solid #e0e0e0',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100
-      }}>
-        <img 
-          src="/myepa-logo-clean.png" 
-          alt="My EPA Logo" 
-          style={{
-            position: 'absolute',
-            left: '40px',
-            height: '50px',
-            width: 'auto'
-          }}
-        />
-        <span style={{
-          fontSize: '24px',
-          fontWeight: '700',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          letterSpacing: '2px'
-        }}>
-          АГРЕГАТОР ОНЛАЙН ОБУЧЕНИЯ
-        </span>
-        <button
-          onClick={onLoginClick}
-          style={{
-            position: 'absolute',
-            right: '40px',
-            padding: '10px 24px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '15px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-            boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
-          }}
-        >
-          Войти
-        </button>
+    <div className="min-h-screen bg-[#f8f9fa]">
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <img src="/myepa-logo-clean.png" alt="My EPA" className="h-10 w-auto sm:h-12" />
+          <span className="hidden bg-gradient-to-br from-[#667eea] to-[#764ba2] bg-clip-text text-lg font-bold tracking-widest text-transparent md:block">
+            АГРЕГАТОР ОНЛАЙН ОБУЧЕНИЯ
+          </span>
+          <button
+            onClick={onLoginClick}
+            className="rounded-lg border border-[#667eea] px-5 py-2 text-sm font-medium text-[#5a67d8] transition hover:bg-[#667eea]/10"
+          >
+            Войти
+          </button>
+        </div>
       </header>
 
+      <section className="mx-auto max-w-6xl px-4 pb-6 pt-12 text-center sm:px-6 sm:pt-16">
+        <h1 className="mx-auto max-w-3xl text-3xl font-bold leading-tight text-gray-900 sm:text-5xl">
+          Все курсы, уроки, вебинары и экзамены — в одном календаре
+        </h1>
+        <p className="mx-auto mt-5 max-w-2xl text-base text-gray-600 sm:text-lg">
+          My EPA собирает ваше обучение с российских и международных площадок, напоминает о сроках
+          и даёт ссылки прямо на уроки и материалы.
+        </p>
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <button onClick={onRegisterClick} className={primaryButton}>
+            Начать бесплатно
+          </button>
+          <button
+            onClick={onLoginClick}
+            className="rounded-lg border border-gray-300 bg-white px-6 py-3 font-medium text-gray-700 transition hover:bg-gray-50"
+          >
+            У меня уже есть аккаунт
+          </button>
+        </div>
+      </section>
 
-      {/* Features Grid */}
-      <section style={{
-        padding: '60px 40px',
-        maxWidth: '1200px',
-        margin: '0 auto'
-      }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '24px'
-        }}>
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              onClick={() => feature.page && setCurrentPage(feature.page)}
-              style={{
-                backgroundColor: 'white',
-                borderRadius: '12px',
-                padding: '28px',
-                border: '1px solid #e8e8e8',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
+      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <h2 className="sr-only">Возможности</h2>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map(feature => (
+            <Link
+              key={feature.title}
+              href={pathForPage(feature.page)}
+              className="block rounded-xl border border-gray-200 bg-white p-6 transition hover:-translate-y-1 hover:shadow-lg"
             >
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '10px',
-                backgroundColor: `${feature.color}15`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '24px',
-                marginBottom: '16px'
-              }}>
-                {feature.icon}
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-[#667eea]/10 text-[#5a67d8]">
+                <feature.icon className="h-6 w-6" aria-hidden="true" />
               </div>
-              <h3 style={{
-                fontSize: '18px',
-                fontWeight: '600',
-                color: '#1a1a1a',
-                margin: '0 0 8px 0'
-              }}>
-                {feature.title}
-              </h3>
-              <p style={{
-                fontSize: '14px',
-                color: '#666',
-                margin: '0',
-                lineHeight: '1.5'
-              }}>
-                {feature.description}
-              </p>
-            </div>
+              <h3 className="mb-2 text-lg font-semibold text-gray-900">{feature.title}</h3>
+              <p className="text-sm leading-relaxed text-gray-600">{feature.description}</p>
+            </Link>
           ))}
         </div>
       </section>
 
-      {/* Footer */}
-      <footer style={{
-        backgroundColor: '#1a1a1a',
-        color: '#fff',
-        padding: '60px 40px 40px'
-      }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '40px'
-        }}>
-          {/* Brand */}
+      <footer className="bg-[#1a1a1a] px-4 py-12 text-white sm:px-6">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <img 
-              src="/myepa-logo.png" 
-              alt="My EPA Logo" 
-              style={{
-                maxWidth: '160px',
-                height: 'auto',
-                marginBottom: '16px'
-              }}
-            />
-            <p style={{
-              fontSize: '12px',
-              color: '#666',
-              margin: 0
-            }}>
-              © 2025 My EPA. Все права защищены.
+            <img src="/myepa-logo.png" alt="My EPA" className="mb-4 w-32" />
+            <p className="text-xs text-gray-400">
+              © {new Date().getFullYear()} My EPA. Все права защищены.
             </p>
           </div>
-
-          {/* Features */}
-          <div>
-            <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: '#fff' }}>
-              Возможности
-            </h4>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {footerLinks.features.map((item, i) => (
-                <li key={i} style={{ marginBottom: '10px' }}>
-                  <button
-                    onClick={() => setCurrentPage(item.page)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#4285f4',
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                      padding: 0,
-                      textAlign: 'left'
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Support */}
-          <div>
-            <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: '#fff' }}>
-              Поддержка
-            </h4>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {footerLinks.support.map((item, i) => (
-                <li key={i} style={{ marginBottom: '10px' }}>
-                  <button
-                    onClick={() => setCurrentPage(item.page)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#4285f4',
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                      padding: 0,
-                      textAlign: 'left'
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: '#fff' }}>
-              Правовая информация
-            </h4>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {footerLinks.legal.map((item, i) => (
-                <li key={i} style={{ marginBottom: '10px' }}>
-                  <button
-                    onClick={() => setCurrentPage(item.page)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#4285f4',
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                      padding: 0,
-                      textAlign: 'left'
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {footerLinks.map(group => (
+            <div key={group.title}>
+              <h4 className="mb-4 text-sm font-semibold">{group.title}</h4>
+              <ul className="space-y-2.5">
+                {group.items.map(item => (
+                  <li key={item.page}>
+                    <Link href={pathForPage(item.page)} className="text-sm text-[#7aa7f7] hover:underline">
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
-
       </footer>
     </div>
   );

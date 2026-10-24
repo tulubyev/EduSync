@@ -3,6 +3,7 @@ import { Route, Switch, useLocation, Link } from 'wouter';
 import AdminPanel from './components/AdminPanel';
 import { AuthForm } from './components/AuthForm';
 import { LandingPage } from './components/LandingPage';
+import { FooterPage, PUBLIC_PAGE_PATHS } from './components/FooterPages';
 import { CoursesPage } from './components/courses/CoursesPage';
 import { DeadlinesPage } from './components/deadlines/DeadlinesPage';
 import { LibraryPage } from './components/library/LibraryPage';
@@ -58,7 +59,9 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showAuthForm, setShowAuthForm] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [location, navigate] = useLocation();
 
   useEffect(() => {
     const savedUser = localStorage.getItem('currentUser');
@@ -128,21 +131,30 @@ function App() {
     );
   }
 
+  const publicPage = PUBLIC_PAGE_PATHS[location];
+  if (publicPage) {
+    return <FooterPage page={publicPage} onBack={() => navigate('/')} />;
+  }
+
   if (!currentUser) {
     if (showAuthForm) {
       return (
-        <div className="relative">
+        <div className="relative bg-gradient-to-br from-[#667eea] to-[#764ba2]">
           <button
             onClick={() => setShowAuthForm(false)}
-            className="absolute top-5 left-5 px-5 py-2.5 bg-white/90 text-gray-700 border-none rounded-lg text-sm font-medium cursor-pointer z-50 shadow-md hover:bg-white transition-colors"
+            className="m-4 mb-0 sm:m-0 sm:absolute sm:top-5 sm:left-5 px-5 py-2.5 bg-white/90 text-gray-700 border-none rounded-lg text-sm font-medium cursor-pointer z-50 shadow-md hover:bg-white transition-colors"
           >
             ← На главную
           </button>
-          <AuthForm onAuthSuccess={handleAuthSuccess} />
+          <AuthForm key={authMode} initialMode={authMode} onAuthSuccess={handleAuthSuccess} />
         </div>
       );
     }
-    return <LandingPage onLoginClick={() => setShowAuthForm(true)} />;
+    const openAuth = (mode: 'login' | 'register') => {
+      setAuthMode(mode);
+      setShowAuthForm(true);
+    };
+    return <LandingPage onLoginClick={() => openAuth('login')} onRegisterClick={() => openAuth('register')} />;
   }
 
   if (currentUser.adminRole && showAdminPanel) {

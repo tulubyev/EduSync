@@ -1,6 +1,58 @@
+import { useEffect, useState } from 'react';
+
 interface FooterPageProps {
   page: string;
   onBack: () => void;
+}
+
+// Публичные страницы сайта: адрес → страница. Открываются без входа и по прямой ссылке.
+export const PUBLIC_PAGE_PATHS: Record<string, string> = {
+  '/features/courses': 'course-management',
+  '/features/progress': 'progress-tracking',
+  '/features/deadlines': 'deadline-management',
+  '/features/schedule': 'schedule-planning',
+  '/docs': 'documentation',
+  '/docs/api': 'api-reference',
+  '/status': 'system-status',
+  '/contacts': 'contact',
+  '/privacy': 'privacy-policy',
+  '/terms': 'terms-of-service',
+  '/cookies': 'cookie-policy',
+  '/security': 'security',
+};
+
+export function pathForPage(page: string): string {
+  return Object.keys(PUBLIC_PAGE_PATHS).find(path => PUBLIC_PAGE_PATHS[path] === page) ?? '/';
+}
+
+function ServiceStatus() {
+  const [state, setState] = useState<'checking' | 'up' | 'down'>('checking');
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
+
+  useEffect(() => {
+    fetch('/api/config/public')
+      .then(res => res.json().then(() => res.ok))
+      .then(ok => setState(ok ? 'up' : 'down'))
+      .catch(() => setState('down'))
+      .finally(() => setCheckedAt(new Date()));
+  }, []);
+
+  const label = state === 'checking' ? 'Проверяем…' : state === 'up' ? 'Работает' : 'Недоступен';
+  return (
+    <section>
+      <h2>Статус сервиса</h2>
+      <div className="status-grid">
+        <div className={`status-item ${state === 'up' ? 'operational' : ''}`}>
+          <span className="status-indicator"></span>
+          <span>Сервер My EPA</span>
+          <span className="status-label">{label}</span>
+        </div>
+      </div>
+      {checkedAt && (
+        <p>Проверено из вашего браузера: {checkedAt.toLocaleString('ru-RU')}.</p>
+      )}
+    </section>
+  );
 }
 
 export function FooterPage({ page, onBack }: FooterPageProps) {
@@ -23,12 +75,9 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
             </section>
 
             <section>
-              <h2>Поддерживаемые платформы</h2>
-              <div className="platforms-grid">
-                {['Coursera', 'Udemy', 'edX', 'Khan Academy', 'Stepik', 'LinkedIn Learning', 'Pluralsight', 'Codecademy'].map(p => (
-                  <div key={p} className="platform-card">{p}</div>
-                ))}
-              </div>
+              <h2>Площадки</h2>
+              <p>Сейчас подключается Stepik. Обмен данными с Coursera, edX и другими российскими и
+              международными площадками готовится.</p>
             </section>
 
             <section>
@@ -208,38 +257,8 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
         return (
           <>
             <h1>Статус системы</h1>
-            <p className="subtitle">Текущее состояние сервисов</p>
-            
-            <section>
-              <h2>Статус сервисов</h2>
-              <div className="status-grid">
-                <div className="status-item operational">
-                  <span className="status-indicator"></span>
-                  <span>API Server</span>
-                  <span className="status-label">Работает</span>
-                </div>
-                <div className="status-item operational">
-                  <span className="status-indicator"></span>
-                  <span>База данных</span>
-                  <span className="status-label">Работает</span>
-                </div>
-                <div className="status-item operational">
-                  <span className="status-indicator"></span>
-                  <span>Аутентификация</span>
-                  <span className="status-label">Работает</span>
-                </div>
-                <div className="status-item operational">
-                  <span className="status-indicator"></span>
-                  <span>Интеграции</span>
-                  <span className="status-label">Работает</span>
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <h2>Последние инциденты</h2>
-              <p>За последние 30 дней инцидентов не зафиксировано.</p>
-            </section>
+            <p className="subtitle">Текущее состояние сервиса</p>
+            <ServiceStatus />
           </>
         );
 
@@ -310,7 +329,6 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
                 <li>Все данные шифруются при передаче (HTTPS/TLS)</li>
                 <li>Пароли хранятся в хешированном виде</li>
                 <li>Доступ к данным ограничен</li>
-                <li>Регулярные аудиты безопасности</li>
               </ul>
             </section>
 
@@ -406,28 +424,24 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
               <h2>Шифрование</h2>
               <ul>
                 <li>Все соединения защищены HTTPS/TLS</li>
-                <li>Данные в базе шифруются AES-256</li>
-                <li>Отдельные ключи для финансовых данных</li>
+                <li>Ключи доступа к подключённым площадкам хранятся зашифрованными (AES-256-GCM)</li>
               </ul>
             </section>
 
             <section>
               <h2>Аутентификация</h2>
               <ul>
-                <li>Безопасное хеширование паролей (scrypt)</li>
-                <li>Поддержка двухфакторной аутентификации (2FA)</li>
-                <li>Защита от брутфорс-атак (rate limiting)</li>
-                <li>Безопасные сессии с httpOnly cookies</li>
+                <li>Пароли хранятся только в виде хеша</li>
+                <li>Ограничение числа попыток входа</li>
               </ul>
             </section>
 
             <section>
               <h2>Защита от атак</h2>
               <ul>
-                <li>CSRF-защита</li>
-                <li>XSS-фильтрация</li>
-                <li>SQL-инъекции предотвращены ORM</li>
-                <li>Регулярные обновления зависимостей</li>
+                <li>Заголовки безопасности (Helmet) и ограничение источников запросов (CORS)</li>
+                <li>Запросы к базе — через ORM с параметрами, без склейки SQL</li>
+                <li>Обновление зависимостей с известными уязвимостями</li>
               </ul>
             </section>
 
