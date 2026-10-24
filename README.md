@@ -14,11 +14,11 @@
 - **Библиотека:** заметки по курсам с поиском и закреплением.
 - **Аналитика** по обучению.
 - **AI-ассистент:** чат и рекомендации через OpenRouter.
-- **Запись вебинаров:** планирование записи трансляции по ссылке; отдельный воркер
-  открывает страницу в Chromium (или берёт прямой поток через ffmpeg, yt-dlp, streamlink),
-  записывает видео со звуком и сохраняет в S3, в библиотеку или на Яндекс Диск. Статус
-  старта и причины ошибок видны в карточке задачи. Управление очередью и параллельностью —
-  из админ-панели.
+- **Запись вебинаров:** планирование записи трансляции по ссылке. Запись ставится в
+  [Help Recorder](https://recorder.help) через партнёрский API: Help Recorder записывает
+  и хранит файлы, My EPA показывает список записей, плеер, склейку частей и присылает
+  письмо об итоге. Свой воркер (Chromium, ffmpeg, yt-dlp, streamlink) дописывает только
+  записи, запланированные до включения Help Recorder (см. `docs/HELP-RECORDER.md`).
 - **Подписки и оплата:** тарифы, оплата через ЮKassa или Альфа-Банк, автопродление.
 - **Аккаунт:** регистрация и вход (JWT), профиль с фото, письма через SMTP;
   двухфакторная аутентификация по SMS подготовлена, но выключена (`ENABLE_2FA`).
@@ -94,6 +94,7 @@ CI (`.github/workflows/ci.yml`) выполняет `npm run check`, провер
 | `DEFAULT_PAYMENT_PROVIDER`, `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, `ALFABANK_USERNAME`, `ALFABANK_PASSWORD` | платежи |
 | `YANDEX_DISK_TOKEN`, `YANDEX_DISK_FOLDER_ID` | сохранение записей на Яндекс Диск |
 | `BEGET_S3_ENDPOINT`, `BEGET_S3_REGION`, `BEGET_S3_BUCKET`, `BEGET_S3_ACCESS_KEY`, `BEGET_S3_SECRET_KEY`, `BEGET_S3_PUBLIC_URL` | S3-хранилище записей |
+| `HR_API_URL`, `HR_PARTNER_KEY`, `HR_WEBHOOK_SECRET` | запись через Help Recorder: адрес партнёрского API, ключ партнёра, секрет подписи вебхука (см. `docs/HELP-RECORDER.md`) |
 | `DISABLE_RECORDING_EXECUTOR` | выключает встроенный исполнитель записи в веб-приложении, когда работает отдельный воркер |
 | `WORKER_ID`, `MAX_WORKERS`, `SCHEDULED_TIME_TZ_OFFSET_H`, `RECORDINGS_DIR`, `VIEWPORT_WIDTH`, `VIEWPORT_HEIGHT`, `FRAME_RATE` | настройки воркера записи |
 | `RECORDING_JOIN_NAME`, `RECORDING_JOIN_EMAIL`, `RECORDING_JOIN_PHONE` | данные для формы входа на вебинар |
@@ -109,11 +110,14 @@ compose, чтобы не запустить второй экземпляр сл
 
 ## Статус
 
-Активный проект. С 15.10.2026 здесь работает воркер записи вебинаров из
-[Night Recorder](https://github.com/tulubyev/MYEPA-Record) — отдельного продукта, движок записи у них общий.
+Активный проект. Новые записи вебинаров на проде идут через Help Recorder (партнёрский API);
+свой воркер записи дописывает только записи, запланированные до включения; когда их не останется,
+его можно остановить (см. `docs/HELP-RECORDER.md`).
 
 ## Документация
 
+- [docs/HELP-RECORDER.md](docs/HELP-RECORDER.md) — запись через Help Recorder:
+  устройство, включение, откат.
 - [docs/RECORDING-START-STATUS.md](docs/RECORDING-START-STATUS.md) — статусы старта
   записи и коды причин.
 - [docs/RECORDING-SCALING.md](docs/RECORDING-SCALING.md) — запись под нагрузкой:
