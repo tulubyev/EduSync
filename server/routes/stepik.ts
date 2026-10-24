@@ -1,10 +1,10 @@
 import { Router, Request, Response } from "express";
-import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
 import { platforms, platformConnections, externalCourses } from "../../shared/schema";
 import { authenticateToken } from "../middleware/auth";
 import stepikService from "../services/stepikService";
 import stepikSyncService from "../services/stepikSyncService";
+import { createStepikState, verifyStepikState } from "../services/stepikOAuthState";
 import { eq, and } from "drizzle-orm";
 
 interface AuthRequest extends Request {
@@ -13,16 +13,26 @@ interface AuthRequest extends Request {
 
 const router = Router();
 
+function stateSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET is not configured');
+  return secret;
+}
+
 /**
  * GET /api/stepik/auth-url
  * Returns OAuth authorization URL for Stepik
  */
-router.get('/auth-url', (req: Request, res: Response) => {
+router.get('/auth-url', authenticateToken as any, (req: AuthRequest, res: Response) => {
   try {
-    const state = uuidv4();
-    // Store state in session for CSRF protection (you might use express-session)
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+    // state привязан к пользователю и подписан — проверяется в /callback
+    const state = createStepikState(userId, stateSecret());
     const authUrl = stepikService.getAuthorizationUrl(state);
-    
+
     res.json({
       authUrl,
       state,
@@ -45,6 +55,10 @@ router.get('/callback', authenticateToken as any, async (req: AuthRequest, res: 
 
     if (!code || !state || !userId) {
       return res.status(400).json({ message: 'Missing required parameters: code, state, or user not authenticated' });
+    }
+
+    if (!verifyStepikState(String(state), userId, stateSecret())) {
+      return res.status(400).json({ message: 'Ссылка подключения Stepik устарела или выдана другому пользователю. Начните подключение заново.' });
     }
 
     console.log(`🔐 Processing Stepik OAuth callback for user ${userId}`);
@@ -76,33 +90,35 @@ router.get('/callback', authenticateToken as any, async (req: AuthRequest, res: 
       stepikPlatform = result[0];
     }
 
-    // 4. Create or update platform connection
+    // 4. Create or update platform connection.
+    // Уникального индекса (user_id, platform_id) нет, поэтому ON CONFLICT не используем:
+    // ищем существующее подключение и обновляем его, иначе создаём.
     console.log('🔗 Creating platform connection...');
-    const platformConnection = await db
-      .insert(platformConnections)
-      .values({
-        userId,
-        platformId: stepikPlatform.id,
-        externalUserId: String(stepikUser.id),
-        accessTokenEncrypted: stepikService.encrypt(tokens.accessToken),
-        refreshTokenEncrypted: stepikService.encrypt(tokens.refreshToken),
-        tokenExpiresAt: tokens.expiresAt,
-        connectionStatus: 'active',
-        syncStatus: 'idle',
-      })
-      .onConflictDoUpdate({
-        target: [platformConnections.userId, platformConnections.platformId],
-        set: {
-          externalUserId: String(stepikUser.id),
-          accessTokenEncrypted: stepikService.encrypt(tokens.accessToken),
-          refreshTokenEncrypted: stepikService.encrypt(tokens.refreshToken),
-          tokenExpiresAt: tokens.expiresAt,
-          connectionStatus: 'active',
-        },
-      })
-      .returning();
-
-    const connection = platformConnection[0];
+    const connectionFields = {
+      externalUserId: String(stepikUser.id),
+      accessTokenEncrypted: stepikService.encrypt(tokens.accessToken),
+      refreshTokenEncrypted: stepikService.encrypt(tokens.refreshToken),
+      tokenExpiresAt: tokens.expiresAt,
+      connectionStatus: 'active',
+      lastSyncError: null,
+      updatedAt: new Date(),
+    };
+    const existingConnection = await db.query.platformConnections.findFirst({
+      where: and(
+        eq(platformConnections.userId, userId),
+        eq(platformConnections.platformId, stepikPlatform.id)
+      ),
+    });
+    const [connection] = existingConnection
+      ? await db
+          .update(platformConnections)
+          .set(connectionFields)
+          .where(eq(platformConnections.id, existingConnection.id))
+          .returning()
+      : await db
+          .insert(platformConnections)
+          .values({ userId, platformId: stepikPlatform.id, syncStatus: 'idle', ...connectionFields })
+          .returning();
 
     // 5. Trigger initial sync
     console.log('🔄 Starting initial sync of courses...');

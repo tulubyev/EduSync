@@ -77,9 +77,15 @@ export function StepikConnectionPage() {
       setLoading(true);
       setError(null);
 
-      // Get OAuth URL
-      const authRes = await fetch('/api/stepik/auth-url');
-      const { authUrl } = await authRes.json();
+      // Get OAuth URL (state в ссылке привязан к текущему пользователю)
+      const token = localStorage.getItem('accessToken');
+      const authRes = await fetch('/api/stepik/auth-url', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const { authUrl, message } = await authRes.json();
+      if (!authRes.ok || !authUrl) {
+        throw new Error(message || 'Не удалось получить ссылку для входа в Stepik');
+      }
 
       // Redirect to Stepik OAuth
       window.location.href = authUrl;
