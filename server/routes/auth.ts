@@ -33,11 +33,12 @@ const authLimiter = rateLimit({
 
 // Validation schemas для auth роутов (Issue #7 & #10 FIX: Strong validation)
 const registerSchema = z.object({
-  email: validationRules.email.optional().or(z.literal('').transform(() => undefined)),
+  email: validationRules.email,
   password: validationRules.password, // Strong password: 12+ chars, upper/lower/number/special
   firstName: validationRules.firstName,
   lastName: validationRules.lastName,
-  phone: validationRules.phone,
+  phone: validationRules.phone.optional().or(z.literal('').transform(() => undefined)),
+  country: validationRules.country.optional(),
 });
 
 const loginSchema = z.object({
@@ -68,10 +69,6 @@ const authRouter = Router();
 authRouter.post('/register', authLimiter, async (req, res) => {
   try {
     const validatedData = registerSchema.parse(req.body);
-    // Очищаем пустой email, заменяя на undefined
-    if (validatedData.email === '') {
-      validatedData.email = undefined;
-    }
     // Issue #8 FIX: Secure logging (no passwords in logs)
     logger.info('Registration attempt', secureLogs.sanitize({ phone: validatedData.phone, email: validatedData.email }));
     const result = await authService.register(validatedData as any);

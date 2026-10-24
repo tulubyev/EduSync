@@ -33,8 +33,9 @@ export abstract class BaseService {
   /**
    * Валидация российского номера телефона
    */
-  protected validateRussianPhone(phone: string): boolean {
-    const phoneRegex = /^(\+7|8)[0-9]{10}$/;
+  protected validatePhone(phone: string): boolean {
+    // Международный формат E.164
+    const phoneRegex = /^\+[1-9][0-9]{7,14}$/;
     return phoneRegex.test(phone);
   }
 

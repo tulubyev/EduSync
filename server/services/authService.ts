@@ -54,10 +54,12 @@ export class AuthService {
       userData = firstNameOrUserData;
     }
 
-    // Check if user already exists by phone
-    const existingUserByPhone = await storage.getUserByPhone(userData.phone);
-    if (existingUserByPhone) {
-      throw new Error(`Этот номер телефона уже зарегистрирован. Войдите в систему с ним или введите другой контактный номер.`);
+    // Check if user already exists by phone (phone is optional)
+    if (userData.phone) {
+      const existingUserByPhone = await storage.getUserByPhone(userData.phone);
+      if (existingUserByPhone) {
+        throw new Error(`Этот номер телефона уже зарегистрирован. Войдите в систему с ним или введите другой контактный номер.`);
+      }
     }
 
     // Check if user already exists by email (if provided)
@@ -79,6 +81,7 @@ export class AuthService {
       const cleanUserData = {
         ...userDataWithoutPassword,
         email: userDataWithoutPassword.email || null,
+        phone: userDataWithoutPassword.phone || null,
         passwordHash,
       };
       const user = await storage.createUser(cleanUserData);

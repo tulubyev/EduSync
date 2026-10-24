@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Upload, Mail, Phone, BookOpen, Shield } from 'lucide-react';
 import { StepikConnectionPage } from './StepikConnectionPage';
 import { NotificationSettingsCard } from './NotificationSettingsCard';
+import { isValidInternationalPhone, normalizePhone } from '../../utils/phoneUtils';
 
 interface UserProfile {
   id: string;
@@ -102,9 +103,8 @@ export function SettingsPage() {
     if (!formData.firstName) newErrors.firstName = 'Имя обязательно';
     if (!formData.lastName) newErrors.lastName = 'Фамилия обязательна';
 
-    if (!formData.phone) newErrors.phone = 'Телефон обязателен';
-    else if (!/^[\d\s\-\+\(\)]{10,}$/.test(formData.phone)) {
-      newErrors.phone = 'Некорректный формат телефона';
+    if (formData.phone && !isValidInternationalPhone(normalizePhone(formData.phone))) {
+      newErrors.phone = 'Номер в международном формате: +, код страны и номер';
     }
 
     setErrors(newErrors);
@@ -180,7 +180,7 @@ export function SettingsPage() {
           email: formData.email,
           firstName: formData.firstName,
           lastName: formData.lastName,
-          phone: formData.phone,
+          phone: normalizePhone(formData.phone),
         }),
       });
 
@@ -408,7 +408,7 @@ export function SettingsPage() {
                 <div>
                   <label className="text-sm font-medium flex items-center gap-2 mb-2">
                     <Phone className="w-4 h-4" />
-                    Телефон
+                    Телефон (необязательно)
                   </label>
                   <input
                     type="tel"
