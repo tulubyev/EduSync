@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { LegalDocument } from './LegalDocument';
+import { useLang } from '../i18n';
 
 interface FooterPageProps {
   page: string;
@@ -18,6 +20,7 @@ export const PUBLIC_PAGE_PATHS: Record<string, string> = {
   '/privacy': 'privacy-policy',
   '/terms': 'terms-of-service',
   '/cookies': 'cookie-policy',
+  '/consent': 'consent',
   '/security': 'security',
 };
 
@@ -56,6 +59,7 @@ function ServiceStatus() {
 }
 
 export function FooterPage({ page, onBack }: FooterPageProps) {
+  const { t } = useLang();
   const renderContent = () => {
     switch (page) {
       case 'course-management':
@@ -297,122 +301,16 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
         );
 
       case 'privacy-policy':
-        return (
-          <>
-            <h1>Политика конфиденциальности</h1>
-            <p className="subtitle">Последнее обновление: ноябрь 2025</p>
-            
-            <section>
-              <h2>Сбор информации</h2>
-              <p>Мы собираем следующую информацию:</p>
-              <ul>
-                <li>Регистрационные данные (имя, email, телефон)</li>
-                <li>Данные о курсах с подключённых платформ</li>
-                <li>Статистика использования сервиса</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Использование данных</h2>
-              <p>Ваши данные используются для:</p>
-              <ul>
-                <li>Предоставления услуг платформы</li>
-                <li>Персонализации опыта</li>
-                <li>Улучшения качества сервиса</li>
-                <li>Связи с вами по техническим вопросам</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Защита данных</h2>
-              <ul>
-                <li>Все данные шифруются при передаче (HTTPS/TLS)</li>
-                <li>Пароли хранятся в хешированном виде</li>
-                <li>Доступ к данным ограничен</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Ваши права</h2>
-              <ul>
-                <li>Право на доступ к своим данным</li>
-                <li>Право на исправление данных</li>
-                <li>Право на удаление аккаунта и данных</li>
-                <li>Право на экспорт данных</li>
-              </ul>
-            </section>
-          </>
-        );
+        return <LegalDocument doc="privacy-policy" />;
 
       case 'terms-of-service':
-        return (
-          <>
-            <h1>Условия использования</h1>
-            <p className="subtitle">Последнее обновление: ноябрь 2025</p>
-            
-            <section>
-              <h2>1. Принятие условий</h2>
-              <p>Используя My EPA, вы соглашаетесь с данными условиями. Если вы не согласны, пожалуйста, не используйте сервис.</p>
-            </section>
-
-            <section>
-              <h2>2. Описание сервиса</h2>
-              <p>My EPA — платформа для агрегации и управления образовательными курсами с различных онлайн-платформ.</p>
-            </section>
-
-            <section>
-              <h2>3. Регистрация</h2>
-              <ul>
-                <li>Вы должны предоставить достоверную информацию</li>
-                <li>Вы несёте ответственность за безопасность аккаунта</li>
-                <li>Один аккаунт на пользователя</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>4. Правила использования</h2>
-              <p>Запрещается:</p>
-              <ul>
-                <li>Нарушать права других пользователей</li>
-                <li>Использовать сервис для незаконных целей</li>
-                <li>Пытаться получить несанкционированный доступ</li>
-                <li>Распространять вредоносное ПО</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>5. Ограничение ответственности</h2>
-              <p>Сервис предоставляется "как есть". Мы не несём ответственности за перебои в работе или потерю данных.</p>
-            </section>
-          </>
-        );
+        return <LegalDocument doc="terms" />;
 
       case 'cookie-policy':
-        return (
-          <>
-            <h1>Политика Cookie</h1>
-            <p className="subtitle">Информация об использовании cookie-файлов</p>
-            
-            <section>
-              <h2>Что такое cookie?</h2>
-              <p>Cookie — небольшие текстовые файлы, сохраняемые в вашем браузере для улучшения работы сайта.</p>
-            </section>
+        return <LegalDocument doc="cookies" />;
 
-            <section>
-              <h2>Типы используемых cookie</h2>
-              <ul>
-                <li><strong>Необходимые</strong> — для работы аутентификации и сессий</li>
-                <li><strong>Функциональные</strong> — для сохранения ваших настроек</li>
-                <li><strong>Аналитические</strong> — для улучшения сервиса</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Управление cookie</h2>
-              <p>Вы можете управлять cookie в настройках браузера. Отключение некоторых cookie может повлиять на работу сервиса.</p>
-            </section>
-          </>
-        );
+      case 'consent':
+        return <LegalDocument doc="consent" />;
 
       case 'security':
         return (
@@ -500,7 +398,7 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
             gap: '8px'
           }}
         >
-          ← На главную
+          ← {t({ ru: 'На главную', en: 'Home' })}
         </button>
       </header>
 
