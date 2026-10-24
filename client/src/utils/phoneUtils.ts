@@ -1,48 +1,17 @@
-// Утилиты для работы с российскими номерами телефонов
+// Утилиты для номеров телефонов в международном формате E.164
 
-// Маска для российского номера телефона
-export const phoneMask = (value: any) => {
-  if (!value) return value;
-  const phoneNumber = value.replace(/[^\d]/g, '');
-  
-  if (phoneNumber.length < 4) return phoneNumber;
-  if (phoneNumber.length < 7) return `+7 ${phoneNumber.slice(1, 4)} ${phoneNumber.slice(4)}`;
-  if (phoneNumber.length < 11) return `+7 ${phoneNumber.slice(1, 4)} ${phoneNumber.slice(4, 7)}-${phoneNumber.slice(7)}`;
-  return `+7 ${phoneNumber.slice(1, 4)} ${phoneNumber.slice(4, 7)}-${phoneNumber.slice(7, 9)}-${phoneNumber.slice(9, 11)}`;
-};
-
-// Функция для форматирования российского номера в международный формат
-export const formatPhoneToInternational = (phone: any) => {
-  if (!phone) return '';
-  const digits = phone.replace(/[^\d]/g, '');
-  if (digits.startsWith('8')) {
+// Приводит номер к международному формату E.164 (+ и цифры).
+// Российские 8XXXXXXXXXX и 7XXXXXXXXXX превращаются в +7XXXXXXXXXX, остальные номера
+// ожидаются с кодом страны. Пустая строка остаётся пустой.
+export const normalizePhone = (value: string): string => {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return '';
+  const digits = trimmed.replace(/[^\d]/g, '');
+  if (!trimmed.startsWith('+') && digits.length === 11 && (digits.startsWith('8') || digits.startsWith('7'))) {
     return '+7' + digits.slice(1);
   }
-  if (digits.startsWith('7')) {
-    return '+' + digits;
-  }
-  if (digits.startsWith('9')) {
-    return '+7' + digits;
-  }
-  return phone;
+  return '+' + digits;
 };
 
-// Валидация российского номера телефона
-export const validateRussianPhone = (phone: any) => {
-  if (!phone) return false;
-  
-  // Удаляем все символы кроме цифр
-  const cleanPhone = phone.replace(/[^\d]/g, '');
-  
-  // Проверяем что номер начинается с +7 или 7 или 8
-  if (phone.startsWith('+7')) {
-    const number = cleanPhone.slice(1); // убираем код страны 7
-    if (number.length !== 10) return false;
-    
-    // Проверяем что первая цифра номера корректная для российского мобильного
-    const firstDigit = number.charAt(0);
-    return ['9', '3', '4', '5', '8'].includes(firstDigit);
-  }
-  
-  return false;
-};
+// Проверка номера в формате E.164: + и от 8 до 15 цифр, первая — не ноль.
+export const isValidInternationalPhone = (phone: string): boolean => /^\+[1-9][0-9]{7,14}$/.test(phone);

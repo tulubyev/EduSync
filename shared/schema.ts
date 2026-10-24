@@ -16,7 +16,8 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   firstName: varchar("first_name", { length: 100 }).notNull(),
   lastName: varchar("last_name", { length: 100 }).notNull(),
-  phone: varchar("phone", { length: 20 }).notNull().unique(),
+  phone: varchar("phone", { length: 20 }).unique(), // E.164, необязательный
+  country: varchar("country", { length: 2 }), // ISO 3166-1 alpha-2, по нему выбирается контур хранения данных
   profileImageUrl: varchar("profile_image_url", { length: 500 }), // URL to profile image
   profileImage: text("profile_image"), // Base64 encoded WebP image
   role: varchar("role", { length: 20 }).default("user"), // user, admin

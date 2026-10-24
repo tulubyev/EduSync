@@ -230,8 +230,8 @@ export class UserService extends BaseService implements IUserService {
     }
 
     if (updates.phone) {
-      if (!this.validateRussianPhone(updates.phone)) {
-        throw new ValidationError('Некорректный формат российского номера телефона');
+      if (!this.validatePhone(updates.phone)) {
+        throw new ValidationError('Некорректный номер телефона: нужен международный формат, например +79001234567');
       }
       
       // Проверяем уникальность телефона

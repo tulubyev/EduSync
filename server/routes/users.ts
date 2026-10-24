@@ -65,8 +65,8 @@ router.post("/profile", authenticateToken as any, async (req: AuthRequest, res: 
 
     const { email, firstName, lastName, phone } = req.body;
 
-    // Validate required fields
-    if (!email || !firstName || !lastName || !phone) {
+    // Validate required fields (phone is optional)
+    if (!email || !firstName || !lastName) {
       return res.status(400).json({ message: "Отсутствуют необходимые поля" });
     }
 
@@ -101,7 +101,7 @@ router.post("/profile", authenticateToken as any, async (req: AuthRequest, res: 
         email,
         firstName,
         lastName,
-        phone,
+        phone: phone || null,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))
