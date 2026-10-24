@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { Check, Circle, Eye, EyeOff } from 'lucide-react';
 import { phoneMask, formatPhoneToInternational, validateRussianPhone } from '../utils/phoneUtils';
 
-export function AuthForm({ onAuthSuccess }: any) {
-  const [mode, setMode] = useState('login');
+export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
+  const [mode, setMode] = useState(initialMode);
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
@@ -170,6 +172,10 @@ export function AuthForm({ onAuthSuccess }: any) {
 
   const handleRegister = async (e: any) => {
     e.preventDefault();
+    if (!consentAccepted) {
+      alert('Чтобы создать аккаунт, примите условия и дайте согласие на обработку персональных данных');
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -260,7 +266,7 @@ export function AuthForm({ onAuthSuccess }: any) {
             fontWeight: '600',
             letterSpacing: '-0.5px'
           }}>
-            💎 My EPA
+            My EPA
           </h1>
           <p style={{ 
             margin: '0', 
@@ -292,7 +298,7 @@ export function AuthForm({ onAuthSuccess }: any) {
             }}
             data-testid="button-login-tab"
           >
-            🔑 Вход
+            Вход
           </button>
           <button
             onClick={() => setMode('register')}
@@ -310,7 +316,7 @@ export function AuthForm({ onAuthSuccess }: any) {
             }}
             data-testid="button-register-tab"
           >
-            ✨ Регистрация
+            Регистрация
           </button>
         </div>
 
@@ -321,9 +327,6 @@ export function AuthForm({ onAuthSuccess }: any) {
             <div>
               {/* Header */}
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>
-                  {resetStep === 'request' ? '🔑' : resetStep === 'verify' ? '📬' : '🔒'}
-                </div>
                 <h3 style={{ margin: 0, color: '#333', fontSize: '18px' }}>
                   {resetStep === 'request' && 'Восстановление пароля'}
                   {resetStep === 'verify' && 'Введите код'}
@@ -342,7 +345,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                 <form onSubmit={handleForgotPasswordRequest}>
                   <div style={{ marginBottom: '16px' }}>
                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>
-                      📧 Email или 📱 Телефон
+                      Email или телефон
                     </label>
                     <input
                       type="text"
@@ -371,13 +374,13 @@ export function AuthForm({ onAuthSuccess }: any) {
                             color: resetForm.method === m ? '#667eea' : '#6c757d', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
                           }}
                         >
-                          {m === 'email' ? '📧 Email' : '📱 SMS'}
+                          {m === 'email' ? 'Email' : 'SMS'}
                         </button>
                       ))}
                     </div>
                   </div>
                   <button type="submit" disabled={isLoading} style={{ width: '100%', padding: '12px', background: isLoading ? '#6c757d' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: isLoading ? 'not-allowed' : 'pointer' }}>
-                    {isLoading ? '⏳ Отправка...' : '📨 Отправить код'}
+                    {isLoading ? 'Отправка...' : 'Отправить код'}
                   </button>
                 </form>
               )}
@@ -402,7 +405,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                     />
                   </div>
                   <button type="submit" disabled={isLoading || resetForm.code.length < 6} style={{ width: '100%', padding: '12px', background: (isLoading || resetForm.code.length < 6) ? '#6c757d' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: (isLoading || resetForm.code.length < 6) ? 'not-allowed' : 'pointer' }}>
-                    {isLoading ? '⏳ Проверка...' : '✅ Подтвердить'}
+                    {isLoading ? 'Проверка...' : 'Подтвердить'}
                   </button>
                   <button type="button" onClick={() => setResetStep('request')} style={{ width: '100%', marginTop: '10px', padding: '10px', background: 'none', border: '1px solid #e9ecef', borderRadius: '8px', fontSize: '14px', color: '#6c757d', cursor: 'pointer' }}>
                     ← Отправить код повторно
@@ -414,7 +417,7 @@ export function AuthForm({ onAuthSuccess }: any) {
               {resetStep === 'new-password' && (
                 <form onSubmit={handleResetPassword}>
                   <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>🔐 Новый пароль</label>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>Новый пароль</label>
                     <div style={{ position: 'relative' }}>
                       <input
                         type={showNewPassword ? 'text' : 'password'}
@@ -427,19 +430,19 @@ export function AuthForm({ onAuthSuccess }: any) {
                         onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
                       />
                       <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#6c757d' }}>
-                        {showNewPassword ? '🙈' : '👁️'}
+                        {showNewPassword ? <EyeOff size={18} aria-label="Скрыть пароль" /> : <Eye size={18} aria-label="Показать пароль" />}
                       </button>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
                       {getPasswordRequirements(resetForm.newPassword).map((req, i) => (
                         <span key={i} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '12px', backgroundColor: req.met ? '#e8f5e9' : '#f8f9fa', color: req.met ? '#2e7d32' : '#9e9e9e', border: `1px solid ${req.met ? '#c8e6c9' : '#e0e0e0'}`, transition: 'all 0.3s' }}>
-                          {req.met ? '✅' : '⚪'} {req.label}
+                          {req.met ? <Check size={12} /> : <Circle size={12} />} {req.label}
                         </span>
                       ))}
                     </div>
                   </div>
                   <div style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>🔐 Повторите пароль</label>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>Повторите пароль</label>
                     <input
                       type="password"
                       value={resetForm.confirmPassword}
@@ -453,7 +456,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                     )}
                   </div>
                   <button type="submit" disabled={isLoading} style={{ width: '100%', padding: '12px', background: isLoading ? '#6c757d' : 'linear-gradient(135deg, #28a745 0%, #218838 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: isLoading ? 'not-allowed' : 'pointer' }}>
-                    {isLoading ? '⏳ Сохранение...' : '🔒 Сохранить пароль'}
+                    {isLoading ? 'Сохранение...' : 'Сохранить пароль'}
                   </button>
                 </form>
               )}
@@ -475,7 +478,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  📧 Email или 📱 Телефон
+                  Email или телефон
                 </label>
                 <input
                   type="text"
@@ -508,7 +511,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  🔐 Пароль
+                  Пароль
                 </label>
                 <div style={{ position: 'relative' }}>
                   <input
@@ -547,7 +550,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                     }}
                     data-testid="button-toggle-login-password"
                   >
-                    {showLoginPassword ? '🙈' : '👁️'}
+                    {showLoginPassword ? <EyeOff size={18} aria-label="Скрыть пароль" /> : <Eye size={18} aria-label="Показать пароль" />}
                   </button>
                 </div>
               </div>
@@ -580,7 +583,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                 }}
                 data-testid="button-submit-login"
               >
-                {isLoading ? '⏳ Вход...' : '🚀 Войти'}
+                {isLoading ? 'Вход...' : 'Войти'}
               </button>
             </form>
           ) : (
@@ -593,7 +596,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  👤 Имя
+                  Имя
                 </label>
                 <input
                   type="text"
@@ -625,7 +628,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  👨‍💼 Фамилия
+                  Фамилия
                 </label>
                 <input
                   type="text"
@@ -657,7 +660,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  📧 Email
+                  Email
                 </label>
                 <input
                   type="email"
@@ -689,7 +692,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  📱 Телефон
+                  Телефон
                 </label>
                 <input
                   type="tel"
@@ -721,7 +724,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  🔐 Пароль
+                  Пароль
                 </label>
                 <div style={{ position: 'relative' }}>
                   <input
@@ -760,7 +763,7 @@ export function AuthForm({ onAuthSuccess }: any) {
                     }}
                     data-testid="button-toggle-register-password"
                   >
-                    {showRegisterPassword ? '🙈' : '👁️'}
+                    {showRegisterPassword ? <EyeOff size={18} aria-label="Скрыть пароль" /> : <Eye size={18} aria-label="Показать пароль" />}
                   </button>
                 </div>
                 
@@ -787,31 +790,46 @@ export function AuthForm({ onAuthSuccess }: any) {
                         transition: 'all 0.3s ease'
                       }}
                     >
-                      {req.met ? '✅' : '⚪'} {req.label}
+                      {req.met ? <Check size={12} /> : <Circle size={12} />} {req.label}
                     </div>
                   ))}
                 </div>
               </div>
 
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '16px', fontSize: '13px', color: '#555', lineHeight: 1.4, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={consentAccepted}
+                  onChange={(e) => setConsentAccepted(e.target.checked)}
+                  required
+                  style={{ marginTop: '2px' }}
+                  data-testid="checkbox-register-consent"
+                />
+                <span>
+                  Я принимаю <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>условия использования</a> и
+                  даю согласие на обработку персональных данных в соответствии с <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>политикой конфиденциальности</a>
+                </span>
+              </label>
+
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !consentAccepted}
                 style={{
                   width: '100%',
                   padding: '12px',
-                  background: isLoading ? '#6c757d' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: isLoading || !consentAccepted ? '#6c757d' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '16px',
                   fontWeight: '600',
-                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  cursor: isLoading || !consentAccepted ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
                 }}
                 data-testid="button-submit-register"
               >
-                {isLoading ? '⏳ Регистрация...' : '🎉 Создать аккаунт'}
+                {isLoading ? 'Регистрация...' : 'Создать аккаунт'}
               </button>
             </form>
           )}
@@ -825,11 +843,8 @@ export function AuthForm({ onAuthSuccess }: any) {
             fontSize: '12px',
             color: '#6c757d'
           }}>
-            <p style={{ margin: '0 0 5px 0' }}>
-              🔒 Ваши данные надёжно защищены
-            </p>
             <p style={{ margin: '0 0 8px 0' }}>
-              Сертифицированная система безопасности
+              Соединение защищено HTTPS. <a href="/security" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>Как мы защищаем данные</a>
             </p>
             <p style={{ margin: '0', fontSize: '11px', opacity: '0.8' }}>
               Агрегатор Онлайн Обучения
