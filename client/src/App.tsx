@@ -4,6 +4,8 @@ import AdminPanel from './components/AdminPanel';
 import { AuthForm } from './components/AuthForm';
 import { LandingPage } from './components/LandingPage';
 import { FooterPage, PUBLIC_PAGE_PATHS } from './components/FooterPages';
+import { PartnersPage } from './components/PartnersPage';
+import { useLang } from './i18n';
 import { CoursesPage } from './components/courses/CoursesPage';
 import { DeadlinesPage } from './components/deadlines/DeadlinesPage';
 import { LibraryPage } from './components/library/LibraryPage';
@@ -62,6 +64,7 @@ function App() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [location, navigate] = useLocation();
+  const { t } = useLang();
 
   useEffect(() => {
     const savedUser = localStorage.getItem('currentUser');
@@ -131,6 +134,10 @@ function App() {
     );
   }
 
+  if (location === '/partners') {
+    return <PartnersPage />;
+  }
+
   const publicPage = PUBLIC_PAGE_PATHS[location];
   if (publicPage) {
     return <FooterPage page={publicPage} onBack={() => navigate('/')} />;
@@ -144,7 +151,7 @@ function App() {
             onClick={() => setShowAuthForm(false)}
             className="m-4 mb-0 sm:m-0 sm:absolute sm:top-5 sm:left-5 px-5 py-2.5 bg-white/90 text-gray-700 border-none rounded-lg text-sm font-medium cursor-pointer z-50 shadow-md hover:bg-white transition-colors"
           >
-            ← На главную
+            ← {t({ ru: 'На главную', en: 'Home' })}
           </button>
           <AuthForm key={authMode} initialMode={authMode} onAuthSuccess={handleAuthSuccess} />
         </div>
@@ -225,6 +232,19 @@ function App() {
   );
 }
 
+// Пункты меню кабинета (общие для боковой панели и мобильного меню)
+const navItems = [
+  { path: '/home', icon: Home, label: 'Главная' },
+  { path: '/courses', icon: BookOpen, label: 'Курсы' },
+  { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
+  { path: '/library', icon: FileText, label: 'Библиотека' },
+  { path: '/recordings', icon: Video, label: 'Записи' },
+  { path: '/platforms', icon: Globe, label: 'Платформы' },
+  { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
+  { path: '/subscription', icon: CreditCard, label: 'Подписка' },
+  { path: '/settings', icon: Settings, label: 'Настройки' },
+];
+
 interface SidebarProps {
   user: any;
   isOpen: boolean;
@@ -236,17 +256,6 @@ interface SidebarProps {
 function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProps) {
   const [location] = useLocation();
 
-  const navItems = [
-    { path: '/home', icon: Home, label: 'Главная' },
-    { path: '/courses', icon: BookOpen, label: 'Курсы' },
-    { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
-    { path: '/library', icon: FileText, label: 'Библиотека' },
-    { path: '/recordings', icon: Video, label: 'Записи' },
-    { path: '/platforms', icon: Globe, label: 'Платформы' },
-    { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
-    { path: '/subscription', icon: CreditCard, label: 'Подписка' },
-    { path: '/settings', icon: Settings, label: 'Настройки' },
-  ];
 
   return (
     <div className={`fixed left-0 top-0 h-full bg-white border-r border-gray-200 transition-all duration-300 z-40 ${isOpen ? 'w-64' : 'w-16'}`}>
@@ -361,17 +370,6 @@ interface MobileSidebarContentProps {
 function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarContentProps) {
   const [location] = useLocation();
 
-  const navItems = [
-    { path: '/home', icon: Home, label: 'Главная' },
-    { path: '/courses', icon: BookOpen, label: 'Курсы' },
-    { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
-    { path: '/library', icon: FileText, label: 'Библиотека' },
-    { path: '/recordings', icon: Video, label: 'Записи' },
-    { path: '/platforms', icon: Globe, label: 'Платформы' },
-    { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
-    { path: '/subscription', icon: CreditCard, label: 'Подписка' },
-    { path: '/settings', icon: Settings, label: 'Настройки' },
-  ];
 
   return (
     <div className="h-full bg-white flex flex-col">

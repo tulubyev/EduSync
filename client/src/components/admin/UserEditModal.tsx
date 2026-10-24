@@ -34,7 +34,7 @@ export function UserEditModal({ user, isOpen, onClose, onSave, onDelete }: UserE
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        phone: user.phone,
+        phone: user.phone || '',
         isEmailVerified: user.isEmailVerified,
         isPhoneVerified: user.isPhoneVerified,
       });

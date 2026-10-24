@@ -7,10 +7,12 @@ import { z } from 'zod';
 
 export const validationRules = {
   // Auth validation
+  // Международный формат E.164: + и от 8 до 15 цифр
   phone: z.string()
-    .regex(/^\+7[0-9]{10}$/, 'Invalid Russian phone format')
-    .min(11)
-    .max(12),
+    .regex(/^\+[1-9][0-9]{7,14}$/, 'Номер телефона в международном формате: +, код страны и номер'),
+
+  country: z.string()
+    .regex(/^[A-Z]{2}$/, 'Код страны ISO 3166-1 (две латинские буквы)'),
   
   password: z.string()
     .min(12, 'Password must be at least 12 characters')
