@@ -848,7 +848,9 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                 />
                 <span>
                   {t({ ru: 'Я принимаю', en: 'I accept the' })} <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>{t({ ru: 'условия использования', en: 'terms of use' })}</a>{' '}
-                  {t({ ru: 'и даю согласие на обработку персональных данных в соответствии с', en: 'and consent to the processing of my personal data under the' })}{' '}
+                  {t({ ru: 'и даю', en: 'and give my' })}{' '}
+                  <a href="/consent" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>{t({ ru: 'согласие на обработку персональных данных', en: 'consent to the processing of personal data' })}</a>{' '}
+                  {t({ ru: 'в соответствии с', en: 'under the' })}{' '}
                   <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>{t({ ru: 'политикой конфиденциальности', en: 'privacy policy' })}</a>
                 </span>
               </label>

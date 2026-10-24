@@ -11,3 +11,6 @@ attached_assets
 .secure-documents
 export_secrets.sh
 ecosystem.worker.config.cjs
+
+# Правовые документы: сайт показывает их на /privacy, /terms, /cookies, /consent
+!docs/legal/**/*.md
