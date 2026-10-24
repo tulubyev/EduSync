@@ -1,6 +1,6 @@
 # Data Exchange Agreement (Template) — My EPA and a Learning Platform
 
-Version of [DATE]. Parties: [OPERATOR NAME] (Tax ID (INN) [TAX ID (INN)]) — "My EPA" — and [PLATFORM NAME]
+Version of [DATE]. Parties: Limited Liability Company "Baikal Innovation Company" (LLC "BINNKO", Tax ID (INN) 3827044183) — "My EPA" — and [PLATFORM NAME]
 ([COMPANY DETAILS]) — the "Platform".
 
 ## 1. Subject Matter

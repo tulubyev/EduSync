@@ -1,7 +1,7 @@
 # Legal Representative's Consent to the Processing of a Child's Personal Data
 
 I, [FULL NAME OF LEGAL REPRESENTATIVE], email [EMAIL], being the [PARENT / ADOPTIVE PARENT / GUARDIAN / GUARDIAN OF A MINOR AGED 14–18]
-of the child [CHILD'S FULL NAME], [CHILD'S DATE OF BIRTH], give [OPERATOR NAME] (Tax ID (INN) [TAX ID (INN)], address: [ADDRESS])
+of the child [CHILD'S FULL NAME], [CHILD'S DATE OF BIRTH], give Limited Liability Company "Baikal Innovation Company" (LLC "BINNKO", Tax ID (INN) 3827044183, address: 10 Klyuchevaya St., Dzerzhinsk settlement, Irkutsk District, Irkutsk Region, 664510, Russia)
 consent to the processing of the child's personal data in the My EPA service on the terms of the "Consent to the Processing
 of Personal Data" (https://myepa.ru/consent), subject to the following:
 

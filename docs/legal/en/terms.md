@@ -1,10 +1,10 @@
 # My EPA User Agreement
 
-Version of [EFFECTIVE DATE].
+Version of 25 October 2026.
 
 ## 1. Parties and Subject Matter
 
-1.1. This Agreement is concluded between [OPERATOR NAME] (Tax ID (INN) [TAX ID (INN)], address: [ADDRESS]) — the "Operator" — and
+1.1. This Agreement is concluded between Limited Liability Company "Baikal Innovation Company" (LLC "BINNKO", Tax ID (INN) 3827044183, address: 10 Klyuchevaya St., Dzerzhinsk settlement, Irkutsk District, Irkutsk Region, 664510, Russia) — the "Operator" — and
 the user of the My EPA service (myepa.ru, epa-link.ru) — the "Service".
 
 1.2. The Service gathers the user's learning from various online platforms into a single calendar: courses, lessons, webinars,

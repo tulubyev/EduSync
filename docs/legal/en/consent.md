@@ -1,8 +1,8 @@
 # Consent to the Processing of Personal Data
 
 By ticking the box "I accept the terms and consent to the processing of personal data" when registering with the
-My EPA service, I freely, of my own will and in my own interest, give [OPERATOR NAME] (Tax ID (INN) [TAX ID (INN)],
-address: [ADDRESS]), hereinafter the "Operator", my consent to the processing of my personal data on the following terms.
+My EPA service, I freely, of my own will and in my own interest, give Limited Liability Company "Baikal Innovation Company" (LLC "BINNKO", Tax ID (INN) 3827044183,
+address: 10 Klyuchevaya St., Dzerzhinsk settlement, Irkutsk District, Irkutsk Region, 664510, Russia), hereinafter the "Operator", my consent to the processing of my personal data on the following terms.
 
 1. **Data:** first name, last name, email, phone number (if provided), country, profile photo (if uploaded), information
    about my learning (courses, lessons, webinars, deadlines, exams, progress, notes), technical data
