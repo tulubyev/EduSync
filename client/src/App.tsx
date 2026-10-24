@@ -8,6 +8,8 @@ import { PartnersPage } from './components/PartnersPage';
 import { useLang } from './i18n';
 import { CoursesPage } from './components/courses/CoursesPage';
 import { DeadlinesPage } from './components/deadlines/DeadlinesPage';
+import { CalendarPage } from './components/events/CalendarPage';
+import { TodayPanel } from './components/events/TodayPanel';
 import { LibraryPage } from './components/library/LibraryPage';
 import { PlatformsPage } from './components/platforms/PlatformsPage';
 import { AnalyticsPage } from './components/analytics/AnalyticsPage';
@@ -19,6 +21,7 @@ import { Sheet, SheetContent, SheetTrigger } from './components/ui/sheet';
 import { 
   BookOpen, 
   Calendar, 
+  CalendarDays,
   FileText, 
   Globe, 
   BarChart3, 
@@ -216,6 +219,7 @@ function App() {
           <Route path="/" component={() => <Dashboard user={currentUser} />} />
           <Route path="/home" component={() => <Dashboard user={currentUser} />} />
           <Route path="/courses" component={CoursesPage} />
+          <Route path="/calendar" component={CalendarPage} />
           <Route path="/deadlines" component={DeadlinesPage} />
           <Route path="/library" component={LibraryPage} />
           <Route path="/platforms" component={PlatformsPage} />
@@ -235,6 +239,7 @@ function App() {
 // Пункты меню кабинета (общие для боковой панели и мобильного меню)
 const navItems = [
   { path: '/home', icon: Home, label: 'Главная' },
+  { path: '/calendar', icon: CalendarDays, label: 'Календарь' },
   { path: '/courses', icon: BookOpen, label: 'Курсы' },
   { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
   { path: '/library', icon: FileText, label: 'Библиотека' },
@@ -464,7 +469,6 @@ function Dashboard({ user }: { user: any }) {
     deadlines: 0,
   });
   const [recentCourses, setRecentCourses] = useState<any[]>([]);
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -492,11 +496,6 @@ function Dashboard({ user }: { user: any }) {
 
       if (deadlinesRes.ok) {
         const deadlines = await deadlinesRes.json();
-        const upcoming = deadlines
-          .filter((d: any) => d.status !== 'completed')
-          .sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-          .slice(0, 3);
-        setUpcomingDeadlines(upcoming);
         setStats(prev => ({
           ...prev,
           deadlines: deadlines.filter((d: any) => d.status !== 'completed').length,
@@ -508,7 +507,7 @@ function Dashboard({ user }: { user: any }) {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Привет, {user.firstName}! 👋</h1>
         <p className="text-gray-600 mt-1">Вот что происходит с вашим обучением сегодня</p>
@@ -522,6 +521,7 @@ function Dashboard({ user }: { user: any }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TodayPanel />
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -550,33 +550,6 @@ function Dashboard({ user }: { user: any }) {
           )}
         </div>
 
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-orange-600" />
-              Ближайшие дедлайны
-            </h2>
-            <Link href="/deadlines">
-              <div className="text-sm text-purple-600 hover:text-purple-700 cursor-pointer">Все дедлайны →</div>
-            </Link>
-          </div>
-          
-          {upcomingDeadlines.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p>Нет активных дедлайнов</p>
-              <Link href="/deadlines">
-                <div className="inline-block mt-3 text-purple-600 hover:text-purple-700 cursor-pointer">Добавить дедлайн</div>
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {upcomingDeadlines.map((deadline) => (
-                <DashboardDeadlineCard key={deadline.id} deadline={deadline} />
-              ))}
-            </div>
-          )}
-        </div>
       </div>
 
       <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -629,44 +602,6 @@ function DashboardCourseCard({ course }: { course: any }) {
           ></div>
         </div>
         <span className="text-xs text-gray-500 mt-1">{Math.round(progress)}%</span>
-      </div>
-    </div>
-  );
-}
-
-function DashboardDeadlineCard({ deadline }: { deadline: any }) {
-  const dueDate = new Date(deadline.dueDate);
-  const now = new Date();
-  const daysLeft = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  
-  const priorityColors: Record<string, string> = {
-    'high': '#dc3545',
-    'medium': '#ffc107',
-    'low': '#28a745'
-  };
-
-  return (
-    <div 
-      className="p-4 bg-gray-50 rounded-lg"
-      style={{ borderLeftWidth: '4px', borderLeftColor: priorityColors[deadline.priority] || '#667eea' }}
-    >
-      <div className="flex justify-between items-start">
-        <div>
-          <h4 className="font-medium text-gray-800">{deadline.title}</h4>
-          {deadline.course && (
-            <p className="text-sm text-gray-500 mt-0.5">{deadline.course.title}</p>
-          )}
-        </div>
-        <span className={`text-xs px-2 py-1 rounded font-medium ${
-          daysLeft <= 0 ? 'bg-red-100 text-red-700' :
-          daysLeft <= 1 ? 'bg-orange-100 text-orange-700' :
-          daysLeft <= 7 ? 'bg-yellow-100 text-yellow-700' :
-          'bg-gray-100 text-gray-700'
-        }`}>
-          {daysLeft <= 0 ? 'Просрочено' :
-           daysLeft === 1 ? 'Завтра' :
-           `${daysLeft} дн.`}
-        </span>
       </div>
     </div>
   );

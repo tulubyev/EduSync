@@ -11,7 +11,7 @@
     "worker": "NODE_ENV=production tsx server/recording-worker.ts",
     "worker:dev": "NODE_ENV=development tsx server/recording-worker.ts",
     "check": "tsc",
-    "test": "node --import tsx --test server/middleware/*.test.ts server/services/*.test.ts server/services/helpRecorder/*.test.ts client/src/components/recording/*.test.ts client/src/utils/*.test.ts",
+    "test": "node --import tsx --test server/middleware/*.test.ts server/services/*.test.ts server/services/helpRecorder/*.test.ts client/src/components/recording/*.test.ts client/src/components/events/*.test.ts client/src/utils/*.test.ts shared/*.test.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

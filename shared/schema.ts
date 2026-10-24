@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb, uuid, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb, uuid, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -153,6 +153,7 @@ export const externalCourses = pgTable("external_courses", {
   platformCourseIdx: index("external_courses_platform_idx").on(table.platformId),
   externalIdIdx: index("external_courses_external_id_idx").on(table.externalCourseId),
   userPlatformIdx: index("external_courses_user_platform_idx").on(table.userId, table.platformId),
+  userExternalUniq: uniqueIndex("external_courses_user_external_uniq").on(table.externalCourseId, table.userId),
 }));
 
 // Course Deadlines table - Deadlines from external platforms
@@ -231,6 +232,40 @@ export const deadlines = pgTable("deadlines", {
   courseDeadlineIdx: index("deadlines_course_idx").on(table.courseId),
   dueDateIdx: index("deadlines_due_date_idx").on(table.dueDate),
   statusIdx: index("deadlines_status_idx").on(table.status),
+}));
+
+// Learning Events — единая лента ученика: уроки, вебинары, задания, экзамены и дедлайны всех курсов (#17).
+// Ручные события и события площадок лежат вместе; создаётся скриптом scripts/sql/2026-10-25-learning-events.sql
+export const learningEvents = pgTable("learning_events", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  type: varchar("type", { length: 20 }).notNull().default("deadline"), // lesson, webinar, assignment, exam, deadline
+  title: varchar("title", { length: 500 }).notNull(),
+  description: text("description"),
+  startsAt: timestamp("starts_at").notNull(), // UTC; у дедлайна — срок сдачи
+  durationMinutes: integer("duration_minutes"),
+  timeZone: varchar("time_zone", { length: 50 }), // пояс, в котором событие задано
+  programTitle: varchar("program_title", { length: 500 }),
+  moduleTitle: varchar("module_title", { length: 500 }),
+  courseId: uuid("course_id").references(() => courses.id, { onDelete: "set null" }),
+  platformId: uuid("platform_id").references(() => platforms.id, { onDelete: "set null" }),
+  lessonUrl: varchar("lesson_url", { length: 1000 }),
+  materialsUrl: varchar("materials_url", { length: 1000 }),
+  joinUrl: varchar("join_url", { length: 1000 }), // вход на вебинар
+  source: varchar("source", { length: 50 }).notNull().default("manual"), // manual или код площадки (stepik, …), ical
+  externalId: varchar("external_id", { length: 255 }),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, completed, cancelled
+  priority: varchar("priority", { length: 20 }).notNull().default("medium"), // low, medium, high, urgent
+  completedAt: timestamp("completed_at"),
+  reminderAt: timestamp("reminder_at"),
+  recordingTaskId: uuid("recording_task_id").references(() => recordingTasks.id, { onDelete: "set null" }),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userStartsIdx: index("learning_events_user_starts_idx").on(table.userId, table.startsAt),
+  courseIdx: index("learning_events_course_idx").on(table.courseId),
+  sourceUniq: uniqueIndex("learning_events_source_uniq").on(table.userId, table.source, table.externalId),
 }));
 
 // Library table - User library materials for courses
@@ -726,6 +761,9 @@ export type InsertCourse = z.infer<typeof insertCourseSchema>;
 
 export type Deadline = typeof deadlines.$inferSelect;
 export type InsertDeadline = z.infer<typeof insertDeadlineSchema>;
+
+export type LearningEvent = typeof learningEvents.$inferSelect;
+export type InsertLearningEvent = typeof learningEvents.$inferInsert;
 
 export type Note = typeof library.$inferSelect;
 export type InsertNote = z.infer<typeof insertNoteSchema>;
