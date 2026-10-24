@@ -1,10 +1,10 @@
 # My EPA Personal Data Processing Policy
 
-Version of [EFFECTIVE DATE].
+Version of 25 October 2026.
 
 ## 1. General Provisions
 
-1.1. This Policy describes how [OPERATOR NAME] (Tax ID (INN) [TAX ID (INN)], OGRN/OGRNIP [OGRN], address: [ADDRESS]),
+1.1. This Policy describes how Limited Liability Company "Baikal Innovation Company" (LLC "BINNKO", Tax ID (INN) 3827044183, OGRN 1143850002680, address: 10 Klyuchevaya St., Dzerzhinsk settlement, Irkutsk District, Irkutsk Region, 664510, Russia),
 hereinafter the "Operator", processes the personal data of users of the My EPA service (the websites myepa.ru and
 epa-link.ru, hereinafter the "Service").
 
@@ -58,8 +58,8 @@ Data is transferred only for the purposes set out in Section 3 and only to the e
 | Recipient | Purpose | Where it processes data |
 |---|---|---|
 | Learning platforms that the user has connected themselves | obtaining schedules, materials and progress | at the platform's location |
-| Help Recorder (recorder.help) | recording webinars at the user's request | [COUNTRY] |
-| [HOSTING PROVIDER] | hosting the server and database | Russia |
+| Help Recorder (recorder.help) | recording webinars at the user's request | Russia |
+| VPS hosting provider | hosting the server and database | Russia |
 | Beget LLC (beget.com) | file storage, sending emails | Russia |
 | Yandex LLC | file storage on Yandex Disk (if selected) | Russia |
 | SMS.ru | sending SMS | Russia |
@@ -98,7 +98,7 @@ functions of the Service remain available.
 | Platform access keys | until the user disconnects the platform or deletes the account |
 | Webinar recordings | according to the Help Recorder plan; deleted together with the account |
 | Payment information | 5 years, as required for accounting and tax purposes |
-| Technical logs | up to [PERIOD] days |
+| Technical logs | up to 30 days |
 
 ## 9. User Rights
 
@@ -128,7 +128,7 @@ European level, and the user may not have the same means of protecting their rig
 10.3. Additional rights: the right to data portability, the right to object to processing based on legitimate
 interest, and the right to lodge a complaint with the supervisory authority of their country.
 
-10.4. Representative in the EU (Art. 27 GDPR): [EU REPRESENTATIVE OR "NOT APPOINTED"].
+10.4. Representative in the EU (Art. 27 GDPR): not appointed.
 
 ## 11. Children
 
@@ -142,7 +142,7 @@ country (from 13 to 16 years, Art. 8 GDPR); below that age, parental consent is 
 
 The Operator applies legal, organizational and technical measures: encryption of connections (HTTPS), storage of
 passwords only as hashes, encryption of platform access keys, restriction of staff access,
-limiting the number of login attempts[, BACKUPS — TO BE CONFIRMED]. The Operator notifies Roskomnadzor and users of security breaches affecting personal
+limiting the number of login attempts, daily encrypted backups of the database. The Operator notifies Roskomnadzor and users of security breaches affecting personal
 data within the time limits established by law.
 
 ## 13. Cookies
