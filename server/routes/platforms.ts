@@ -3,6 +3,8 @@ import { storage } from "../storage";
 import { authenticateToken } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminAuth";
 import { encryptionService } from "../services/EncryptionService";
+import stepikService from "../services/stepikService";
+import { createStepikState } from "../services/stepikOAuthState";
 
 interface AuthRequest extends Request {
   user?: { id: string; role?: string | null };
@@ -233,9 +235,10 @@ router.post('/connect', authenticateToken as any, async (req: AuthRequest, res: 
 
     if (platform.apiType === 'oauth' && platform.code === 'stepik') {
       const stepikClientId = process.env.STEPIK_CLIENT_ID;
-      if (stepikClientId) {
-        const redirectUri = `${(process.env.APP_URL || 'http://localhost:5000').replace(/\/+$/, '')}/auth/stepik/callback`;
-        const authUrl = `https://stepik.org/oauth2/authorize/?client_id=${stepikClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
+      const jwtSecret = process.env.JWT_SECRET;
+      if (stepikClientId && jwtSecret) {
+        // Тот же адрес возврата и тот же подписанный state, что и в /api/stepik/auth-url
+        const authUrl = stepikService.getAuthorizationUrl(createStepikState(userId, jwtSecret));
         return res.json({ 
           success: true, 
           authUrl,

@@ -28,7 +28,7 @@ export function OAuthCallbackHandler() {
         }
 
         // Call backend callback with code
-        const response = await fetch(`/api/stepik/callback?code=${code}&state=${state}`, {
+        const response = await fetch(`/api/stepik/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

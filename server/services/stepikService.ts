@@ -12,6 +12,13 @@ const STEPIK_API_BASE = 'https://stepik.org/api';
 const STEPIK_OAUTH_BASE = 'https://stepik.org/oauth2';
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 
+// Единственный адрес возврата после входа на Stepik: клиентская страница OAuthCallbackHandler,
+// которая передаёт code и state в GET /api/stepik/callback. Ровно этот адрес должен быть указан
+// в настройках приложения на stepik.org (Redirect URI).
+export function getStepikRedirectUri(): string {
+  return `${(process.env.APP_URL || 'http://localhost:5000').replace(/\/+$/, '')}/auth/stepik/callback`;
+}
+
 interface StepikTokenPair {
   accessToken: string;
   refreshToken: string;
@@ -94,7 +101,7 @@ class StepikService {
     const params = new URLSearchParams({
       client_id: this.clientId,
       response_type: 'code',
-      redirect_uri: `${(process.env.API_BASE_URL || process.env.APP_URL || 'http://localhost:5000')}/api/platforms/stepik/callback`,
+      redirect_uri: getStepikRedirectUri(),
       state,
     });
 
@@ -109,7 +116,7 @@ class StepikService {
       const data = querystring.stringify({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: `${(process.env.API_BASE_URL || process.env.APP_URL || 'http://localhost:5000')}/api/platforms/stepik/callback`,
+        redirect_uri: getStepikRedirectUri(),
         client_id: this.clientId,
         client_secret: this.clientSecret,
       });
@@ -127,6 +134,10 @@ class StepikService {
         res.on('end', () => {
           try {
             const response = JSON.parse(body);
+            if (!response.access_token) {
+              reject(new Error(`Stepik token error: ${response.error_description || response.error || res.statusCode}`));
+              return;
+            }
             resolve({
               accessToken: response.access_token,
               refreshToken: response.refresh_token,
@@ -170,6 +181,10 @@ class StepikService {
         res.on('end', () => {
           try {
             const response = JSON.parse(body);
+            if (!response.access_token) {
+              reject(new Error(`Stepik token refresh error: ${response.error_description || response.error || res.statusCode}`));
+              return;
+            }
             resolve({
               accessToken: response.access_token,
               refreshToken: response.refresh_token || refreshToken,
