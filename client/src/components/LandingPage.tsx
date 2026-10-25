@@ -3,7 +3,8 @@ import {
   BarChart3, BellRing, BookOpen, Briefcase, CalendarDays, GraduationCap, LayoutDashboard, Link2, School, UserRound
 } from 'lucide-react';
 import { pathForPage } from './FooterPages';
-import { useLang, type Lang } from '../i18n';
+import { useLang } from '../i18n';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface LandingPageProps {
   onLoginClick: () => void;
@@ -118,24 +119,7 @@ const footerLinks = [
 const primaryButton =
   'rounded-lg bg-gradient-to-br from-[#667eea] to-[#764ba2] px-6 py-3 font-medium text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg';
 
-export function LanguageSwitcher() {
-  const { lang, setLang } = useLang();
-  const options: Lang[] = ['ru', 'en'];
-  return (
-    <div className="flex overflow-hidden rounded-lg border border-gray-300 text-xs font-medium" role="group" aria-label="Language">
-      {options.map(option => (
-        <button
-          key={option}
-          onClick={() => setLang(option)}
-          aria-pressed={lang === option}
-          className={`px-2.5 py-1.5 uppercase transition ${lang === option ? 'bg-[#667eea] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-        >
-          {option}
-        </button>
-      ))}
-    </div>
-  );
-}
+export { LanguageSwitcher };
 
 export function LandingPage({ onLoginClick, onRegisterClick }: LandingPageProps) {
   const { t } = useLang();

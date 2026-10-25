@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { Plus, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { EVENT_TYPE_LABELS, draftWallInput, parseQuickEvent } from '@shared/learningEvents';
+import { draftWallInput, parseQuickEvent } from '@shared/learningEvents';
+import { useLang } from '@/i18n';
 import { zonedInputToUtcIso, type TimeZoneChoice } from '../recording/timezones';
 import { createEvent } from './eventsApi';
 import { emptyEventForm, type EventFormValues } from './EventFormDialog';
@@ -17,6 +18,8 @@ interface QuickAddEventProps {
 
 /** Быстрый ввод одной строкой: «Вебинар по Python завтра в 19:00 1ч https://…» */
 export function QuickAddEvent({ timeZone, onAdded, onOpenForm }: QuickAddEventProps) {
+  const { m, lang } = useLang();
+  const q = m.events.quick;
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +56,7 @@ export function QuickAddEvent({ timeZone, onAdded, onOpenForm }: QuickAddEventPr
       setText('');
       onAdded();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось добавить');
+      setError(e instanceof Error ? e.message : q.errAdd);
     } finally {
       setSaving(false);
     }
@@ -68,23 +71,23 @@ export function QuickAddEvent({ timeZone, onAdded, onOpenForm }: QuickAddEventPr
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Например: Вебинар по Python завтра в 19:00 1ч"
-          aria-label="Быстрое добавление события"
+          placeholder={q.placeholder}
+          aria-label={q.aria}
           maxLength={1000}
         />
-        <Button type="submit" disabled={!draft || saving} className="shrink-0" aria-label="Добавить">
-          <Plus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Добавить</span>
+        <Button type="submit" disabled={!draft || saving} className="shrink-0" aria-label={m.common.add}>
+          <Plus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">{m.common.add}</span>
         </Button>
       </form>
       {draft && (
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
-          <span className="font-medium text-gray-800">{EVENT_TYPE_LABELS[draft.type]}</span>
-          <span>{dayTitle(wall.slice(0, 10))}, {draft.time ? wall.slice(11) : `${wall.slice(11)} (время не указано)`}</span>
-          {draft.durationMinutes && <span>{draft.durationMinutes} мин</span>}
+          <span className="font-medium text-gray-800">{m.events.types[draft.type]}</span>
+          <span>{dayTitle(wall.slice(0, 10), lang)}, {draft.time ? wall.slice(11) : `${wall.slice(11)} (${q.noTime})`}</span>
+          {draft.durationMinutes && <span>{m.common.minutes(draft.durationMinutes)}</span>}
           {draft.url && <span className="max-w-[16rem] truncate">{draft.url}</span>}
-          {!draft.title && <span className="text-orange-600">нет названия</span>}
+          {!draft.title && <span className="text-orange-600">{q.noTitle}</span>}
           <button type="button" onClick={() => onOpenForm(toForm())} className="inline-flex items-center gap-1 text-purple-700 hover:underline">
-            <SlidersHorizontal className="h-3.5 w-3.5" /> Подробнее
+            <SlidersHorizontal className="h-3.5 w-3.5" /> {q.more}
           </button>
         </div>
       )}

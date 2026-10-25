@@ -6,11 +6,13 @@ import { TIME_ZONE_OPTIONS, useRecordingTimeZone, type TimeZoneChoice } from '..
 import { EventCard, EVENT_COLORS } from './EventCard';
 import { fetchEvents, type LearningEventDto } from './eventsApi';
 import {
-  WEEKDAYS_SHORT, dayKeyOf, dayStartUtc, dayTitle, fromKey, monthGridKeys, monthTitle, shiftKey, toKey, todayIn,
+  weekdaysShort, dayKeyOf, dayStartUtc, dayTitle, fromKey, monthGridKeys, monthTitle, shiftKey, toKey, todayIn,
   weekKeys, weekTitle, type DayKey,
 } from './eventTime';
 import { QuickAddEvent } from './QuickAddEvent';
 import { useEventDialogs } from './useEventDialogs';
+import { useLang } from '@/i18n';
+import { tzOptionLabel } from './tzLabels';
 
 type View = 'week' | 'month';
 const VIEW_KEY = 'calendar.view';
@@ -22,6 +24,8 @@ function readView(): View {
 /** Календарь ученика «Неделя / Месяц»: уроки, вебинары, задания, экзамены и дедлайны всех курсов (#17) */
 export function CalendarPage() {
   const [timeZone, setTimeZone] = useRecordingTimeZone();
+  const { m, lang } = useLang();
+  const c = m.events.calendar;
   const [view, setViewState] = useState<View>(readView);
   const todayKey = toKey(todayIn(timeZone));
   const [anchor, setAnchor] = useState<DayKey>(todayKey);
@@ -46,7 +50,7 @@ export function CalendarPage() {
     setError(null);
     fetchEvents(dayStartUtc(days[0], timeZone), dayStartUtc(shiftKey(days[days.length - 1], 1), timeZone))
       .then((list) => { if (!cancelled) setEvents(list); })
-      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Ошибка загрузки'); })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : m.common.loadError); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [days, timeZone, reloadKey]);
@@ -79,7 +83,7 @@ export function CalendarPage() {
     <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-          <CalendarDays className="h-6 w-6 text-purple-600" /> Календарь
+          <CalendarDays className="h-6 w-6 text-purple-600" /> {c.title}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5" role="tablist">
@@ -92,14 +96,14 @@ export function CalendarPage() {
                 onClick={() => setView(v)}
                 className={`rounded-md px-3 py-1.5 text-sm ${view === v ? 'bg-purple-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
               >
-                {v === 'week' ? 'Неделя' : 'Месяц'}
+                {v === 'week' ? c.week : c.month}
               </button>
             ))}
           </div>
           <Select value={timeZone} onValueChange={(v) => setTimeZone(v as TimeZoneChoice)}>
-            <SelectTrigger className="w-auto min-w-[10rem]" aria-label="Часовой пояс"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-auto min-w-[10rem]" aria-label={c.timeZone}><SelectValue /></SelectTrigger>
             <SelectContent>
-              {TIME_ZONE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              {TIME_ZONE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{tzOptionLabel(o.value, m)}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -111,15 +115,15 @@ export function CalendarPage() {
 
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" onClick={() => step(-1)} aria-label="Назад"><ChevronLeft className="h-4 w-4" /></Button>
-          <Button variant="outline" onClick={goToday}>Сегодня</Button>
-          <Button variant="outline" size="icon" onClick={() => step(1)} aria-label="Вперёд"><ChevronRight className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" onClick={() => step(-1)} aria-label={m.common.back}><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="outline" onClick={goToday}>{m.common.today}</Button>
+          <Button variant="outline" size="icon" onClick={() => step(1)} aria-label={m.common.forward}><ChevronRight className="h-4 w-4" /></Button>
         </div>
-        <h2 className="text-right font-semibold text-gray-800">{view === 'week' ? weekTitle(anchor) : monthTitle(anchor)}</h2>
+        <h2 className="text-right font-semibold text-gray-800">{view === 'week' ? weekTitle(anchor, lang) : monthTitle(anchor, lang)}</h2>
       </div>
 
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-      {loading && events.length === 0 && <p className="text-sm text-gray-500">Загрузка…</p>}
+      {loading && events.length === 0 && <p className="text-sm text-gray-500">{m.common.loading}</p>}
 
       {view === 'week' ? (
         <div className="space-y-4">
@@ -128,9 +132,9 @@ export function CalendarPage() {
             return (
               <section key={key}>
                 <h3 className={`mb-2 text-sm font-semibold ${key === todayKey ? 'text-purple-700' : 'text-gray-600'}`}>
-                  {dayTitle(key)}{key === todayKey ? ' · сегодня' : ''}
+                  {dayTitle(key, lang)}{key === todayKey ? ` · ${c.todayMark}` : ''}
                 </h3>
-                {list.length === 0 ? <p className="text-sm text-gray-400">Нет событий</p> : <div className="grid gap-2">{list.map(card)}</div>}
+                {list.length === 0 ? <p className="text-sm text-gray-400">{c.empty}</p> : <div className="grid gap-2">{list.map(card)}</div>}
               </section>
             );
           })}
@@ -138,7 +142,7 @@ export function CalendarPage() {
       ) : (
         <>
           <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-gray-200 bg-gray-200 text-sm" style={{ gap: 1 }}>
-            {WEEKDAYS_SHORT.map((w) => <div key={w} className="bg-gray-50 py-1 text-center text-xs font-medium text-gray-500">{w}</div>)}
+            {weekdaysShort(lang).map((w) => <div key={w} className="bg-gray-50 py-1 text-center text-xs font-medium text-gray-500">{w}</div>)}
             {days.map((key) => {
               const list = byDay.get(key) ?? [];
               const d = fromKey(key);
@@ -148,7 +152,7 @@ export function CalendarPage() {
                   type="button"
                   onClick={() => setSelected(key)}
                   className={`flex min-h-[3.5rem] min-w-0 flex-col items-stretch justify-start bg-white p-1 text-left sm:min-h-[5.5rem] ${d.month !== currentMonth ? 'text-gray-400' : 'text-gray-800'} ${selected === key ? 'ring-2 ring-inset ring-purple-500' : ''}`}
-                  aria-label={`${dayTitle(key)}: событий ${list.length}`}
+                  aria-label={c.dayAria(dayTitle(key, lang), list.length)}
                 >
                   <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${key === todayKey ? 'bg-purple-600 text-white' : ''}`}>{d.day}</span>
                   <div className="mt-0.5 flex flex-wrap gap-0.5 sm:hidden">
@@ -160,16 +164,16 @@ export function CalendarPage() {
                         {e.title}
                       </div>
                     ))}
-                    {list.length > 3 && <div className="px-1 text-xs text-gray-500">ещё {list.length - 3}</div>}
+                    {list.length > 3 && <div className="px-1 text-xs text-gray-500">{c.more(list.length - 3)}</div>}
                   </div>
                 </button>
               );
             })}
           </div>
           <section className="mt-4">
-            <h3 className="mb-2 text-sm font-semibold text-gray-600">{dayTitle(selected)}</h3>
+            <h3 className="mb-2 text-sm font-semibold text-gray-600">{dayTitle(selected, lang)}</h3>
             {(byDay.get(selected) ?? []).length === 0
-              ? <p className="text-sm text-gray-400">Нет событий</p>
+              ? <p className="text-sm text-gray-400">{c.empty}</p>
               : <div className="grid gap-2">{(byDay.get(selected) ?? []).map(card)}</div>}
           </section>
         </>

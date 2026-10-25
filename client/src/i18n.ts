@@ -1,25 +1,37 @@
 import { useSyncExternalStore } from 'react';
+import { LANGS, isLang, pickLang, type Lang } from '@shared/languages';
+import { MESSAGES, type Messages } from './locales';
 
-// Языки публичной части сайта. Кабинет пока только на русском.
-export type Lang = 'ru' | 'en';
+// Языки кабинета и сайта: shared/languages.ts. Тексты кабинета — словари client/src/locales,
+// тексты публичных страниц пока заданы на месте: { ru, en } и, где переведено, остальные языки.
+export type { Lang };
+export { LANGS };
 
 const STORAGE_KEY = 'myepa-lang';
 const listeners = new Set<() => void>();
+const onChange = new Set<(lang: Lang) => void>();
 
 function detectLang(): Lang {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === 'ru' || saved === 'en') return saved;
+    if (isLang(saved)) return saved;
   } catch {
     // localStorage недоступен — берём язык браузера
   }
-  return typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+  if (typeof navigator === 'undefined') return 'ru';
+  return pickLang(navigator.languages?.length ? navigator.languages : [navigator.language ?? '']);
 }
 
 let currentLang: Lang = detectLang();
 if (typeof document !== 'undefined') document.documentElement.lang = currentLang;
 
-export function setLang(lang: Lang) {
+export function getLang(): Lang {
+  return currentLang;
+}
+
+/** Сменить язык; user — выбор ученика (сохраняется в профиле), а не язык из профиля при входе */
+export function setLang(lang: Lang, opts: { user?: boolean } = {}) {
+  if (lang === currentLang) return;
   currentLang = lang;
   try {
     localStorage.setItem(STORAGE_KEY, lang);
@@ -28,6 +40,13 @@ export function setLang(lang: Lang) {
   }
   document.documentElement.lang = lang;
   listeners.forEach(listener => listener());
+  if (opts.user) onChange.forEach(fn => fn(lang));
+}
+
+/** Подписка на выбор языка учеником — кабинет сохраняет его в профиле */
+export function onUserLangChange(fn: (lang: Lang) => void): () => void {
+  onChange.add(fn);
+  return () => { onChange.delete(fn); };
 }
 
 function subscribe(listener: () => void) {
@@ -35,11 +54,12 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-// Текст на двух языках: { ru: '…', en: '…' }
-export type Text = Record<Lang, string>;
+// Текст публичной части: русский и английский обязательны, остальные языки — когда переведены (иначе английский)
+export type Text = { ru: string; en: string } & Partial<Record<Lang, string>>;
 
 export function useLang() {
   const lang = useSyncExternalStore(subscribe, () => currentLang, () => currentLang);
-  const t = (text: Text) => text[lang];
-  return { lang, setLang, t };
+  const t = (text: Text) => text[lang] ?? text.en;
+  const m: Messages = MESSAGES[lang];
+  return { lang, setLang, t, m };
 }

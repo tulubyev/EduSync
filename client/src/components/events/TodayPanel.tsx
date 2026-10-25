@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { Sun } from 'lucide-react';
 import { DUE_TYPES } from '@shared/learningEvents';
 import { useRecordingTimeZone } from '../recording/timezones';
+import { useLang } from '@/i18n';
 import { EventCard } from './EventCard';
 import { fetchEvents, isPast, type LearningEventDto } from './eventsApi';
 import { dayKeyOf, dayStartUtc, shiftKey, toKey, todayIn } from './eventTime';
@@ -15,6 +16,7 @@ const OVERDUE_DAYS = 30;
 /** «Сегодня» на главной: просроченное, события дня и ближайшие на неделю, быстрый ввод */
 export function TodayPanel() {
   const [timeZone] = useRecordingTimeZone();
+  const { m } = useLang();
   const [events, setEvents] = useState<LearningEventDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -25,7 +27,7 @@ export function TodayPanel() {
   useEffect(() => {
     fetchEvents(dayStartUtc(shiftKey(todayKey, -OVERDUE_DAYS), timeZone), dayStartUtc(shiftKey(todayKey, NEXT_DAYS + 1), timeZone))
       .then((list) => { setEvents(list); setError(null); })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Ошибка загрузки'));
+      .catch((e) => setError(e instanceof Error ? e.message : m.common.loadError));
   }, [todayKey, timeZone, reloadKey]);
 
   const overdue = events.filter((e) => DUE_TYPES.includes(e.type) && e.status === 'pending' && isPast(e) && dayKeyOf(e.startsAt, timeZone) < todayKey);
@@ -44,10 +46,10 @@ export function TodayPanel() {
     <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-800">
-          <Sun className="h-5 w-5 text-orange-500" /> Сегодня
+          <Sun className="h-5 w-5 text-orange-500" /> {m.events.today.title}
         </h2>
         <Link href="/calendar">
-          <span className="cursor-pointer text-sm text-purple-600 hover:text-purple-700">Календарь →</span>
+          <span className="cursor-pointer text-sm text-purple-600 hover:text-purple-700">{m.events.today.calendarLink}</span>
         </Link>
       </div>
       <QuickAddEvent timeZone={timeZone} onAdded={reload} onOpenForm={openNew} />
@@ -55,18 +57,18 @@ export function TodayPanel() {
 
       {overdue.length > 0 && (
         <div className="mt-4">
-          <h3 className="mb-2 text-sm font-semibold text-red-700">Просрочено</h3>
+          <h3 className="mb-2 text-sm font-semibold text-red-700">{m.events.today.overdue}</h3>
           {list(overdue, true)}
         </div>
       )}
       <div className="mt-4">
         {today.length === 0
-          ? <p className="text-sm text-gray-500">На сегодня ничего нет.</p>
+          ? <p className="text-sm text-gray-500">{m.events.today.nothing}</p>
           : list(today)}
       </div>
       {next.length > 0 && (
         <div className="mt-4">
-          <h3 className="mb-2 text-sm font-semibold text-gray-600">Дальше на неделе</h3>
+          <h3 className="mb-2 text-sm font-semibold text-gray-600">{m.events.today.later}</h3>
           {list(next, true)}
         </div>
       )}

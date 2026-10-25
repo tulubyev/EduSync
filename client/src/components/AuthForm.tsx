@@ -209,6 +209,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
           email: registerForm.email,
           phone: formattedPhone || undefined,
           country: registerForm.country || undefined,
+          language: lang,
           password: registerForm.password
         })
       });
