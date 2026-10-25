@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EVENT_TYPES, EVENT_TYPE_LABELS, type EventPriority, type EventType } from '@shared/learningEvents';
 import { timeZoneShort, utcToZonedInput, zonedInputToUtcIso, type TimeZoneChoice } from '../recording/timezones';
+import { authService } from '@/services/authService';
 import { createEvent, updateEvent, type EventInput, type LearningEventDto } from './eventsApi';
 
 /** Поля формы; start — на часах выбранного пояса («2026-10-25T19:00») */
@@ -15,6 +16,7 @@ export interface EventFormValues {
   title: string;
   start: string;
   durationMinutes: string;
+  courseId: string;
   programTitle: string;
   moduleTitle: string;
   lessonUrl: string;
@@ -25,7 +27,7 @@ export interface EventFormValues {
 }
 
 export const emptyEventForm = (start = ''): EventFormValues => ({
-  type: 'deadline', title: '', start, durationMinutes: '', programTitle: '', moduleTitle: '',
+  type: 'deadline', title: '', start, durationMinutes: '', courseId: '', programTitle: '', moduleTitle: '',
   lessonUrl: '', materialsUrl: '', joinUrl: '', priority: 'medium', description: '',
 });
 
@@ -35,6 +37,7 @@ export function eventToForm(e: LearningEventDto, tz: TimeZoneChoice): EventFormV
     title: e.title,
     start: utcToZonedInput(e.startsAt, tz),
     durationMinutes: e.durationMinutes ? String(e.durationMinutes) : '',
+    courseId: e.courseId ?? '',
     programTitle: e.programTitle ?? '',
     moduleTitle: e.moduleTitle ?? '',
     lessonUrl: e.lessonUrl ?? '',
@@ -44,6 +47,8 @@ export function eventToForm(e: LearningEventDto, tz: TimeZoneChoice): EventFormV
     description: e.description ?? '',
   };
 }
+
+const NO_COURSE = 'none';
 
 const PRIORITY_LABELS: Record<EventPriority, string> = { low: 'Низкая', medium: 'Обычная', high: 'Высокая', urgent: 'Срочно' };
 
@@ -61,14 +66,30 @@ export function EventFormDialog({ open, onClose, onSaved, timeZone, event, initi
   const [form, setForm] = useState<EventFormValues>(emptyEventForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [courses, setCourses] = useState<Array<{ id: string; title: string }>>([]);
   const fromPlatform = !!event && event.source !== 'manual';
 
   useEffect(() => {
     if (open) {
       setForm(event ? eventToForm(event, timeZone) : initial ?? emptyEventForm());
       setError(null);
+      // курсы ученика — чтобы связать событие с программой
+      authService.authenticatedFetch('/api/courses')
+        .then((r) => (r.ok ? r.json() : []))
+        .then((list) => setCourses(Array.isArray(list) ? list.map((c: any) => ({ id: c.id, title: c.title })) : []))
+        .catch(() => setCourses([]));
     }
   }, [open]);
+
+  const chooseCourse = (id: string) => {
+    const course = courses.find((c) => c.id === id);
+    setForm((f) => ({
+      ...f,
+      courseId: course ? course.id : '',
+      // название программы подставляется из курса, если ученик не задал своё
+      programTitle: course && (!f.programTitle || courses.some((c) => c.title === f.programTitle)) ? course.title : f.programTitle,
+    }));
+  };
 
   const set = <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -85,6 +106,7 @@ export function EventFormDialog({ open, onClose, onSaved, timeZone, event, initi
       title: form.title.trim(),
       startsAt,
       durationMinutes: duration,
+      courseId: form.courseId || null,
       programTitle: form.programTitle,
       moduleTitle: form.moduleTitle,
       lessonUrl: form.lessonUrl,
@@ -151,9 +173,21 @@ export function EventFormDialog({ open, onClose, onSaved, timeZone, event, initi
               <Input id="ev-duration" inputMode="numeric" value={form.durationMinutes} onChange={(e) => set('durationMinutes', e.target.value)} placeholder="60" />
             </div>
           </div>
+          {courses.length > 0 && (
+            <div>
+              <Label>Курс</Label>
+              <Select value={form.courseId || NO_COURSE} onValueChange={(v) => chooseCourse(v === NO_COURSE ? '' : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_COURSE}>Без курса</SelectItem>
+                  {courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <Label htmlFor="ev-program">Программа или курс</Label>
+              <Label htmlFor="ev-program">Программа</Label>
               <Input id="ev-program" value={form.programTitle} onChange={(e) => set('programTitle', e.target.value)} maxLength={500} />
             </div>
             <div>

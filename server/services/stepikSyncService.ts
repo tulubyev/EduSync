@@ -1,6 +1,7 @@
 import { db } from "../db";
-import { externalCourses, platformConnections } from "../../shared/schema";
+import { platformConnections } from "../../shared/schema";
 import { eventStorage } from "../storage/EventStorage";
+import { courseStorage } from "../storage/CourseStorage";
 import { eq, and } from "drizzle-orm";
 import stepikService from "./stepikService";
 
@@ -118,38 +119,24 @@ class StepikSyncService {
       for (const stepikCourse of stepikCourses) {
         const progress = progressMap.get((stepikCourse as any).progress);
         
-        // Upsert course
-        await db
-          .insert(externalCourses)
-          .values({
-            userId,
-            platformId,
-            externalCourseId: String(stepikCourse.id),
-            title: stepikCourse.title,
-            description: stepikCourse.summary || stepikCourse.description,
-            imageUrl: stepikCourse.cover || null,
-            courseUrl: `https://stepik.org/course/${stepikCourse.id}`,
-            progress: progress ? Math.round((progress.nStepsPassed / progress.nSteps) * 100) : 0,
-            isCompleted: progress?.isPassed ?? false,
-            startDate: stepikCourse.beginDate ? new Date(stepikCourse.beginDate) : null,
-            endDate: stepikCourse.endDate ? new Date(stepikCourse.endDate) : null,
+        // курс — в общую таблицу программ ученика (courses), как у любой площадки
+        const course = await courseStorage.upsertSourceCourse(userId, 'stepik', platformId, {
+          externalId: String(stepikCourse.id),
+          title: stepikCourse.title,
+          description: stepikCourse.summary || stepikCourse.description,
+          imageUrl: stepikCourse.cover || null,
+          courseUrl: `https://stepik.org/course/${stepikCourse.id}`,
+          progress: progress && progress.nSteps ? (progress.nStepsPassed / progress.nSteps) * 100 : 0,
+          isCompleted: progress?.isPassed ?? false,
+          startedAt: stepikCourse.beginDate ? new Date(stepikCourse.beginDate) : null,
+          metadata: {
+            slug: stepikCourse.slug,
             language: stepikCourse.language,
-            certificateAvailable: stepikCourse.certificateRegularThreshold > 0,
             workload: stepikCourse.workload,
-            metadata: { slug: stepikCourse.slug },
-            lastSyncedAt: new Date(),
-          })
-          .onConflictDoUpdate({
-            target: [externalCourses.externalCourseId, externalCourses.userId],
-            set: {
-              title: stepikCourse.title,
-              description: stepikCourse.summary || stepikCourse.description,
-              imageUrl: stepikCourse.cover || null,
-              progress: progress ? Math.round((progress.nStepsPassed / progress.nSteps) * 100) : 0,
-              isCompleted: progress?.isPassed ?? false,
-              lastSyncedAt: new Date(),
-            },
-          });
+            endDate: stepikCourse.endDate ?? null,
+            certificateAvailable: stepikCourse.certificateRegularThreshold > 0,
+          },
+        });
 
         // 8. Get and sync deadlines for this course
         try {
@@ -166,6 +153,7 @@ class StepikSyncService {
               startsAt: new Date(section.softDeadline || section.hardDeadline),
               programTitle: stepikCourse.title,
               moduleTitle: section.title,
+              courseId: course.id,
               lessonUrl: `https://stepik.org/course/${stepikCourse.id}/syllabus`,
               metadata: { sectionId: section.id, position: section.position, deadlineType: section.softDeadline ? 'soft' : 'hard' },
             })));

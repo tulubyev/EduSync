@@ -37,6 +37,8 @@ interface Course {
   isFavorite: boolean;
   platformId?: string;
   platformName?: string;
+  /** manual или код площадки, с которой курс получен (stepik, …) */
+  source?: string;
   cost?: number | null;
   tags?: string[];
 }
@@ -140,10 +142,10 @@ export function CourseCard({
             )}
           </div>
           <div className="flex items-center gap-1">
-            <Button
+            {onToggleFavorite && <Button
               variant="ghost"
               size="icon"
-              onClick={() => onToggleFavorite?.(course.id)}
+              onClick={() => onToggleFavorite(course.id)}
               className="h-8 w-8"
             >
               {course.isFavorite ? (
@@ -151,7 +153,7 @@ export function CourseCard({
               ) : (
                 <StarOff className="h-4 w-4 text-gray-400" />
               )}
-            </Button>
+            </Button>}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -159,23 +161,27 @@ export function CourseCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit?.(course)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Редактировать
-                </DropdownMenuItem>
+                {onEdit && (
+                  <DropdownMenuItem onClick={() => onEdit(course)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Редактировать
+                  </DropdownMenuItem>
+                )}
                 {course.courseUrl && (
                   <DropdownMenuItem onClick={() => window.open(course.courseUrl, '_blank')}>
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Открыть на платформе
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem 
-                  onClick={() => onDelete?.(course.id)}
-                  className="text-red-600"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Удалить
-                </DropdownMenuItem>
+                {onDelete && (!course.source || course.source === 'manual') && (
+                  <DropdownMenuItem 
+                    onClick={() => onDelete(course.id)}
+                    className="text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Удалить
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -203,6 +209,11 @@ export function CourseCard({
               {course.platformName}
             </Badge>
           )}
+          {course.source && course.source !== 'manual' && !course.platformName && (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              {course.source === 'stepik' ? 'Stepik' : course.source}
+            </Badge>
+          )}
           {course.category && (
             <Badge variant="outline">{course.category}</Badge>
           )}
@@ -223,7 +234,7 @@ export function CourseCard({
         </div>
 
         <div className="flex gap-2 mt-4">
-          {course.status !== 'completed' && (
+          {onUpdateStatus && course.status !== 'completed' && (
             <>
               <Button 
                 variant="outline" 

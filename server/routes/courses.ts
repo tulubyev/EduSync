@@ -2,6 +2,8 @@ import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { authenticateToken } from "../middleware/auth";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
+import { db } from "../db";
 
 const router = Router();
 
@@ -19,7 +21,6 @@ const courseSchema = z.object({
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
   duration: z.number().int().positive().optional(),
   platformId: z.string().uuid().optional(),
-  externalCourseId: z.string().optional(),
   tags: z.array(z.string()).optional(),
 });
 
@@ -30,32 +31,34 @@ const updateCourseSchema = courseSchema.partial().extend({
 });
 
 // Get all available courses from catalog (public, for all users)
-router.get('/catalog/all', async (req: Request, res: Response) => {
+// Каталог курсов: обезличенный справочник (#17) — без id, владельцев, тегов и заметок учеников.
+// Только курсы со ссылкой: с площадок или добавленные хотя бы двумя учениками.
+router.get('/catalog/all', authenticateToken as any, async (_req: AuthRequest, res: Response) => {
   try {
-    const { db } = await import("../db");
-    const schema = await import("@shared/schema");
-    const coursesTable = schema.courses;
-    const usersTable = schema.users;
-    
-    const coursesData = await db.select().from(coursesTable).limit(500);
-    
-    const enriched = coursesData.map((course: any) => ({
-      id: course.id,
-      title: course.title,
-      description: course.description,
-      instructor: course.instructor,
-      imageUrl: course.imageUrl,
-      courseUrl: course.courseUrl,
-      category: course.category,
-      difficulty: course.difficulty,
-      duration: course.duration,
-      platformId: course.platformId,
-      externalCourseId: course.externalCourseId,
-      tags: course.tags,
-      isFromCatalog: !course.userId || course.userId === 'system'
-    }));
-    
-    res.json(enriched);
+    const result = await db.execute(sql`
+      SELECT DISTINCT ON (c.course_url)
+             c.title, c.course_url, c.image_url, c.category, c.difficulty, c.platform_id, c.source
+      FROM courses c
+      WHERE c.course_url IS NOT NULL
+        AND (c.source <> 'manual'
+             OR c.course_url IN (SELECT course_url FROM courses WHERE course_url IS NOT NULL
+                                 GROUP BY course_url HAVING count(DISTINCT user_id) >= 2))
+      ORDER BY c.course_url, c.updated_at DESC
+      LIMIT 500`);
+    res.json(result.rows.map((r: any) => ({
+      id: `catalog:${r.course_url}`,
+      title: r.title,
+      imageUrl: r.image_url,
+      courseUrl: r.course_url,
+      category: r.category,
+      difficulty: r.difficulty,
+      platformId: r.platform_id,
+      source: r.source,
+      progress: '0',
+      status: 'not_started',
+      isFavorite: false,
+      isFromCatalog: true,
+    })));
   } catch (error) {
     console.error('Error fetching course catalog:', error);
     res.status(500).json({ message: 'Ошибка получения каталога курсов' });
@@ -171,6 +174,11 @@ router.delete('/:id', authenticateToken as any, async (req: AuthRequest, res: Re
     
     if (existingCourse.userId !== req.user!.id) {
       return res.status(403).json({ message: 'Доступ запрещён' });
+    }
+
+    // курс площадки вернулся бы при следующей синхронизации — он уходит вместе с отключением площадки
+    if (existingCourse.source !== 'manual') {
+      return res.status(409).json({ message: 'Курс получен с площадки. Чтобы убрать его, отключите площадку в настройках.' });
     }
     
     await storage.deleteCourse(id);
