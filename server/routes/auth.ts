@@ -1,4 +1,6 @@
 import { Router, type Request, type Response } from "express";
+import { placeRegistration, DATA_REGION_LABELS } from "@shared/dataRegions";
+import { regionDeployment } from "../services/dataRegion";
 import { authService } from "../services/authService";
 import { twoFactorService } from "../services/twoFactorService";
 import { smsService } from "../services/smsService";
@@ -69,9 +71,23 @@ const authRouter = Router();
 authRouter.post('/register', authLimiter, async (req, res) => {
   try {
     const validatedData = registerSchema.parse(req.body);
+    // Контур хранения данных по стране ученика: свой контур открыт в другом месте — регистрация там
+    const placement = placeRegistration(validatedData.country, regionDeployment);
+    if (placement.action === 'redirect') {
+      return res.status(409).json({
+        code: 'region_redirect',
+        region: placement.homeRegion,
+        url: placement.url,
+        message: `Для вашей страны данные хранятся в контуре «${DATA_REGION_LABELS[placement.homeRegion]}». Зарегистрируйтесь на ${placement.url}`,
+      });
+    }
     // Issue #8 FIX: Secure logging (no passwords in logs)
     logger.info('Registration attempt', secureLogs.sanitize({ phone: validatedData.phone, email: validatedData.email }));
-    const result = await authService.register(validatedData as any);
+    const result = await authService.register({
+      ...validatedData,
+      homeRegion: placement.homeRegion,
+      dataRegion: placement.dataRegion,
+    } as any);
     logger.info('Registration successful', { userId: result.user.id });
     
     res.cookie('refreshToken', result.tokens.refreshToken, {

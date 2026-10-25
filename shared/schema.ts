@@ -18,6 +18,9 @@ export const users = pgTable("users", {
   lastName: varchar("last_name", { length: 100 }).notNull(),
   phone: varchar("phone", { length: 20 }).unique(), // E.164, необязательный
   country: varchar("country", { length: 2 }), // ISO 3166-1 alpha-2, по нему выбирается контур хранения данных
+  // Контур хранения персональных данных (shared/dataRegions.ts): где должны храниться по закону страны и где хранятся
+  homeRegion: varchar("home_region", { length: 10 }),
+  dataRegion: varchar("data_region", { length: 10 }).notNull().default("ru"),
   profileImageUrl: varchar("profile_image_url", { length: 500 }), // URL to profile image
   profileImage: text("profile_image"), // Base64 encoded WebP image
   role: varchar("role", { length: 20 }).default("user"), // user, admin

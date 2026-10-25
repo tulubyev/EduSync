@@ -220,6 +220,15 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
         onAuthSuccess(data.user);
       } else {
         const errorData = await response.json();
+        // данные ученика этой страны хранятся в другом региональном контуре — регистрация там
+        if (response.status === 409 && errorData.code === 'region_redirect' && /^https:\/\//.test(errorData.url || '')) {
+          const go = window.confirm(t({
+            ru: `Для вашей страны учётная запись создаётся на сайте ${errorData.url}. Перейти?`,
+            en: `Accounts for your country are created at ${errorData.url}. Go there now?`,
+          }));
+          if (go) window.location.href = errorData.url;
+          return;
+        }
         alert(errorData.message || t({ ru: 'Ошибка регистрации', en: 'Registration failed' }));
       }
     } catch (error: any) {
