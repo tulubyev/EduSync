@@ -201,10 +201,14 @@ export const courses = pgTable("courses", {
   cost: decimal("cost", { precision: 10, scale: 2 }), // course cost, null = free
   tags: text("tags").array(), // custom user tags
   metadata: jsonb("metadata"), // additional course data from platform
+  // Программа ученика (#17): ручная (manual) или с площадки (код площадки, например stepik) — одна таблица для всех
+  source: varchar("source", { length: 50 }).notNull().default("manual"),
+  lastSyncedAt: timestamp("last_synced_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   userCourseIdx: index("courses_user_idx").on(table.userId),
+  sourceUniq: uniqueIndex("courses_user_source_external_uniq").on(table.userId, table.source, table.externalCourseId),
   platformCourseIdx: index("courses_platform_idx").on(table.platformId),
   statusIdx: index("courses_status_idx").on(table.status),
   categoryIdx: index("courses_category_idx").on(table.category),

@@ -15,6 +15,7 @@ export interface SourceEventInput {
   timeZone?: string | null;
   programTitle?: string | null;
   moduleTitle?: string | null;
+  courseId?: string | null;
   lessonUrl?: string | null;
   materialsUrl?: string | null;
   joinUrl?: string | null;
@@ -85,6 +86,7 @@ export class EventStorage {
       timeZone: i.timeZone ?? null,
       programTitle: i.programTitle ?? null,
       moduleTitle: i.moduleTitle ?? null,
+      courseId: i.courseId ?? null,
       lessonUrl: i.lessonUrl ?? null,
       materialsUrl: i.materialsUrl ?? null,
       joinUrl: i.joinUrl ?? null,
@@ -105,6 +107,7 @@ export class EventStorage {
           timeZone: excluded("time_zone"),
           programTitle: excluded("program_title"),
           moduleTitle: excluded("module_title"),
+          courseId: excluded("course_id"),
           platformId: excluded("platform_id"),
           lessonUrl: excluded("lesson_url"),
           materialsUrl: excluded("materials_url"),
@@ -129,3 +132,8 @@ export async function deleteOrCancelEvent(events: EventStorage, id: string): Pro
 }
 
 export const eventStorage = new EventStorage();
+
+/** Удалить все события источника у ученика (площадка отключена) */
+export async function deleteSourceEvents(userId: string, source: string): Promise<void> {
+  await db.delete(learningEvents).where(and(eq(learningEvents.userId, userId), eq(learningEvents.source, source)));
+}

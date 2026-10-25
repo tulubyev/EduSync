@@ -72,8 +72,12 @@ export function CoursesPage() {
         setCourses(coursesData);
       }
       
-      // Fetch catalog courses (public, available to all)
-      const catalogResponse = await fetch('/api/courses/catalog/all');
+      // Каталог — обезличенный справочник курсов (только после входа)
+      const catalogResponse = await fetch('/api/courses/catalog/all', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       if (catalogResponse.ok) {
         const catalogData = await catalogResponse.json();
         setCatalogCourses(catalogData);
@@ -169,7 +173,9 @@ export function CoursesPage() {
     });
     
     if (!response.ok) {
-      throw new Error('Ошибка удаления курса');
+      const data = await response.json().catch(() => ({}));
+      alert((data as any).message || 'Ошибка удаления курса');
+      return;
     }
     
     await fetchData();
@@ -391,16 +397,21 @@ export function CoursesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayCourses.map((course) => (
-            <CourseCard
-              key={course.id}
-              course={course}
-              onEdit={(c) => setEditingCourse(c)}
-              onDelete={handleDeleteCourse}
-              onToggleFavorite={handleToggleFavorite}
-              onUpdateProgress={handleUpdateProgress}
-              onUpdateStatus={handleUpdateStatus}
-              onShowSimilar={(c) => setSelectedCourseForSimilar(c)}
-            />
+            viewMode === 'catalog' ? (
+              // в каталоге чужих курсов нет действий над ними — только открыть и похожие
+              <CourseCard key={course.id} course={course} onShowSimilar={(c) => setSelectedCourseForSimilar(c)} />
+            ) : (
+              <CourseCard
+                key={course.id}
+                course={course}
+                onEdit={(c) => setEditingCourse(c)}
+                onDelete={handleDeleteCourse}
+                onToggleFavorite={handleToggleFavorite}
+                onUpdateProgress={handleUpdateProgress}
+                onUpdateStatus={handleUpdateStatus}
+                onShowSimilar={(c) => setSelectedCourseForSimilar(c)}
+              />
+            )
           ))}
         </div>
       )}

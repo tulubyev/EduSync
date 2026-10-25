@@ -1,6 +1,8 @@
 import { Router, Request, Response } from "express";
 import { db } from "../db";
-import { platforms, platformConnections, externalCourses } from "../../shared/schema";
+import { platforms, platformConnections } from "../../shared/schema";
+import { courseStorage } from "../storage/CourseStorage";
+import { deleteSourceEvents } from "../storage/EventStorage";
 import { authenticateToken } from "../middleware/auth";
 import stepikService from "../services/stepikService";
 import stepikSyncService from "../services/stepikSyncService";
@@ -234,12 +236,20 @@ router.get('/courses', authenticateToken as any, async (req: AuthRequest, res: R
 
     console.log(`📚 Fetching Stepik courses for user ${userId}`);
 
-    const courses = await db.query.externalCourses.findMany({
-      where: and(
-        eq(externalCourses.userId, userId),
-        eq(externalCourses.platformId, 'stepik') // Will be replaced with actual platformId
-      ),
-    });
+    const rows = await courseStorage.getSourceCourses(userId, 'stepik');
+    // форма ответа прежняя — её ждёт страница подключения Stepik
+    const courses = rows.map((c) => ({
+      id: c.id,
+      externalCourseId: c.externalCourseId,
+      title: c.title,
+      description: c.description,
+      progress: Math.round(Number(c.progress ?? 0)),
+      isCompleted: c.status === 'completed',
+      courseUrl: c.courseUrl,
+      imageUrl: c.imageUrl,
+      startDate: c.startedAt,
+      endDate: (c.metadata as { endDate?: string | null } | null)?.endDate ?? null,
+    }));
 
     res.json({
       courses,
@@ -287,13 +297,7 @@ router.get('/status', authenticateToken as any, async (req: AuthRequest, res: Re
     }
 
     // Get course count
-    const courseCount = await db.$count(
-      externalCourses,
-      and(
-        eq(externalCourses.userId, userId),
-        eq(externalCourses.platformId, stepikPlatform.id)
-      )
-    );
+    const courseCount = (await courseStorage.getSourceCourses(userId, 'stepik')).length;
 
     res.json({
       connected: connection.connectionStatus === 'active',
@@ -343,14 +347,9 @@ router.post('/disconnect', authenticateToken as any, async (req: AuthRequest, re
         )
       );
 
-    // Delete synced courses
-    await db.delete(externalCourses)
-      .where(
-        and(
-          eq(externalCourses.userId, userId),
-          eq(externalCourses.platformId, stepikPlatform.id)
-        )
-      );
+    // данные площадки уходят вместе с подключением: её курсы и события ленты
+    await deleteSourceEvents(userId, 'stepik');
+    await courseStorage.deleteSourceCourses(userId, 'stepik');
 
     console.log(`🔌 Disconnected user ${userId} from Stepik`);
 
