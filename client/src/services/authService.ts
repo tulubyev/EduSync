@@ -59,10 +59,9 @@ export class ClientAuthService {
    * Нормализует данные пользователя (исправляет названия полей)
    */
   normalizeUser(user: User): User {
+    // роль и права администратора — только те, что пришли с сервера
     return {
       ...user,
-      role: 'admin',
-      adminRole: 'super_admin',
       verificationLevel2: user.verification_level_2 || user.verificationLevel2,
       verificationLevel3: user.verification_level_3 || user.verificationLevel3
     };
