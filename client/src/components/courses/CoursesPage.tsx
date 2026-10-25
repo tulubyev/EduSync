@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CourseCard } from './CourseCard';
 import { AddCourseModal } from './AddCourseModal';
 import { SimilarCoursesModal } from './SimilarCoursesModal';
+import { CatalogView, type CatalogCourse } from './CatalogView';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -41,7 +42,7 @@ interface Platform {
 
 export function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
-  const [catalogCourses, setCatalogCourses] = useState<Course[]>([]);
+  const [catalogCourses, setCatalogCourses] = useState<CatalogCourse[]>([]);
   const [platforms, setPlatforms] = useState<Record<string, Platform>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +138,27 @@ export function CoursesPage() {
       throw new Error('Ошибка создания курса');
     }
     
+    await fetchData();
+  };
+
+  // Курс из каталога → в свои: копируются только поля справочника
+  const handleAddFromCatalog = async (c: CatalogCourse) => {
+    const token = localStorage.getItem('accessToken');
+    const body: Record<string, unknown> = { title: c.title };
+    if (c.courseUrl) body.courseUrl = c.courseUrl;
+    if (c.imageUrl) body.imageUrl = c.imageUrl;
+    if (c.category) body.category = c.category;
+    if (c.difficulty) body.difficulty = c.difficulty;
+    if (c.platformId) body.platformId = c.platformId;
+    const response = await fetch('/api/courses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error((data as any).message || 'Не удалось добавить курс');
+    }
     await fetchData();
   };
 
@@ -293,7 +315,7 @@ export function CoursesPage() {
     );
   }
 
-  const displayCourses = viewMode === 'catalog' ? catalogCourses : filteredCourses;
+  const displayCourses = filteredCourses;
   
   return (
     <div className="container mx-auto py-6 px-4">
@@ -376,18 +398,23 @@ export function CoursesPage() {
         </>
       )}
 
-      {displayCourses.length === 0 ? (
+      {viewMode === 'catalog' ? (
+        <CatalogView
+          courses={catalogCourses}
+          platforms={platforms}
+          myCourseUrls={new Set(courses.map((c) => c.courseUrl).filter((u): u is string => !!u))}
+          onAdd={handleAddFromCatalog}
+        />
+      ) : displayCourses.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-center">
           <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium">Курсы не найдены</h3>
           <p className="text-muted-foreground mb-4">
-            {viewMode === 'catalog' 
-              ? 'Каталог курсов пока пуст'
-              : (searchQuery || statusFilter !== 'all' || categoryFilter !== 'all'
-                ? 'Попробуйте изменить фильтры поиска'
-                : 'Добавьте свой первый курс')}
+            {searchQuery || statusFilter !== 'all' || categoryFilter !== 'all'
+              ? 'Попробуйте изменить фильтры поиска'
+              : 'Добавьте свой первый курс'}
           </p>
-          {viewMode === 'my' && !searchQuery && statusFilter === 'all' && categoryFilter === 'all' && (
+          {!searchQuery && statusFilter === 'all' && categoryFilter === 'all' && (
             <Button onClick={() => setIsModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Добавить курс
@@ -397,21 +424,16 @@ export function CoursesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayCourses.map((course) => (
-            viewMode === 'catalog' ? (
-              // в каталоге чужих курсов нет действий над ними — только открыть и похожие
-              <CourseCard key={course.id} course={course} onShowSimilar={(c) => setSelectedCourseForSimilar(c)} />
-            ) : (
-              <CourseCard
-                key={course.id}
-                course={course}
-                onEdit={(c) => setEditingCourse(c)}
-                onDelete={handleDeleteCourse}
-                onToggleFavorite={handleToggleFavorite}
-                onUpdateProgress={handleUpdateProgress}
-                onUpdateStatus={handleUpdateStatus}
-                onShowSimilar={(c) => setSelectedCourseForSimilar(c)}
-              />
-            )
+            <CourseCard
+              key={course.id}
+              course={course}
+              onEdit={(c) => setEditingCourse(c)}
+              onDelete={handleDeleteCourse}
+              onToggleFavorite={handleToggleFavorite}
+              onUpdateProgress={handleUpdateProgress}
+              onUpdateStatus={handleUpdateStatus}
+              onShowSimilar={(c) => setSelectedCourseForSimilar(c)}
+            />
           ))}
         </div>
       )}
