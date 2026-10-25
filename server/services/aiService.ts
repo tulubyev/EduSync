@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import { storage } from "../storage";
+import { eventStorage } from "../storage/EventStorage";
+import { DUE_TYPES, EVENT_TYPE_LABELS, type EventType } from "@shared/learningEvents";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -18,6 +20,7 @@ export interface AiChatSession {
 interface StudyContext {
   activeCourses: Array<{ title: string; progress: number; status: string }>;
   upcomingDeadlines: Array<{ title: string; dueDate: Date; priority: string }>;
+  upcomingEvents: Array<{ type: string; title: string; startsAt: Date; program: string | null }>;
   completedCourses: number;
 }
 
@@ -145,22 +148,26 @@ export class AIService {
   }
 
   private async getStudyContext(userId: string): Promise<StudyContext> {
-    const [courses, deadlines] = await Promise.all([
-      storage.getCourses(userId),
-      storage.getDeadlines(userId),
-    ]);
-
     const now = Date.now();
+    const [courses, events] = await Promise.all([
+      storage.getCourses(userId),
+      eventStorage.listEvents(userId, { from: new Date(now), to: new Date(now + 14 * 24 * 60 * 60 * 1000) }),
+    ]);
+    const open = events.filter(e => e.status === "pending");
+    const deadlines = open.filter(e => DUE_TYPES.includes(e.type as EventType));
+
     return {
       activeCourses: courses
         .filter(c => c.status === "in_progress")
         .slice(0, 10)
         .map(c => ({ title: c.title, progress: Math.round(Number(c.progress ?? 0)), status: c.status ?? "in_progress" })),
       upcomingDeadlines: deadlines
-        .filter(d => d.status !== "completed" && d.status !== "cancelled" && new Date(d.dueDate).getTime() >= now)
-        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
         .slice(0, 5)
-        .map(d => ({ title: d.title, dueDate: new Date(d.dueDate), priority: d.priority ?? "medium" })),
+        .map(d => ({ title: d.title, dueDate: new Date(d.startsAt), priority: d.priority ?? "medium" })),
+      upcomingEvents: open
+        .filter(e => !DUE_TYPES.includes(e.type as EventType))
+        .slice(0, 10)
+        .map(e => ({ type: e.type, title: e.title, startsAt: new Date(e.startsAt), program: e.programTitle ?? e.courseTitle })),
       completedCourses: courses.filter(c => c.status === "completed").length,
     };
   }
@@ -175,7 +182,13 @@ export class AIService {
           .join("\n")
       : "- ближайших дедлайнов нет";
 
-    return `Активные курсы:\n${courses}\n\nБлижайшие дедлайны:\n${deadlines}\n\nЗавершено курсов: ${context.completedCourses}`;
+    const events = context.upcomingEvents.length
+      ? context.upcomingEvents
+          .map(e => `- ${EVENT_TYPE_LABELS[e.type as EventType] ?? e.type}: ${e.title}${e.program ? ` (${e.program})` : ""} — ${e.startsAt.toLocaleString("ru-RU", { timeZone: "Europe/Moscow", dateStyle: "short", timeStyle: "short" })} МСК`)
+          .join("\n")
+      : "- уроков и вебинаров на две недели нет";
+
+    return `Активные курсы:\n${courses}\n\nБлижайшие дедлайны:\n${deadlines}\n\nУроки и вебинары на две недели:\n${events}\n\nЗавершено курсов: ${context.completedCourses}`;
   }
 
   private getSystemPrompt(): string {

@@ -27,6 +27,8 @@ interface RecordingModalProps {
   onSubmit: (data: RecordingData) => void;
   isLoading?: boolean;
   error?: string | null;
+  /** Поля, заполненные заранее (запись вебинара из календаря); scheduledTime — на часах выбранного пояса */
+  initial?: Partial<RecordingData>;
 }
 
 export interface RecordingData {
@@ -46,7 +48,7 @@ export interface RecordingData {
   timeZone?: TimeZoneChoice;
 }
 
-export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: RecordingModalProps) {
+export function RecordingModal({ open, onClose, onSubmit, isLoading, error, initial }: RecordingModalProps) {
   const [formData, setFormData] = useState<RecordingData>({
     title: '',
     description: '',
@@ -68,6 +70,8 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error }: Re
     if (!open) {
       setFormData({ title: '', description: '', streamUrl: '', streamPassword: '', joinName: '', joinEmail: '', joinPhone: '', scheduledTime: '', duration: 60, saveTarget: 'beget', rightsConfirmed: false });
       setErrors({});
+    } else if (initial) {
+      setFormData((f) => ({ ...f, ...initial }));
     }
   }, [open]);
 

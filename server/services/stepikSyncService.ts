@@ -1,5 +1,6 @@
 import { db } from "../db";
-import { externalCourses, courseDeadlines, platformConnections } from "../../shared/schema";
+import { externalCourses, platformConnections } from "../../shared/schema";
+import { eventStorage } from "../storage/EventStorage";
 import { eq, and } from "drizzle-orm";
 import stepikService from "./stepikService";
 
@@ -155,28 +156,19 @@ class StepikSyncService {
           console.log(`   ⏰ Fetching deadlines for course ${stepikCourse.id}...`);
           const sections = await stepikService.getCourseSections(accessToken, stepikCourse.id);
 
-          for (const section of sections) {
-            if (section.softDeadline || section.hardDeadline) {
-              const deadline = section.softDeadline || section.hardDeadline;
-              
-              await db
-                .insert(courseDeadlines)
-                .values({
-                  externalCourseId: String(stepikCourse.id),
-                  platformId,
-                  userId,
-                  externalDeadlineId: `section-${section.id}`,
-                  title: section.title,
-                  description: null,
-                  dueDate: new Date(deadline),
-                  deadlineType: section.softDeadline ? 'soft' : 'hard',
-                  metadata: { sectionId: section.id, position: section.position },
-                })
-                .onConflictDoNothing();
-
-              deadlineCount++;
-            }
-          }
+          // сроки разделов — в общую ленту ученика (learning_events), как у любой площадки
+          deadlineCount += await eventStorage.upsertSourceEvents(userId, 'stepik', platformId, sections
+            .filter((section) => section.softDeadline || section.hardDeadline)
+            .map((section) => ({
+              externalId: `section-${section.id}`,
+              type: 'deadline' as const,
+              title: section.title,
+              startsAt: new Date(section.softDeadline || section.hardDeadline),
+              programTitle: stepikCourse.title,
+              moduleTitle: section.title,
+              lessonUrl: `https://stepik.org/course/${stepikCourse.id}/syllabus`,
+              metadata: { sectionId: section.id, position: section.position, deadlineType: section.softDeadline ? 'soft' : 'hard' },
+            })));
         } catch (error) {
           console.warn(`⚠️ Error fetching deadlines for course ${stepikCourse.id}:`, error);
         }

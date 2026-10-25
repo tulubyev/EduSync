@@ -6,6 +6,7 @@ import profileRouter from "./profile.js";
 import configRouter from "./config.js";
 import coursesRouter from "./courses.js";
 import deadlinesRouter from "./deadlines.js";
+import eventsRouter from "./events.js";
 import libraryRouter from "./library.js";
 import platformsRouter from "./platforms.js";
 import usersRouter from "./users.js";
@@ -29,6 +30,7 @@ mainRouter.use('/users', rateLimiters.general, usersRouter);
 
 mainRouter.use('/courses', rateLimiters.general, coursesRouter);
 mainRouter.use('/deadlines', rateLimiters.general, deadlinesRouter);
+mainRouter.use('/events', rateLimiters.general, eventsRouter);
 mainRouter.use('/library', rateLimiters.general, libraryRouter);
 mainRouter.use('/recording', rateLimiters.general, recordingRouter);
 mainRouter.use('/platforms', rateLimiters.general, platformsRouter);
