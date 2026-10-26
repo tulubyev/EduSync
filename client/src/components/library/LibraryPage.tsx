@@ -40,8 +40,10 @@ import {
   List,
   Grid3x3
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { useLang } from '@/i18n';
+
+const formatDateTime = (iso: string, lang: string) =>
+  new Date(iso).toLocaleString(lang, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 interface Note {
   id: string;
@@ -73,6 +75,8 @@ interface Platform {
 }
 
 export function LibraryPage() {
+  const { m, lang } = useLang();
+  const l = m.library;
   const [notes, setNotes] = useState<Note[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
@@ -99,12 +103,12 @@ export function LibraryPage() {
         },
       });
 
-      if (!response.ok) throw new Error('Ошибка загрузки материалов');
+      if (!response.ok) throw new Error(l.errors.load);
 
       const data = await response.json();
       setNotes(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+      setError(err instanceof Error ? err.message : m.common.loadError);
     } finally {
       setLoading(false);
     }
@@ -119,7 +123,7 @@ export function LibraryPage() {
         },
       });
 
-      if (!response.ok) throw new Error('Ошибка загрузки курсов');
+      if (!response.ok) throw new Error(l.errors.loadCourses);
 
       const data = await response.json();
       setCourses(data);
@@ -137,7 +141,7 @@ export function LibraryPage() {
         },
       });
 
-      if (!response.ok) throw new Error('Ошибка загрузки платформ');
+      if (!response.ok) throw new Error(l.errors.loadPlatforms);
 
       const data = await response.json();
       const allPlatforms: Platform[] = [];
@@ -173,7 +177,7 @@ export function LibraryPage() {
       body: JSON.stringify(data),
     });
 
-    if (!response.ok) throw new Error('Ошибка создания материала');
+    if (!response.ok) throw new Error(l.errors.create);
 
     await fetchNotes();
   };
@@ -189,7 +193,7 @@ export function LibraryPage() {
       body: JSON.stringify(data),
     });
 
-    if (!response.ok) throw new Error('Ошибка обновления материала');
+    if (!response.ok) throw new Error(l.errors.update);
 
     await fetchNotes();
   };
@@ -204,7 +208,7 @@ export function LibraryPage() {
       },
     });
 
-    if (!response.ok) throw new Error('Ошибка удаления');
+    if (!response.ok) throw new Error(l.errors.delete);
 
     if (selectedNote?.id === id) setSelectedNote(null);
     await fetchNotes();
@@ -221,7 +225,7 @@ export function LibraryPage() {
       body: JSON.stringify({ isPinned: !note.isPinned }),
     });
 
-    if (!response.ok) throw new Error('Ошибка обновления');
+    if (!response.ok) throw new Error(l.errors.update);
 
     await fetchNotes();
   };
@@ -239,6 +243,7 @@ export function LibraryPage() {
         if (selectedNodeId.startsWith('course-')) return note.courseId === selectedNodeId.replace('course-', '');
         if (selectedNodeId.startsWith('tag-')) {
           const tag = selectedNodeId.replace('tag-', '');
+          if (tag === '__none__') return !note.tags || note.tags.length === 0;
           return note.tags?.includes(tag);
         }
         if (selectedNodeId === 'uncategorized') return !note.platformId && !note.courseId && (!note.tags || note.tags.length === 0);
@@ -290,7 +295,7 @@ export function LibraryPage() {
   const renderResource = (url: string) => {
     if (!url) return null;
     if (url.startsWith('data:image/')) {
-      return <img src={url} alt="Загруженное изображение" className="max-w-full max-h-96 rounded border" />;
+      return <img src={url} alt={l.uploadedImage} className="max-w-full max-h-96 rounded border" />;
     }
     if (url.startsWith('data:video/')) {
       return <video src={url} controls className="max-w-full max-h-96 rounded border" />;
@@ -355,17 +360,17 @@ export function LibraryPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
             <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
-            Библиотека
+            {l.title}
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            {notes.length} материалов
+            {l.count(notes.length)}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button 
             variant={viewMode === 'list' ? 'default' : 'outline'} 
             size="icon"
-            title="Список"
+            title={l.viewList}
             className="min-h-11 min-w-11"
             onClick={() => setViewMode('list')}
           >
@@ -374,7 +379,7 @@ export function LibraryPage() {
           <Button 
             variant={viewMode === 'grid' ? 'default' : 'outline'} 
             size="icon"
-            title="Сетка"
+            title={l.viewGrid}
             className="min-h-11 min-w-11"
             onClick={() => setViewMode('grid')}
           >
@@ -382,7 +387,7 @@ export function LibraryPage() {
           </Button>
           <Button onClick={() => setIsModalOpen(true)} className="min-h-11">
             <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Новый материал</span>
+            <span className="hidden sm:inline">{l.newMaterial}</span>
           </Button>
         </div>
       </div>
@@ -391,7 +396,7 @@ export function LibraryPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Поиск материалов..."
+            placeholder={l.search}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 min-h-11"
@@ -400,11 +405,11 @@ export function LibraryPage() {
 
         <Select value={selectedCourse} onValueChange={setSelectedCourse}>
           <SelectTrigger className="w-full sm:w-[200px] min-h-11">
-            <SelectValue placeholder="Фильтр по курсу" />
+            <SelectValue placeholder={l.filterByCourse} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Все курсы</SelectItem>
-            <SelectItem value="none">Без курса</SelectItem>
+            <SelectItem value="all">{l.allCourses}</SelectItem>
+            <SelectItem value="none">{l.noCourse}</SelectItem>
             {courses.map((course) => (
               <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>
             ))}
@@ -440,13 +445,13 @@ export function LibraryPage() {
           {filteredNotes.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium">Нет материалов</h3>
+              <h3 className="text-lg font-medium">{l.empty}</h3>
               <p className="text-muted-foreground mb-4">
-                {searchQuery ? 'Ничего не найдено' : 'Создайте первый материал'}
+                {searchQuery ? l.nothingFound : l.createFirst}
               </p>
               <Button onClick={() => setIsModalOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Новый материал
+                {l.newMaterial}
               </Button>
             </div>
           ) : viewMode === 'list' ? (
@@ -487,7 +492,7 @@ export function LibraryPage() {
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <span className="text-xs text-muted-foreground">
-                      {format(new Date(note.updatedAt), 'd.MM', { locale: ru })}
+                      {new Date(note.updatedAt).toLocaleDateString(lang, { day: 'numeric', month: '2-digit' })}
                     </span>
                     <Button
                       variant="ghost"
@@ -639,8 +644,8 @@ export function LibraryPage() {
                 </div>
 
                 <div className="pt-4 border-t text-xs text-muted-foreground">
-                  <p>Создано: {format(new Date(selectedNote.createdAt), 'dd MMMM yyyy, HH:mm', { locale: ru })}</p>
-                  <p>Обновлено: {format(new Date(selectedNote.updatedAt), 'dd MMMM yyyy, HH:mm', { locale: ru })}</p>
+                  <p>{l.created(formatDateTime(selectedNote.createdAt, lang))}</p>
+                  <p>{l.updated(formatDateTime(selectedNote.updatedAt, lang))}</p>
                 </div>
 
                 <Button
@@ -650,7 +655,7 @@ export function LibraryPage() {
                   className="w-full"
                 >
                   <Copy className="h-4 w-4 mr-2" />
-                  Копировать текст
+                  {l.copyText}
                 </Button>
               </CardContent>
             </Card>
@@ -685,6 +690,8 @@ interface MaterialModalProps {
 }
 
 function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData, courses, platforms }: MaterialModalProps) {
+  const { m } = useLang();
+  const f = m.library.form;
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     content: initialData?.content || '',
@@ -757,7 +764,7 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Файл должен быть не больше 5 МБ');
+      alert(m.library.errors.fileTooBig);
       return;
     }
 
@@ -816,57 +823,57 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Редактировать материал' : 'Новый материал'}
+            {isEditing ? f.titleEdit : f.titleNew}
           </DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
-            <Label>Заголовок *</Label>
+            <Label>{f.heading}</Label>
             <Input
               value={formData.title}
               onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Название материала"
+              placeholder={f.headingPlaceholder}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Содержание *</Label>
+            <Label>{f.content}</Label>
             <Textarea
               value={formData.content}
               onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-              placeholder="Текст материала..."
+              placeholder={f.contentPlaceholder}
               rows={10}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Платформа (опционально)</Label>
+              <Label>{f.platform}</Label>
               <Select 
                 value={formData.platformId} 
                 onValueChange={(value) => { setFormData(prev => ({ ...prev, platformId: value })); setPlatformSearch(''); }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите платформу" />
+                  <SelectValue placeholder={f.platformPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
                   <div className="p-2 border-b">
                     <Input
-                      placeholder="🔍 Поиск платформы..."
+                      placeholder={f.platformSearch}
                       value={platformSearch}
                       onChange={(e) => setPlatformSearch(e.target.value)}
                       onClick={(e) => e.stopPropagation()}
                       className="h-8"
                     />
                   </div>
-                  <SelectItem value="none">Не выбрана</SelectItem>
+                  <SelectItem value="none">{f.platformNone}</SelectItem>
                   {filteredPlatforms.map((platform) => (
                     <SelectItem key={platform.id} value={platform.id}>{platform.name}</SelectItem>
                   ))}
                   {filteredPlatforms.length === 0 && platformSearch && (
                     <div className="p-2 text-xs text-muted-foreground text-center">
-                      Платформ не найдено
+                      {f.platformsNotFound}
                     </div>
                   )}
                 </SelectContent>
@@ -874,31 +881,31 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
             </div>
 
             <div className="space-y-2">
-              <Label>Курс (опционально)</Label>
+              <Label>{f.course}</Label>
               <Select 
                 value={formData.courseId} 
                 onValueChange={(value) => { setFormData(prev => ({ ...prev, courseId: value })); setCourseSearch(''); }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите курс" />
+                  <SelectValue placeholder={f.coursePlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
                   <div className="p-2 border-b">
                     <Input
-                      placeholder="🔍 Поиск курса..."
+                      placeholder={f.courseSearch}
                       value={courseSearch}
                       onChange={(e) => setCourseSearch(e.target.value)}
                       onClick={(e) => e.stopPropagation()}
                       className="h-8"
                     />
                   </div>
-                  <SelectItem value="none">Не выбран</SelectItem>
+                  <SelectItem value="none">{f.courseNone}</SelectItem>
                   {filteredCourses.map((course) => (
                     <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>
                   ))}
                   {filteredCourses.length === 0 && courseSearch && (
                     <div className="p-2 text-xs text-muted-foreground text-center">
-                      Курсов не найдено
+                      {f.coursesNotFound}
                     </div>
                   )}
                 </SelectContent>
@@ -907,25 +914,25 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
           </div>
 
           <div className="space-y-2">
-            <Label>Теги</Label>
+            <Label>{f.tags}</Label>
             <Input
               value={formData.tags}
               onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-              placeholder="теги, через, запятую"
+              placeholder={f.tagsPlaceholder}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Ресурс (URL или файл)</Label>
+            <Label>{f.resource}</Label>
             <div className="space-y-2">
               <Input
                 type="url"
                 value={formData.resourceUrl.startsWith('data:') ? '' : formData.resourceUrl}
                 onChange={(e) => setFormData(prev => ({ ...prev, resourceUrl: e.target.value }))}
-                placeholder="https://example.com/material или https://youtube.com/watch?v=..."
+                placeholder={f.resourcePlaceholder}
               />
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">ИЛИ загрузи файл:</span>
+                <span className="text-xs text-muted-foreground">{f.orUpload}</span>
               </div>
               <Input
                 type="file"
@@ -935,22 +942,22 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
                 disabled={isConverting}
               />
               {isConverting && (
-                <p className="text-xs text-blue-600">⏳ Обработка файла...</p>
+                <p className="text-xs text-blue-600">{f.processing}</p>
               )}
               {uploadedFileName && !isConverting && (
-                <p className="text-xs text-green-600">✅ Загружено: {uploadedFileName}</p>
+                <p className="text-xs text-green-600">{f.uploaded(uploadedFileName)}</p>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Поддерживаются: изображения, видео, аудио, PDF, документы (макс 5 МБ)
+              {f.supported}
             </p>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Отмена</Button>
+          <Button variant="outline" onClick={onClose}>{m.common.cancel}</Button>
           <Button onClick={handleSubmit} disabled={isSubmitting || !formData.title || !formData.content}>
-            {isSubmitting ? 'Сохранение...' : (isEditing ? 'Сохранить' : 'Создать')}
+            {isSubmitting ? m.common.saving : (isEditing ? m.common.save : f.create)}
           </Button>
         </DialogFooter>
       </DialogContent>
