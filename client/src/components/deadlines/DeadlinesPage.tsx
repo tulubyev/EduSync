@@ -206,6 +206,8 @@ export function DeadlinesPage() {
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
+      case 'urgent':
+        return <Badge variant="destructive">{m.events.priorities.urgent}</Badge>;
       case 'high':
         return <Badge variant="destructive">{d.priority.high}</Badge>;
       case 'medium':
@@ -500,6 +502,7 @@ function DeadlineModal({ open, onClose, onSubmit, initialData, courses, isEditin
                   <SelectItem value="low">{m.deadlines.priority.low}</SelectItem>
                   <SelectItem value="medium">{m.deadlines.priority.medium}</SelectItem>
                   <SelectItem value="high">{m.deadlines.priority.high}</SelectItem>
+                  <SelectItem value="urgent">{m.events.priorities.urgent}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

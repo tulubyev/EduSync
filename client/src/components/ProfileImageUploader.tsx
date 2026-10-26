@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useConfig } from '../hooks/useConfig';
+import { useLang } from '@/i18n';
 
 interface ProfileImageUploaderProps {
   currentImageUrl?: string;
@@ -15,6 +16,8 @@ export function ProfileImageUploader({
   className = "" 
 }: ProfileImageUploaderProps) {
   const { config } = useConfig();
+  const { m } = useLang();
+  const u = m.settings.uploader;
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +29,7 @@ export function ProfileImageUploader({
 
     // Валидация типа файла
     if (!file.type.startsWith('image/')) {
-      setError('Пожалуйста, выберите изображение');
+      setError(u.errType);
       return;
     }
 
@@ -35,7 +38,7 @@ export function ProfileImageUploader({
     const maxSizeMB = config?.ui.uploads.maxFileSizeMB || 10;
     
     if (file.size > maxSize) {
-      setError(`Размер файла не должен превышать ${maxSizeMB}MB`);
+      setError(u.errSize(maxSizeMB));
       return;
     }
 
@@ -62,24 +65,24 @@ export function ProfileImageUploader({
         if (xhr.status === 200) {
           try {
             const response = JSON.parse(xhr.responseText);
-            console.log('Изображение загружено успешно:', response.imageUrl);
+            console.log('Image uploaded:', response.imageUrl);
             onImageUploaded(response.imageUrl);
             setIsUploading(false);
             setUploadProgress(0);
           } catch (error) {
-            console.error('Ошибка обработки ответа сервера:', error);
-            setError('Ошибка обработки ответа сервера');
+            console.error('Failed to parse server response:', error);
+            setError(u.errResponse);
             setIsUploading(false);
           }
         } else {
-          console.error('Ошибка загрузки изображения:', xhr.status, xhr.responseText);
-          setError(`Ошибка загрузки: ${xhr.status}`);
+          console.error('Image upload failed:', xhr.status, xhr.responseText);
+          setError(u.errUpload(xhr.status));
           setIsUploading(false);
         }
       });
 
       xhr.addEventListener('error', () => {
-        setError('Ошибка сети при загрузке');
+        setError(u.errNetwork);
         setIsUploading(false);
       });
 
@@ -96,7 +99,7 @@ export function ProfileImageUploader({
       xhr.send(formData);
 
     } catch (error) {
-      setError('Ошибка загрузки изображения');
+      setError(u.errGeneric);
       setIsUploading(false);
     }
   };
@@ -128,7 +131,7 @@ export function ProfileImageUploader({
         {currentImageUrl ? (
           <img
             src={currentImageUrl}
-            alt="Фото профиля"
+            alt={m.settings.photoAlt}
             style={{
               width: '100%',
               height: '100%',

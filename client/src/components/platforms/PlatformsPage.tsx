@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { AddPlatformModal } from './AddPlatformModal';
 import { PlatformAuthModal } from './PlatformAuthModal';
+import { useLang } from '@/i18n';
 
 interface Platform {
   id: string;
@@ -1154,6 +1155,8 @@ interface Region {
 }
 
 export function PlatformsPage() {
+  const { m } = useLang();
+  const p = m.platforms;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedRegion, setSelectedRegion] = useState<string>('all');
@@ -1315,10 +1318,10 @@ export function PlatformsPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Globe className="h-6 w-6" />
-            Образовательные платформы
+            {p.title}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {stats.total} платформ • {stats.connected} подключено • {stats.global} глобальных
+            {p.stats(stats.total, stats.connected, stats.global)}
           </p>
         </div>
         <AddPlatformModal onPlatformAdded={fetchCategoriesAndPlatforms} />
@@ -1328,7 +1331,7 @@ export function PlatformsPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Поиск платформ..."
+            placeholder={p.search}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -1337,14 +1340,14 @@ export function PlatformsPage() {
       </div>
 
       <div className="mb-4">
-        <p className="text-sm font-medium text-muted-foreground mb-2">Регионы:</p>
+        <p className="text-sm font-medium text-muted-foreground mb-2">{p.regions}</p>
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           <Button
             variant={selectedRegion === 'all' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedRegion('all')}
           >
-            Все регионы
+            {p.allRegions}
           </Button>
           {regions.map((reg) => (
             <Button
@@ -1361,21 +1364,21 @@ export function PlatformsPage() {
       </div>
 
       <div className="mb-4">
-        <p className="text-sm font-medium text-muted-foreground mb-2">Категории:</p>
+        <p className="text-sm font-medium text-muted-foreground mb-2">{p.categories}</p>
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           <Button
             variant={selectedCategory === 'all' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedCategory('all')}
           >
-            Все ({stats.total})
+            {p.all(stats.total)}
           </Button>
           <Button
             variant={selectedCategory === 'connected' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedCategory('connected')}
           >
-            Подключённые ({stats.connected})
+            {p.connectedFilter(stats.connected)}
           </Button>
           {dbCategories.map((cat) => (
             <Button
@@ -1393,9 +1396,9 @@ export function PlatformsPage() {
       {filteredPlatforms.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-center">
           <Globe className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium">Платформы не найдены</h3>
+          <h3 className="text-lg font-medium">{p.notFound}</h3>
           <p className="text-muted-foreground">
-            Попробуйте изменить параметры поиска
+            {p.notFoundHint}
           </p>
         </div>
       ) : (
@@ -1404,8 +1407,8 @@ export function PlatformsPage() {
             const isConnected = connectedPlatforms.has(platform.id);
             const categoryId = platform.categoryId || (platform as any).category;
             const categoryObj = categories.find(c => c.id === categoryId);
-            const categoryName = categoryObj?.displayName || platform.category || 'Other';
-            const displayName = platform.displayName || platform.name || 'Unknown';
+            const categoryName = categoryObj?.displayName || platform.category || p.other;
+            const displayName = platform.displayName || platform.name || p.unknown;
             
             return (
               <Card 
@@ -1446,14 +1449,14 @@ export function PlatformsPage() {
                 </CardHeader>
                 <CardContent>
                   <CardDescription className="mb-3 line-clamp-2">
-                    {platform.description || 'Образовательная платформа'}
+                    {platform.description || p.defaultDescription}
                   </CardDescription>
                   
                   <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                     {isConnected ? (
                       <Button variant="outline" size="sm" className="flex-1" disabled>
                         <CheckCircle className="h-4 w-4 mr-1 text-green-500" />
-                        Подключено
+                        {p.connected}
                       </Button>
                     ) : (
                       <Button 
@@ -1463,7 +1466,7 @@ export function PlatformsPage() {
                         onClick={() => handleConnect(platform)}
                       >
                         <LinkIcon className="h-4 w-4 mr-1" />
-                        Подключить
+                        {p.connect}
                       </Button>
                     )}
                     <Button
@@ -1501,7 +1504,7 @@ export function PlatformsPage() {
                 <p className="text-muted-foreground mb-4">{selectedPlatform.description}</p>
                 <div className="flex gap-2 mb-4">
                   <Badge className="bg-blue-100 text-blue-800">
-                    {categories.find(c => c.id === selectedPlatform.categoryId)?.displayName || 'Other'}
+                    {categories.find(c => c.id === selectedPlatform.categoryId)?.displayName || p.other}
                   </Badge>
                   {selectedPlatform.regionId && (
                     <Badge className="bg-green-100 text-green-800">
@@ -1512,7 +1515,7 @@ export function PlatformsPage() {
 
                 {platformInfo?.supportedLanguages && (
                   <div className="mb-3">
-                    <p className="text-sm font-medium mb-1">Языки поддержки:</p>
+                    <p className="text-sm font-medium mb-1">{p.languages}</p>
                     <div className="flex flex-wrap gap-1">
                       {platformInfo.supportedLanguages.map((lang: string) => (
                         <Badge key={lang} variant="secondary" className="text-xs">{lang}</Badge>
@@ -1523,7 +1526,7 @@ export function PlatformsPage() {
 
                 {platformInfo?.keyFeatures && (
                   <div className="mb-3">
-                    <p className="text-sm font-medium mb-1">Основные возможности:</p>
+                    <p className="text-sm font-medium mb-1">{p.features}</p>
                     <ul className="text-sm list-disc list-inside">
                       {platformInfo.keyFeatures.map((feature: string) => (
                         <li key={feature} className="text-muted-foreground">{feature}</li>
@@ -1534,7 +1537,7 @@ export function PlatformsPage() {
 
                 {platformInfo?.bestFor && (
                   <div className="mb-3 p-2 bg-blue-50 rounded">
-                    <p className="text-sm"><strong>Для кого:</strong> {platformInfo.bestFor}</p>
+                    <p className="text-sm"><strong>{p.bestFor}</strong> {platformInfo.bestFor}</p>
                   </div>
                 )}
 
@@ -1542,7 +1545,7 @@ export function PlatformsPage() {
                   {connectedPlatforms.has(selectedPlatform.id) ? (
                     <Button disabled>
                       <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                      Подключено
+                      {p.connected}
                     </Button>
                   ) : (
                     <>
@@ -1554,14 +1557,14 @@ export function PlatformsPage() {
                         variant="default"
                       >
                         <Lock className="h-4 w-4 mr-2" />
-                        Авторизоваться
+                        {p.authorize}
                       </Button>
                       <Button 
                         onClick={() => handleConnect(selectedPlatform)}
                         variant="outline"
                       >
                         <LinkIcon className="h-4 w-4 mr-2" />
-                        Подключить иначе
+                        {p.connectOther}
                       </Button>
                     </>
                   )}
@@ -1570,7 +1573,7 @@ export function PlatformsPage() {
                     onClick={() => window.open(selectedPlatform.websiteUrl, '_blank')}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    Посетить сайт
+                    {p.visit}
                   </Button>
                 </div>
               </div>

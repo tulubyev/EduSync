@@ -18,18 +18,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus } from 'lucide-react';
+import { useLang } from '@/i18n';
 
 interface AddPlatformModalProps {
   onPlatformAdded?: () => void;
 }
 
-const AUTH_TYPES = [
-  { value: 'oauth', label: 'OAuth' },
-  { value: 'api_key', label: 'API Key' },
-  { value: 'manual', label: 'Ручной ввод' },
-  { value: 'none', label: 'Не требуется' },
-];
+const AUTH_TYPES = ['oauth', 'api_key', 'manual', 'none'] as const;
 
+// Значения категорий уходят на сервер как есть; подписи — m.platforms.add.categoryOptions в том же порядке
 const CATEGORIES = [
   'Университеты',
   'Маркетплейс',
@@ -44,6 +41,8 @@ const CATEGORIES = [
 ];
 
 export function AddPlatformModal({ onPlatformAdded }: AddPlatformModalProps) {
+  const { m } = useLang();
+  const a = m.platforms.add;
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -96,14 +95,14 @@ export function AddPlatformModal({ onPlatformAdded }: AddPlatformModalProps) {
         });
         setOpen(false);
         onPlatformAdded?.();
-        alert('✅ Платформа успешно добавлена!');
+        alert(a.success);
       } else {
         const error = await response.json();
-        alert(`❌ Ошибка: ${error.message || 'Не удалось добавить платформу'}`);
+        alert(a.error(error.message || a.errorDefault));
       }
     } catch (error) {
       console.error('Error adding platform:', error);
-      alert('❌ Ошибка при добавлении платформы');
+      alert(a.errorGeneric);
     } finally {
       setLoading(false);
     }
@@ -114,23 +113,23 @@ export function AddPlatformModal({ onPlatformAdded }: AddPlatformModalProps) {
       <DialogTrigger asChild>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
-          Добавить платформу
+          {a.button}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Добавить новую платформу</DialogTitle>
+          <DialogTitle>{a.title}</DialogTitle>
           <DialogDescription>
-            Добавьте образовательную платформу в каталог My EPA
+            {a.description}
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="name">Название платформы *</Label>
+            <Label htmlFor="name">{a.name}</Label>
             <Input
               id="name"
-              placeholder="Например: Skillbox"
+              placeholder={a.namePlaceholder}
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
               required
@@ -138,10 +137,10 @@ export function AddPlatformModal({ onPlatformAdded }: AddPlatformModalProps) {
           </div>
 
           <div>
-            <Label htmlFor="code">Код платформы *</Label>
+            <Label htmlFor="code">{a.code}</Label>
             <Input
               id="code"
-              placeholder="skillbox (будет преобразован в lowercase)"
+              placeholder={a.codePlaceholder}
               value={formData.code}
               onChange={(e) => handleInputChange('code', e.target.value)}
               required
@@ -149,7 +148,7 @@ export function AddPlatformModal({ onPlatformAdded }: AddPlatformModalProps) {
           </div>
 
           <div>
-            <Label htmlFor="website">Веб-сайт платформы *</Label>
+            <Label htmlFor="website">{a.website}</Label>
             <Input
               id="website"
               type="url"
@@ -161,15 +160,15 @@ export function AddPlatformModal({ onPlatformAdded }: AddPlatformModalProps) {
           </div>
 
           <div>
-            <Label htmlFor="category">Категория *</Label>
+            <Label htmlFor="category">{a.category}</Label>
             <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
               <SelectTrigger id="category">
-                <SelectValue placeholder="Выберите категорию" />
+                <SelectValue placeholder={a.categoryPlaceholder} />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map((cat) => (
+                {CATEGORIES.map((cat, i) => (
                   <SelectItem key={cat} value={cat}>
-                    {cat}
+                    {a.categoryOptions[i] ?? cat}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -177,15 +176,15 @@ export function AddPlatformModal({ onPlatformAdded }: AddPlatformModalProps) {
           </div>
 
           <div>
-            <Label htmlFor="authType">Тип авторизации *</Label>
+            <Label htmlFor="authType">{a.authType}</Label>
             <Select value={formData.authType} onValueChange={(value) => handleInputChange('authType', value)}>
               <SelectTrigger id="authType">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {AUTH_TYPES.map((auth) => (
-                  <SelectItem key={auth.value} value={auth.value}>
-                    {auth.label}
+                  <SelectItem key={auth} value={auth}>
+                    {a.authTypes[auth]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -193,10 +192,10 @@ export function AddPlatformModal({ onPlatformAdded }: AddPlatformModalProps) {
           </div>
 
           <div>
-            <Label htmlFor="description">Описание</Label>
+            <Label htmlFor="description">{a.descriptionLabel}</Label>
             <Input
               id="description"
-              placeholder="Краткое описание платформы"
+              placeholder={a.descriptionPlaceholder}
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
             />
@@ -209,10 +208,10 @@ export function AddPlatformModal({ onPlatformAdded }: AddPlatformModalProps) {
               onClick={() => setOpen(false)}
               disabled={loading}
             >
-              Отмена
+              {m.common.cancel}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? '⏳ Добавляем...' : '✨ Добавить'}
+              {loading ? a.adding : a.submit}
             </Button>
           </div>
         </form>
