@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Upload, Mail, Phone, BookOpen, Shield } from 'lucide-react';
 import { StepikConnectionPage } from './StepikConnectionPage';
 import { NotificationSettingsCard } from './NotificationSettingsCard';
+import { DataExportCard } from './DataExportCard';
 import { isValidInternationalPhone, normalizePhone } from '../../utils/phoneUtils';
 import { useLang } from '@/i18n';
 
@@ -490,6 +491,8 @@ export function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          <DataExportCard />
         </TabsContent>
 
         {/* Platforms Tab */}

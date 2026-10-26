@@ -57,6 +57,14 @@ const ru = {
   status: 'Статус:',
   active: '✓ Активна',
 
+  dataExport: {
+    title: 'Ваши данные',
+    text: 'Скачайте архив со всеми своими данными в My EPA: профиль, курсы, события календаря, библиотеку, записи, подписку и платежи. Форматы — JSON, CSV и .ics; пароли и ключи доступа в архив не попадают.',
+    button: 'Скачать мои данные',
+    preparing: 'Собираем архив…',
+    tooOften: (minutes: number) => `Архив можно скачивать не чаще раза в 10 минут. Попробуйте через ${minutes} мин.`,
+    error: 'Не удалось собрать архив. Попробуйте позже.',
+  },
   notifications: {
     title: 'Уведомления',
     recordingEmails: 'Письма об итогах записей',
@@ -165,6 +173,14 @@ const en: SettingsMessages = {
   status: 'Status:',
   active: '✓ Active',
 
+  dataExport: {
+    title: 'Your data',
+    text: 'Download an archive with all your My EPA data: profile, courses, calendar events, library, recordings, subscription and payments. Formats: JSON, CSV and .ics; passwords and access keys are not included.',
+    button: 'Download my data',
+    preparing: 'Preparing the archive…',
+    tooOften: (minutes) => `You can download the archive once every 10 minutes. Try again in ${minutes} min.`,
+    error: 'Could not prepare the archive. Please try later.',
+  },
   notifications: {
     title: 'Notifications',
     recordingEmails: 'Recording result emails',
@@ -271,6 +287,14 @@ const fr: SettingsMessages = {
   status: 'Statut :',
   active: '✓ Actif',
 
+  dataExport: {
+    title: 'Vos données',
+    text: 'Téléchargez une archive avec toutes vos données My EPA : profil, cours, événements du calendrier, bibliothèque, enregistrements, abonnement et paiements. Formats JSON, CSV et .ics ; les mots de passe et clés d’accès n’y figurent pas.',
+    button: 'Télécharger mes données',
+    preparing: 'Préparation de l’archive…',
+    tooOften: (minutes) => `L’archive peut être téléchargée une fois toutes les 10 minutes. Réessayez dans ${minutes} min.`,
+    error: 'Impossible de préparer l’archive. Réessayez plus tard.',
+  },
   notifications: {
     title: 'Notifications',
     recordingEmails: 'E-mails sur les enregistrements',
@@ -377,6 +401,14 @@ const de: SettingsMessages = {
   status: 'Status:',
   active: '✓ Aktiv',
 
+  dataExport: {
+    title: 'Ihre Daten',
+    text: 'Laden Sie ein Archiv mit all Ihren My-EPA-Daten herunter: Profil, Kurse, Kalenderereignisse, Bibliothek, Aufnahmen, Abonnement und Zahlungen. Formate: JSON, CSV und .ics; Passwörter und Zugangsschlüssel sind nicht enthalten.',
+    button: 'Meine Daten herunterladen',
+    preparing: 'Archiv wird erstellt…',
+    tooOften: (minutes) => `Das Archiv kann einmal alle 10 Minuten heruntergeladen werden. Versuchen Sie es in ${minutes} Min. erneut.`,
+    error: 'Das Archiv konnte nicht erstellt werden. Bitte später erneut versuchen.',
+  },
   notifications: {
     title: 'Benachrichtigungen',
     recordingEmails: 'E-Mails zu Aufnahmen',
@@ -483,6 +515,14 @@ const es: SettingsMessages = {
   status: 'Estado:',
   active: '✓ Activa',
 
+  dataExport: {
+    title: 'Tus datos',
+    text: 'Descarga un archivo con todos tus datos de My EPA: perfil, cursos, eventos del calendario, biblioteca, grabaciones, suscripción y pagos. Formatos JSON, CSV e .ics; las contraseñas y claves de acceso no se incluyen.',
+    button: 'Descargar mis datos',
+    preparing: 'Preparando el archivo…',
+    tooOften: (minutes) => `Puedes descargar el archivo una vez cada 10 minutos. Vuelve a intentarlo en ${minutes} min.`,
+    error: 'No se pudo preparar el archivo. Inténtalo más tarde.',
+  },
   notifications: {
     title: 'Notificaciones',
     recordingEmails: 'Correos sobre grabaciones',
@@ -589,6 +629,14 @@ const it: SettingsMessages = {
   status: 'Stato:',
   active: '✓ Attivo',
 
+  dataExport: {
+    title: 'I tuoi dati',
+    text: 'Scarica un archivio con tutti i tuoi dati My EPA: profilo, corsi, eventi del calendario, libreria, registrazioni, abbonamento e pagamenti. Formati JSON, CSV e .ics; password e chiavi di accesso non sono incluse.',
+    button: 'Scarica i miei dati',
+    preparing: 'Preparazione dell’archivio…',
+    tooOften: (minutes) => `L’archivio si può scaricare una volta ogni 10 minuti. Riprova tra ${minutes} min.`,
+    error: 'Impossibile preparare l’archivio. Riprova più tardi.',
+  },
   notifications: {
     title: 'Notifiche',
     recordingEmails: 'Email sulle registrazioni',
