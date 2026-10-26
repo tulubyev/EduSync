@@ -7,6 +7,7 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config/environment';
+import { isLang } from '@shared/languages';
 
 interface AuthRequest extends Request {
   user?: { id: string; role?: string | null };
@@ -42,6 +43,21 @@ const upload = multer({
  * - POST /upload-image - Upload and process profile image
  * - GET /images/:filename - Serve uploaded profile images
  */
+
+// Язык кабинета ученика (shared/languages.ts)
+router.put('/language', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { language } = req.body ?? {};
+    if (!isLang(language)) {
+      return res.status(400).json({ message: 'Неизвестный язык' });
+    }
+    await storage.updateUser(req.user!.id, { language });
+    res.json({ language });
+  } catch (error) {
+    logger.error('Error updating language:', error);
+    res.status(500).json({ message: 'Ошибка сохранения языка' });
+  }
+});
 
 // Update user profile
 router.put('/update', authenticateToken as any, async (req: AuthRequest, res: Response) => {

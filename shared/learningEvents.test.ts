@@ -67,3 +67,54 @@ test('календарные помощники', () => {
   assert.deepEqual(addDays({ year: 2026, month: 12, day: 31 }, 1), { year: 2027, month: 1, day: 1 });
   assert.equal(weekdayOf(today), 6);
 });
+
+test('французский: «Webinaire Python demain à 19h 1h»', () => {
+  const d = parseQuickEvent('Webinaire Python demain à 19h 1h', today);
+  assert.equal(d.type, 'webinar');
+  assert.equal(d.title, 'Webinaire Python');
+  assert.deepEqual(d.date, { year: 2026, month: 10, day: 25 });
+  assert.deepEqual(d.time, { hour: 19, minute: 0 });
+  assert.equal(d.durationMinutes, 60);
+  const e = parseQuickEvent('Examen le 5 décembre à 9h30', today);
+  assert.equal(e.type, 'exam');
+  assert.deepEqual(e.date, { year: 2026, month: 12, day: 5 });
+  assert.deepEqual(e.time, { hour: 9, minute: 30 });
+  assert.deepEqual(parseQuickEvent('Rendre le devoir avant vendredi', today).date, { year: 2026, month: 10, day: 30 });
+});
+
+test('немецкий: «Vorlesung morgen um 18 Uhr 90 Minuten», «Prüfung am 5. Dezember»', () => {
+  const d = parseQuickEvent('Vorlesung morgen um 18 Uhr 90 Minuten', today);
+  assert.equal(d.type, 'lesson');
+  assert.equal(d.title, 'Vorlesung');
+  assert.deepEqual(d.date, { year: 2026, month: 10, day: 25 });
+  assert.deepEqual(d.time, { hour: 18, minute: 0 });
+  assert.equal(d.durationMinutes, 90);
+  const e = parseQuickEvent('Prüfung am 5. Dezember', today);
+  assert.equal(e.type, 'exam');
+  assert.deepEqual(e.date, { year: 2026, month: 12, day: 5 });
+  assert.deepEqual(parseQuickEvent('Hausaufgabe bis Freitag', today).date, { year: 2026, month: 10, day: 30 });
+  assert.deepEqual(parseQuickEvent('Webinar übermorgen', today).date, { year: 2026, month: 10, day: 26 });
+});
+
+test('испанский: «Clase mañana a las 19:00 2 horas», «Examen el 5 de diciembre»', () => {
+  const d = parseQuickEvent('Clase mañana a las 19:00 2 horas', today);
+  assert.equal(d.type, 'lesson');
+  assert.equal(d.title, 'Clase');
+  assert.deepEqual(d.date, { year: 2026, month: 10, day: 25 });
+  assert.deepEqual(d.time, { hour: 19, minute: 0 });
+  assert.equal(d.durationMinutes, 120);
+  assert.deepEqual(parseQuickEvent('Examen el 5 de diciembre', today).date, { year: 2026, month: 12, day: 5 });
+  assert.deepEqual(parseQuickEvent('Tarea para el lunes', today).date, { year: 2026, month: 10, day: 26 });
+});
+
+test('итальянский: «Lezione domani alle 19 45 minuti», «Esame il 5 dicembre»', () => {
+  const d = parseQuickEvent('Lezione domani alle 19 45 minuti', today);
+  assert.equal(d.type, 'lesson');
+  assert.equal(d.title, 'Lezione');
+  assert.deepEqual(d.date, { year: 2026, month: 10, day: 25 });
+  assert.deepEqual(d.time, { hour: 19, minute: 0 });
+  assert.equal(d.durationMinutes, 45);
+  assert.deepEqual(parseQuickEvent('Esame il 5 dicembre', today).date, { year: 2026, month: 12, day: 5 });
+  assert.deepEqual(parseQuickEvent('Compito entro venerdì', today).date, { year: 2026, month: 10, day: 30 });
+  assert.deepEqual(parseQuickEvent('Webinar tra 3 giorni', today).date, { year: 2026, month: 10, day: 27 });
+});

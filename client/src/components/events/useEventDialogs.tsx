@@ -4,12 +4,14 @@ import { RecordingModal, type RecordingData } from '../recording/RecordingModal'
 import { utcToZonedInput, zonedInputToUtcIso, type TimeZoneChoice } from '../recording/timezones';
 import { EventFormDialog, type EventFormValues } from './EventFormDialog';
 import { updateEvent, type LearningEventDto } from './eventsApi';
+import { useLang } from '@/i18n';
 
 /**
  * Окна событий для календаря и «Сегодня»: правка, новое событие и «Не смогу прийти → Записать».
  * Запись идёт обычным POST /api/recording/schedule (Help Recorder); у события сохраняется id записи.
  */
 export function useEventDialogs(timeZone: TimeZoneChoice, reload: () => void) {
+  const { m } = useLang();
   const [editing, setEditing] = useState<LearningEventDto | null>(null);
   const [initial, setInitial] = useState<EventFormValues | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -31,12 +33,12 @@ export function useEventDialogs(timeZone: TimeZoneChoice, reload: () => void) {
         body: JSON.stringify({ ...data, timeZone: undefined, scheduledTime: zonedInputToUtcIso(data.scheduledTime, data.timeZone ?? timeZone) }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((body as any).message || `Ошибка ${res.status}: не удалось запланировать запись`);
+      if (!res.ok) throw new Error((body as any).message || m.events.record.httpError(res.status));
       await updateEvent(recording.id, { recordingTaskId: (body as any).taskId });
       setRecording(null);
       reload();
     } catch (e) {
-      setRecordError(e instanceof Error ? e.message : 'Не удалось запланировать запись');
+      setRecordError(e instanceof Error ? e.message : m.events.record.failed);
     } finally {
       setRecordBusy(false);
     }

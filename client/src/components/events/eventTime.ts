@@ -47,28 +47,28 @@ export function monthGridKeys(key: DayKey): DayKey[] {
   return Array.from({ length: 42 }, (_, i) => shiftKey(start, i));
 }
 
-const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-const MONTHS_NOM = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-export const WEEKDAYS_SHORT = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
-
-/** «пн, 26 октября» */
-export function dayTitle(key: DayKey): string {
+// Подписи дат — через Intl на языке ученика; день берём в полдень UTC, чтобы пояс браузера его не сдвинул
+const noon = (key: DayKey) => {
   const d = fromKey(key);
-  return `${WEEKDAYS_SHORT[(weekdayOf(d) + 6) % 7]}, ${d.day} ${MONTHS_GEN[d.month - 1]}`;
-}
-
-/** «Октябрь 2026» */
-export const monthTitle = (key: DayKey): string => {
-  const d = fromKey(key);
-  return `${MONTHS_NOM[d.month - 1]} ${d.year}`;
+  return new Date(Date.UTC(d.year, d.month - 1, d.day, 12));
 };
+const fmt = (lang: string, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(lang, { timeZone: 'UTC', ...opts });
+const capitalize = (s: string) => s.charAt(0).toLocaleUpperCase() + s.slice(1);
 
-/** «26 октября — 1 ноября» */
-export function weekTitle(key: DayKey): string {
+/** Короткие дни недели с понедельника: «пн», «Mon», «lun.» */
+export const weekdaysShort = (lang: string): string[] =>
+  weekKeys('2026-10-26').map((k) => fmt(lang, { weekday: 'short' }).format(noon(k)));
+
+/** «пн, 26 октября», «Mon, October 26» */
+export const dayTitle = (key: DayKey, lang: string): string =>
+  fmt(lang, { weekday: 'short', day: 'numeric', month: 'long' }).format(noon(key));
+
+/** «Октябрь 2026», «October 2026» */
+export const monthTitle = (key: DayKey, lang: string): string =>
+  `${capitalize(fmt(lang, { month: 'long' }).format(noon(key)))} ${fromKey(key).year}`;
+
+/** «26 октября – 1 ноября 2026 г.», «October 26 – November 1, 2026» */
+export function weekTitle(key: DayKey, lang: string): string {
   const days = weekKeys(key);
-  const a = fromKey(days[0]), b = fromKey(days[6]);
-  return a.month === b.month
-    ? `${a.day} — ${b.day} ${MONTHS_GEN[b.month - 1]} ${b.year}`
-    : `${a.day} ${MONTHS_GEN[a.month - 1]} — ${b.day} ${MONTHS_GEN[b.month - 1]} ${b.year}`;
+  return fmt(lang, { day: 'numeric', month: 'long', year: 'numeric' }).formatRange(noon(days[0]), noon(days[6]));
 }
-

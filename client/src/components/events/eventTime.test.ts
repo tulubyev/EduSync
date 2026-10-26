@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dayKeyOf, dayStartUtc, monthGridKeys, timeOf, weekKeys, weekStartKey, dayTitle, weekTitle } from './eventTime';
+import { dayKeyOf, dayStartUtc, monthGridKeys, timeOf, weekKeys, weekStartKey, dayTitle, weekTitle, monthTitle, weekdaysShort } from './eventTime';
 
 test('день события зависит от пояса', () => {
   const iso = '2026-10-25T22:30:00.000Z';
@@ -25,8 +25,14 @@ test('неделя с понедельника, сетка месяца — 6 н
   assert.equal(grid[41], '2026-12-06');
 });
 
-test('подписи дней и недель', () => {
-  assert.equal(dayTitle('2026-10-26'), 'пн, 26 октября');
-  assert.equal(weekTitle('2026-10-28'), '26 октября — 1 ноября 2026');
-  assert.equal(weekTitle('2026-10-14'), '12 — 18 октября 2026');
+test('подписи дней, недель и месяцев на языке ученика', () => {
+  assert.equal(dayTitle('2026-10-26', 'ru'), 'пн, 26 октября');
+  assert.match(dayTitle('2026-10-26', 'en'), /Mon.*October 26/);
+  assert.match(dayTitle('2026-10-26', 'de'), /Mo.*26\. Oktober/);
+  assert.match(weekTitle('2026-10-28', 'ru'), /26 октября.*1 ноября 2026/);
+  assert.match(weekTitle('2026-10-28', 'fr'), /26 octobre.*1er novembre 2026|26 octobre.*1 novembre 2026/);
+  assert.equal(monthTitle('2026-11-15', 'ru'), 'Ноябрь 2026');
+  assert.equal(monthTitle('2026-11-15', 'es'), 'Noviembre 2026');
+  assert.equal(weekdaysShort('ru')[0], 'пн');
+  assert.equal(weekdaysShort('it').length, 7);
 });

@@ -1,4 +1,6 @@
 import { authService } from '@/services/authService';
+import { getLang } from '@/i18n';
+import { MESSAGES } from '@/locales';
 import type { EventPriority, EventType } from '@shared/learningEvents';
 
 /** Событие ленты, как его отдаёт /api/events (время — ISO в UTC) */
@@ -29,7 +31,7 @@ async function call<T>(url: string, init: RequestInit = {}): Promise<T> {
   const res = await authService.authenticatedFetch(url, init);
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error((data as any).message || `Ошибка ${res.status}`);
+    throw new Error((data as any).message || MESSAGES[getLang()].common.httpError(res.status));
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }

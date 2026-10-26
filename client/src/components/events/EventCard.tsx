@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { BookOpen, CheckCircle2, Circle, ExternalLink, FileText, Pencil, Trash2, Video, VideoOff } from 'lucide-react';
-import { DUE_TYPES, EVENT_TYPE_LABELS, type EventType } from '@shared/learningEvents';
+import { DUE_TYPES, type EventType } from '@shared/learningEvents';
+import { useLang } from '@/i18n';
 import type { TimeZoneChoice } from '../recording/timezones';
 import { deleteEvent, isPast, updateEvent, type LearningEventDto } from './eventsApi';
 import { dayTitle, dayKeyOf, timeOf } from './eventTime';
@@ -14,7 +15,7 @@ export const EVENT_COLORS: Record<EventType, string> = {
   deadline: '#f97316',
 };
 
-const SOURCE_LABELS: Record<string, string> = { stepik: 'Stepik', ical: 'Календарь' };
+const SOURCE_NAMES: Record<string, string> = { stepik: 'Stepik' };
 
 interface EventCardProps {
   event: LearningEventDto;
@@ -27,6 +28,7 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, timeZone, onChanged, onEdit, onRecord, showDate }: EventCardProps) {
+  const { m, lang } = useLang();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const due = DUE_TYPES.includes(event.type);
@@ -44,7 +46,7 @@ export function EventCard({ event, timeZone, onChanged, onEdit, onRecord, showDa
       await fn();
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка');
+      setError(e instanceof Error ? e.message : m.common.error);
     } finally {
       setBusy(false);
     }
@@ -52,7 +54,7 @@ export function EventCard({ event, timeZone, onChanged, onEdit, onRecord, showDa
 
   const toggleDone = () => run(() => updateEvent(event.id, { status: done ? 'pending' : 'completed' }));
   const remove = () => {
-    const question = event.source === 'manual' ? `Удалить «${event.title}»?` : `Скрыть «${event.title}»? Событие площадки не вернётся при следующей синхронизации.`;
+    const question = event.source === 'manual' ? m.events.card.confirmDelete(event.title) : m.events.card.confirmHide(event.title);
     if (window.confirm(question)) run(() => deleteEvent(event.id));
   };
 
@@ -68,23 +70,23 @@ export function EventCard({ event, timeZone, onChanged, onEdit, onRecord, showDa
             onClick={toggleDone}
             disabled={busy}
             className="mt-0.5 shrink-0 text-gray-400 hover:text-green-600"
-            aria-label={done ? 'Вернуть в работу' : 'Отметить выполненным'}
-            title={done ? 'Вернуть в работу' : 'Готово'}
+            aria-label={done ? m.events.card.undo : m.events.card.markDone}
+            title={done ? m.events.card.undo : m.events.card.done}
           >
             {done ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <Circle className="h-5 w-5" />}
           </button>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-            <span className="font-medium" style={{ color: EVENT_COLORS[event.type] }}>{EVENT_TYPE_LABELS[event.type]}</span>
+            <span className="font-medium" style={{ color: EVENT_COLORS[event.type] }}>{m.events.types[event.type]}</span>
             <span className="text-gray-500">
-              {showDate && `${dayTitle(dayKeyOf(event.startsAt, timeZone))}, `}
-              {due ? `до ${time}` : time}
-              {event.durationMinutes ? ` · ${event.durationMinutes} мин` : ''}
+              {showDate && `${dayTitle(dayKeyOf(event.startsAt, timeZone), lang)}, `}
+              {due ? m.events.card.due(time) : time}
+              {event.durationMinutes ? ` · ${m.common.minutes(event.durationMinutes)}` : ''}
             </span>
-            {overdue && <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700">просрочено</span>}
+            {overdue && <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700">{m.events.card.overdue}</span>}
             {event.source !== 'manual' && (
-              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">{SOURCE_LABELS[event.source] ?? event.source}</span>
+              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">{event.source === 'ical' ? m.events.sourceCalendar : SOURCE_NAMES[event.source] ?? event.source}</span>
             )}
           </div>
           <h4 className={`mt-0.5 break-words font-medium text-gray-800 ${done ? 'line-through' : ''}`}>{event.title}</h4>
@@ -97,28 +99,28 @@ export function EventCard({ event, timeZone, onChanged, onEdit, onRecord, showDa
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm">
             {event.lessonUrl && (
               <a href={event.lessonUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-purple-700 hover:underline">
-                <BookOpen className="h-4 w-4" /> Открыть урок
+                <BookOpen className="h-4 w-4" /> {m.events.card.openLesson}
               </a>
             )}
             {event.materialsUrl && (
               <a href={event.materialsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-purple-700 hover:underline">
-                <FileText className="h-4 w-4" /> Материалы
+                <FileText className="h-4 w-4" /> {m.events.card.materials}
               </a>
             )}
             {event.joinUrl && !past && (
               <a href={event.joinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-purple-700 hover:underline">
-                <ExternalLink className="h-4 w-4" /> Войти на вебинар
+                <ExternalLink className="h-4 w-4" /> {m.events.card.joinWebinar}
               </a>
             )}
             {canRecord && (
               <button type="button" onClick={() => onRecord(event)} className="inline-flex items-center gap-1 text-gray-700 hover:text-purple-700">
-                <VideoOff className="h-4 w-4" /> Не смогу прийти → Записать
+                <VideoOff className="h-4 w-4" /> {m.events.card.cantAttend}
               </button>
             )}
             {event.recordingTaskId && (
               <Link href={`/recordings?task=${event.recordingTaskId}`}>
                 <span className="inline-flex cursor-pointer items-center gap-1 text-green-700 hover:underline">
-                  <Video className="h-4 w-4" /> Запись запланирована
+                  <Video className="h-4 w-4" /> {m.events.card.recordingScheduled}
                 </span>
               </Link>
             )}
@@ -126,10 +128,10 @@ export function EventCard({ event, timeZone, onChanged, onEdit, onRecord, showDa
           {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
         </div>
         <div className="flex shrink-0 gap-1">
-          <button type="button" onClick={() => onEdit(event)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Изменить" title="Изменить">
+          <button type="button" onClick={() => onEdit(event)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label={m.common.edit} title={m.common.edit}>
             <Pencil className="h-4 w-4" />
           </button>
-          <button type="button" onClick={remove} disabled={busy} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600" aria-label="Удалить" title="Удалить">
+          <button type="button" onClick={remove} disabled={busy} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600" aria-label={m.common.delete} title={m.common.delete}>
             <Trash2 className="h-4 w-4" />
           </button>
         </div>

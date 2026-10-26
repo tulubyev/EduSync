@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { placeRegistration, DATA_REGION_LABELS } from "@shared/dataRegions";
+import { LANGS } from "@shared/languages";
 import { regionDeployment } from "../services/dataRegion";
 import { authService } from "../services/authService";
 import { twoFactorService } from "../services/twoFactorService";
@@ -41,6 +42,7 @@ const registerSchema = z.object({
   lastName: validationRules.lastName,
   phone: validationRules.phone.optional().or(z.literal('').transform(() => undefined)),
   country: validationRules.country.optional(),
+  language: z.enum(LANGS).optional(),
 });
 
 const loginSchema = z.object({
@@ -105,6 +107,7 @@ authRouter.post('/register', authLimiter, async (req, res) => {
         email: result.user.email,
         phone: result.user.phone,
         role: result.user.role,
+        language: result.user.language,
         isEmailVerified: result.user.isEmailVerified,
         isPhoneVerified: result.user.isPhoneVerified
       },
@@ -180,6 +183,7 @@ authRouter.post('/login', authLimiter, async (req, res) => {
         email: loginResult.user.email,
         phone: loginResult.user.phone,
         role: loginResult.user.role,
+        language: loginResult.user.language,
         adminRole: loginResult.user.adminRole, // КРИТИЧНО для админ-панели
         isEmailVerified: loginResult.user.isEmailVerified,
         isPhoneVerified: loginResult.user.isPhoneVerified,
@@ -242,6 +246,7 @@ authRouter.get('/verify', authenticateToken, async (req: AuthenticatedRequest, r
         email: req.user.email,
         phone: req.user.phone,
         role: req.user.role,
+        language: req.user.language,
         adminRole: req.user.adminRole, // КРИТИЧНО для админ-панели
         isEmailVerified: req.user.isEmailVerified,
         isPhoneVerified: req.user.isPhoneVerified,

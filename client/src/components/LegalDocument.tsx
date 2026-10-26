@@ -20,7 +20,8 @@ export function LegalDocument({ doc }: { doc: LegalDocName }) {
     let cancelled = false;
     setHtml(null);
     setFailed(false);
-    const load = sources[`../../../docs/legal/${lang}/${doc}.md`] ?? sources[`../../../docs/legal/ru/${doc}.md`];
+    // документы есть на русском и английском; для остальных языков — английский
+    const load = sources[`../../../docs/legal/${lang}/${doc}.md`] ?? sources[`../../../docs/legal/en/${doc}.md`] ?? sources[`../../../docs/legal/ru/${doc}.md`];
     if (!load) {
       setFailed(true);
       return;

@@ -5,7 +5,11 @@ import { AuthForm } from './components/AuthForm';
 import { LandingPage } from './components/LandingPage';
 import { FooterPage, PUBLIC_PAGE_PATHS } from './components/FooterPages';
 import { PartnersPage } from './components/PartnersPage';
-import { useLang } from './i18n';
+import { useLang, setLang, onUserLangChange } from './i18n';
+import type { Messages } from './locales';
+import { isLang } from '@shared/languages';
+import { LanguageSwitcher } from './components/LanguageSwitcher';
+import { authService } from './services/authService';
 import { CoursesPage } from './components/courses/CoursesPage';
 import { DeadlinesPage } from './components/deadlines/DeadlinesPage';
 import { CalendarPage } from './components/events/CalendarPage';
@@ -36,22 +40,23 @@ import {
 } from 'lucide-react';
 
 function SubscriptionSuccessPage() {
+  const { m } = useLang();
   return (
     <div className="p-8 max-w-2xl mx-auto">
       <div className="bg-white rounded-xl shadow-lg p-8 text-center">
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckCircle className="w-8 h-8 text-green-600" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Оплата успешна!</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">{m.paymentSuccess.title}</h1>
         <p className="text-gray-600 mb-6">
-          Ваша подписка активирована. Теперь вам доступны все преимущества выбранного тарифа.
+          {m.paymentSuccess.text}
         </p>
         <div className="flex gap-4 justify-center">
           <a href="/subscription" className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-            Моя подписка
+            {m.paymentSuccess.mySubscription}
           </a>
           <a href="/home" className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-            На главную
+            {m.common.toHome}
           </a>
         </div>
       </div>
@@ -67,7 +72,27 @@ function App() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [location, navigate] = useLocation();
-  const { t } = useLang();
+  const { t, m } = useLang();
+
+  // Язык кабинета — из профиля ученика; выбор в переключателе сохраняется в профиле
+  useEffect(() => {
+    if (currentUser && isLang(currentUser.language)) setLang(currentUser.language);
+  }, [currentUser?.id, currentUser?.language]);
+
+  useEffect(() => onUserLangChange((language) => {
+    if (!localStorage.getItem('accessToken')) return;
+    authService.authenticatedFetch('/api/profile/language', { method: 'PUT', body: JSON.stringify({ language }) })
+      .then((res) => {
+        if (!res.ok) return;
+        setCurrentUser((u: any) => {
+          if (!u) return u;
+          const next = { ...u, language };
+          localStorage.setItem('currentUser', JSON.stringify(next));
+          return next;
+        });
+      })
+      .catch(() => { /* язык останется только в браузере */ });
+  }), []);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('currentUser');
@@ -132,7 +157,7 @@ function App() {
     return (
       <div className="flex items-center justify-center h-screen flex-col bg-gray-50">
         <div className="w-10 h-10 border-4 border-gray-200 border-t-purple-600 rounded-full animate-spin"></div>
-        <h1 className="mt-5 text-gray-700 text-xl">Загрузка My EPA...</h1>
+        <h1 className="mt-5 text-gray-700 text-xl">{m.app.loading}</h1>
       </div>
     );
   }
@@ -237,17 +262,17 @@ function App() {
 }
 
 // Пункты меню кабинета (общие для боковой панели и мобильного меню)
-const navItems = [
-  { path: '/home', icon: Home, label: 'Главная' },
-  { path: '/calendar', icon: CalendarDays, label: 'Календарь' },
-  { path: '/courses', icon: BookOpen, label: 'Курсы' },
-  { path: '/deadlines', icon: Calendar, label: 'Дедлайны' },
-  { path: '/library', icon: FileText, label: 'Библиотека' },
-  { path: '/recordings', icon: Video, label: 'Записи' },
-  { path: '/platforms', icon: Globe, label: 'Платформы' },
-  { path: '/analytics', icon: BarChart3, label: 'Аналитика' },
-  { path: '/subscription', icon: CreditCard, label: 'Подписка' },
-  { path: '/settings', icon: Settings, label: 'Настройки' },
+const navItems: Array<{ path: string; icon: typeof Home; label: keyof Messages['nav'] }> = [
+  { path: '/home', icon: Home, label: 'home' },
+  { path: '/calendar', icon: CalendarDays, label: 'calendar' },
+  { path: '/courses', icon: BookOpen, label: 'courses' },
+  { path: '/deadlines', icon: Calendar, label: 'deadlines' },
+  { path: '/library', icon: FileText, label: 'library' },
+  { path: '/recordings', icon: Video, label: 'recordings' },
+  { path: '/platforms', icon: Globe, label: 'platforms' },
+  { path: '/analytics', icon: BarChart3, label: 'analytics' },
+  { path: '/subscription', icon: CreditCard, label: 'subscription' },
+  { path: '/settings', icon: Settings, label: 'settings' },
 ];
 
 interface SidebarProps {
@@ -260,6 +285,7 @@ interface SidebarProps {
 
 function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProps) {
   const [location] = useLocation();
+  const { m } = useLang();
 
 
   return (
@@ -275,7 +301,7 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
               />
               <div>
                 <h1 className="font-bold text-gray-800 text-lg">My EPA</h1>
-                <p className="text-xs text-gray-500">Агрегатор курсов</p>
+                <p className="text-xs text-gray-500">{m.app.tagline}</p>
               </div>
             </div>
           </Link>
@@ -301,7 +327,7 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
                   : 'text-gray-600 hover:bg-gray-100'
               }`}>
                 <Icon className="w-5 h-5 flex-shrink-0" />
-                {isOpen && <span>{item.label}</span>}
+                {isOpen && <span>{m.nav[item.label]}</span>}
               </div>
             </Link>
           );
@@ -315,15 +341,16 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-left text-purple-600 hover:bg-purple-50 transition-colors mb-1`}
           >
             <Settings className="w-5 h-5 flex-shrink-0" />
-            {isOpen && <span>Админ-панель</span>}
+            {isOpen && <span>{m.app.adminPanel}</span>}
           </button>
         )}
+        {isOpen && <LanguageSwitcher className="mb-1 w-full" />}
         <button
           onClick={onLogout}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-left text-red-600 hover:bg-red-50 transition-colors mb-2`}
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {isOpen && <span>Выход</span>}
+          {isOpen && <span>{m.app.logout}</span>}
         </button>
 
         {/* User Profile Section with Avatar */}
@@ -345,17 +372,11 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
               <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
               {user.adminRole ? (
                 <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-purple-100 text-purple-700 leading-tight">
-                  {user.adminRole === 'super_admin' ? 'Супер Админ'
-                    : user.adminRole === 'analytics_admin' ? 'Аналитик'
-                    : user.adminRole === 'devops_admin' ? 'DevOps'
-                    : user.adminRole === 'finance_admin' ? 'Финансы'
-                    : user.adminRole === 'api_admin' ? 'API Админ'
-                    : user.adminRole === 'security_admin' ? 'Безопасность'
-                    : user.adminRole}
+                  {m.app.roles[user.adminRole] ?? user.adminRole}
                 </span>
               ) : (
                 <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-500 leading-tight">
-                  Пользователь
+                  {m.app.user}
                 </span>
               )}
             </div>
@@ -373,6 +394,7 @@ interface MobileSidebarContentProps {
 }
 
 function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarContentProps) {
+  const { m } = useLang();
   const [location] = useLocation();
 
 
@@ -384,7 +406,7 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
             <img src="/myepa-logo-clean.png" alt="My EPA Logo" className="w-10 h-10 object-contain" />
             <div>
               <h1 className="font-bold text-gray-800 text-lg">My EPA</h1>
-              <p className="text-xs text-gray-500">Агрегатор курсов</p>
+              <p className="text-xs text-gray-500">{m.app.tagline}</p>
             </div>
           </div>
         </Link>
@@ -403,7 +425,7 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
                   : 'text-gray-600 hover:bg-gray-100'
               }`}>
                 <Icon className="w-5 h-5 flex-shrink-0" />
-                <span>{item.label}</span>
+                <span>{m.nav[item.label]}</span>
               </div>
             </Link>
           );
@@ -417,15 +439,16 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
             className="flex items-center gap-3 px-3 py-3 rounded-lg w-full text-left text-purple-600 hover:bg-purple-50 transition-colors mb-1 min-h-11"
           >
             <Settings className="w-5 h-5 flex-shrink-0" />
-            <span>Админ-панель</span>
+            <span>{m.app.adminPanel}</span>
           </button>
         )}
+        <LanguageSwitcher className="mb-1 w-full min-h-11" />
         <button
           onClick={onLogout}
           className="flex items-center gap-3 px-3 py-3 rounded-lg w-full text-left text-red-600 hover:bg-red-50 transition-colors mb-2 min-h-11"
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          <span>Выход</span>
+          <span>{m.app.logout}</span>
         </button>
 
         <div className="flex items-center gap-3 px-3 py-3 bg-gray-50 rounded-lg">
@@ -441,17 +464,11 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
             <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
             {user.adminRole ? (
               <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-purple-100 text-purple-700 leading-tight">
-                {user.adminRole === 'super_admin' ? 'Супер Админ'
-                  : user.adminRole === 'analytics_admin' ? 'Аналитик'
-                  : user.adminRole === 'devops_admin' ? 'DevOps'
-                  : user.adminRole === 'finance_admin' ? 'Финансы'
-                  : user.adminRole === 'api_admin' ? 'API Админ'
-                  : user.adminRole === 'security_admin' ? 'Безопасность'
-                  : user.adminRole}
+                {m.app.roles[user.adminRole] ?? user.adminRole}
               </span>
             ) : (
               <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-500 leading-tight">
-                Пользователь
+                {m.app.user}
               </span>
             )}
           </div>
@@ -462,6 +479,7 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
 }
 
 function Dashboard({ user }: { user: any }) {
+  const { m } = useLang();
   const [stats, setStats] = useState({
     totalCourses: 0,
     inProgress: 0,
@@ -509,15 +527,15 @@ function Dashboard({ user }: { user: any }) {
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Привет, {user.firstName}! 👋</h1>
-        <p className="text-gray-600 mt-1">Вот что происходит с вашим обучением сегодня</p>
+        <h1 className="text-2xl font-bold text-gray-800">{m.dashboard.hello(user.firstName)}</h1>
+        <p className="text-gray-600 mt-1">{m.dashboard.subtitle}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-        <StatCard icon="📚" title="Всего курсов" value={stats.totalCourses} color="#667eea" />
-        <StatCard icon="🎯" title="В процессе" value={stats.inProgress} color="#ffc107" />
-        <StatCard icon="✅" title="Завершено" value={stats.completed} color="#28a745" />
-        <StatCard icon="⏰" title="Дедлайны" value={stats.deadlines} color="#dc3545" />
+        <StatCard icon="📚" title={m.dashboard.totalCourses} value={stats.totalCourses} color="#667eea" />
+        <StatCard icon="🎯" title={m.dashboard.inProgress} value={stats.inProgress} color="#ffc107" />
+        <StatCard icon="✅" title={m.dashboard.completed} value={stats.completed} color="#28a745" />
+        <StatCard icon="⏰" title={m.dashboard.deadlines} value={stats.deadlines} color="#dc3545" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -526,19 +544,19 @@ function Dashboard({ user }: { user: any }) {
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-purple-600" />
-              Мои курсы
+              {m.dashboard.myCourses}
             </h2>
             <Link href="/courses">
-              <div className="text-sm text-purple-600 hover:text-purple-700 cursor-pointer">Все курсы →</div>
+              <div className="text-sm text-purple-600 hover:text-purple-700 cursor-pointer">{m.dashboard.allCourses}</div>
             </Link>
           </div>
           
           {recentCourses.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p>У вас пока нет курсов</p>
+              <p>{m.dashboard.noCourses}</p>
               <Link href="/courses">
-                <div className="inline-block mt-3 text-purple-600 hover:text-purple-700 cursor-pointer">Добавить первый курс</div>
+                <div className="inline-block mt-3 text-purple-600 hover:text-purple-700 cursor-pointer">{m.dashboard.addFirstCourse}</div>
               </Link>
             </div>
           ) : (
@@ -553,10 +571,10 @@ function Dashboard({ user }: { user: any }) {
       </div>
 
       <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-        <QuickAction href="/library" icon="📚" title="Библиотека" />
-        <QuickAction href="/platforms" icon="🔗" title="Платформы" />
-        <QuickAction href="/analytics" icon="📊" title="Аналитика" />
-        <QuickAction href="/settings" icon="⚙️" title="Настройки" />
+        <QuickAction href="/library" icon="📚" title={m.nav.library} />
+        <QuickAction href="/platforms" icon="🔗" title={m.nav.platforms} />
+        <QuickAction href="/analytics" icon="📊" title={m.nav.analytics} />
+        <QuickAction href="/settings" icon="⚙️" title={m.nav.settings} />
       </div>
     </div>
   );

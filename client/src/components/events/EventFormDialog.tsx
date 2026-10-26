@@ -5,8 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { EVENT_TYPES, EVENT_TYPE_LABELS, type EventPriority, type EventType } from '@shared/learningEvents';
-import { timeZoneShort, utcToZonedInput, zonedInputToUtcIso, type TimeZoneChoice } from '../recording/timezones';
+import { EVENT_PRIORITIES, EVENT_TYPES, type EventPriority, type EventType } from '@shared/learningEvents';
+import { useLang } from '@/i18n';
+import { tzShort } from './tzLabels';
+import { utcToZonedInput, zonedInputToUtcIso, type TimeZoneChoice } from '../recording/timezones';
 import { authService } from '@/services/authService';
 import { createEvent, updateEvent, type EventInput, type LearningEventDto } from './eventsApi';
 
@@ -50,7 +52,6 @@ export function eventToForm(e: LearningEventDto, tz: TimeZoneChoice): EventFormV
 
 const NO_COURSE = 'none';
 
-const PRIORITY_LABELS: Record<EventPriority, string> = { low: 'Низкая', medium: 'Обычная', high: 'Высокая', urgent: 'Срочно' };
 
 interface EventFormDialogProps {
   open: boolean;
@@ -63,6 +64,8 @@ interface EventFormDialogProps {
 }
 
 export function EventFormDialog({ open, onClose, onSaved, timeZone, event, initial }: EventFormDialogProps) {
+  const { m } = useLang();
+  const f = m.events.form;
   const [form, setForm] = useState<EventFormValues>(emptyEventForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,11 +98,11 @@ export function EventFormDialog({ open, onClose, onSaved, timeZone, event, initi
 
   const save = async () => {
     const startsAt = zonedInputToUtcIso(form.start, timeZone);
-    if (!form.title.trim()) return setError('Укажите название');
-    if (!startsAt) return setError('Укажите дату и время');
+    if (!form.title.trim()) return setError(f.errTitle);
+    if (!startsAt) return setError(f.errStart);
     const duration = form.durationMinutes.trim() ? Number(form.durationMinutes) : null;
     if (duration !== null && (!Number.isInteger(duration) || duration < 1 || duration > 1440)) {
-      return setError('Длительность — целое число минут от 1 до 1440');
+      return setError(f.errDuration);
     }
     const data: EventInput = {
       type: form.type,
@@ -123,7 +126,7 @@ export function EventFormDialog({ open, onClose, onSaved, timeZone, event, initi
       onSaved();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось сохранить');
+      setError(e instanceof Error ? e.message : f.errSave);
     } finally {
       setSaving(false);
     }
@@ -133,53 +136,53 @@ export function EventFormDialog({ open, onClose, onSaved, timeZone, event, initi
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{event ? 'Событие' : 'Новое событие'}</DialogTitle>
+          <DialogTitle>{event ? f.titleEdit : f.titleNew}</DialogTitle>
         </DialogHeader>
         {fromPlatform && (
-          <p className="text-sm text-gray-500">Событие пришло с площадки: при следующей синхронизации её данные заменят изменённые поля.</p>
+          <p className="text-sm text-gray-500">{f.fromPlatform}</p>
         )}
         <div className="grid gap-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <Label>Тип</Label>
+              <Label>{f.type}</Label>
               <Select value={form.type} onValueChange={(v) => set('type', v as EventType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {EVENT_TYPES.map((t) => <SelectItem key={t} value={t}>{EVENT_TYPE_LABELS[t]}</SelectItem>)}
+                  {EVENT_TYPES.map((t) => <SelectItem key={t} value={t}>{m.events.types[t]}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Важность</Label>
+              <Label>{f.priority}</Label>
               <Select value={form.priority} onValueChange={(v) => set('priority', v as EventPriority)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(PRIORITY_LABELS) as EventPriority[]).map((p) => <SelectItem key={p} value={p}>{PRIORITY_LABELS[p]}</SelectItem>)}
+                  {EVENT_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{m.events.priorities[p]}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div>
-            <Label htmlFor="ev-title">Название</Label>
+            <Label htmlFor="ev-title">{f.name}</Label>
             <Input id="ev-title" value={form.title} onChange={(e) => set('title', e.target.value)} maxLength={500} />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_8rem]">
             <div>
-              <Label htmlFor="ev-start">{['assignment', 'exam', 'deadline'].includes(form.type) ? 'Срок' : 'Начало'} ({timeZoneShort(timeZone)})</Label>
+              <Label htmlFor="ev-start">{['assignment', 'exam', 'deadline'].includes(form.type) ? f.due : f.start} ({tzShort(timeZone, m)})</Label>
               <Input id="ev-start" type="datetime-local" value={form.start} onChange={(e) => set('start', e.target.value)} />
             </div>
             <div>
-              <Label htmlFor="ev-duration">Минут</Label>
+              <Label htmlFor="ev-duration">{f.minutes}</Label>
               <Input id="ev-duration" inputMode="numeric" value={form.durationMinutes} onChange={(e) => set('durationMinutes', e.target.value)} placeholder="60" />
             </div>
           </div>
           {courses.length > 0 && (
             <div>
-              <Label>Курс</Label>
+              <Label>{f.course}</Label>
               <Select value={form.courseId || NO_COURSE} onValueChange={(v) => chooseCourse(v === NO_COURSE ? '' : v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_COURSE}>Без курса</SelectItem>
+                  <SelectItem value={NO_COURSE}>{f.noCourse}</SelectItem>
                   {courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -187,37 +190,37 @@ export function EventFormDialog({ open, onClose, onSaved, timeZone, event, initi
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <Label htmlFor="ev-program">Программа</Label>
+              <Label htmlFor="ev-program">{f.program}</Label>
               <Input id="ev-program" value={form.programTitle} onChange={(e) => set('programTitle', e.target.value)} maxLength={500} />
             </div>
             <div>
-              <Label htmlFor="ev-module">Модуль</Label>
+              <Label htmlFor="ev-module">{f.module}</Label>
               <Input id="ev-module" value={form.moduleTitle} onChange={(e) => set('moduleTitle', e.target.value)} maxLength={500} />
             </div>
           </div>
           <div>
-            <Label htmlFor="ev-lesson">Ссылка на урок</Label>
+            <Label htmlFor="ev-lesson">{f.lessonUrl}</Label>
             <Input id="ev-lesson" type="url" value={form.lessonUrl} onChange={(e) => set('lessonUrl', e.target.value)} placeholder="https://" />
           </div>
           <div>
-            <Label htmlFor="ev-materials">Материалы</Label>
+            <Label htmlFor="ev-materials">{f.materials}</Label>
             <Input id="ev-materials" type="url" value={form.materialsUrl} onChange={(e) => set('materialsUrl', e.target.value)} placeholder="https://" />
           </div>
           {form.type === 'webinar' && (
             <div>
-              <Label htmlFor="ev-join">Вход на вебинар</Label>
+              <Label htmlFor="ev-join">{f.joinUrl}</Label>
               <Input id="ev-join" type="url" value={form.joinUrl} onChange={(e) => set('joinUrl', e.target.value)} placeholder="https://" />
             </div>
           )}
           <div>
-            <Label htmlFor="ev-desc">Заметка</Label>
+            <Label htmlFor="ev-desc">{f.note}</Label>
             <Textarea id="ev-desc" value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Отмена</Button>
-          <Button onClick={save} disabled={saving}>{saving ? 'Сохранение…' : 'Сохранить'}</Button>
+          <Button variant="outline" onClick={onClose}>{m.common.cancel}</Button>
+          <Button onClick={save} disabled={saving}>{saving ? m.common.saving : m.common.save}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
