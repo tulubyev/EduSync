@@ -82,7 +82,9 @@ router.put('/update', authenticateToken as any, async (req: AuthRequest, res: Re
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
 
-    res.json(updatedUser);
+    // хэш пароля наружу не отдаём; фото — как в /api/users
+    const { passwordHash, profileImage, ...profileData } = updatedUser;
+    res.json({ ...profileData, profileImage: profileImage ? `data:image/jpeg;base64,${profileImage}` : null });
   } catch (error) {
     logger.error('Profile update error:', error);
     res.status(500).json({ message: 'Ошибка обновления профиля' });

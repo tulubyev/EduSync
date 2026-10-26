@@ -14,6 +14,7 @@ import {
   ExternalLink,
   History
 } from 'lucide-react';
+import { useLang } from '@/i18n';
 
 interface SubscriptionPlan {
   id: string;
@@ -73,6 +74,8 @@ interface PaymentProvidersStatus {
 }
 
 export function SubscriptionPage() {
+  const { m, lang } = useLang();
+  const t = m.subscription;
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -175,7 +178,7 @@ export function SubscriptionPage() {
   const handleSubscribe = async (planId: string) => {
     const providerAvailable = selectedProvider === 'alfabank' ? alfabankConfigured : yoomoneyConfigured;
     if (!providerAvailable) {
-      alert('Выбранная платежная система временно недоступна. Пожалуйста, выберите другую или попробуйте позже.');
+      alert(t.providerUnavailable);
       return;
     }
 
@@ -211,11 +214,11 @@ export function SubscriptionPage() {
         }, 2000);
       } else {
         const error = await response.json();
-        alert(error.message || 'Ошибка создания платежа');
+        alert(error.message || t.paymentError);
       }
     } catch (error) {
       console.error('Error creating payment:', error);
-      alert('Ошибка соединения. Попробуйте позже.');
+      alert(t.connectionErrorLater);
     } finally {
       setProcessingPlan(null);
     }
@@ -239,18 +242,18 @@ export function SubscriptionPage() {
         fetchData();
       } else {
         const error = await response.json();
-        alert(error.message || 'Ошибка при изменении автопродления');
+        alert(error.message || t.autoRenewError);
       }
     } catch (error) {
       console.error('Error toggling auto renewal:', error);
-      alert('Ошибка соединения');
+      alert(t.connectionError);
     } finally {
       setAutoRenewalLoading(false);
     }
   };
 
   const handleCancelSubscription = async () => {
-    if (!confirm('Вы уверены, что хотите отменить подписку? Вы сохраните доступ до конца оплаченного периода.')) {
+    if (!confirm(t.confirmCancel)) {
       return;
     }
 
@@ -265,15 +268,15 @@ export function SubscriptionPage() {
       });
 
       if (response.ok) {
-        alert('Подписка будет отменена в конце текущего периода');
+        alert(t.cancelScheduled);
         fetchData();
       } else {
         const error = await response.json();
-        alert(error.message || 'Ошибка отмены подписки');
+        alert(error.message || t.cancelError);
       }
     } catch (error) {
       console.error('Error cancelling subscription:', error);
-      alert('Ошибка соединения');
+      alert(t.connectionError);
     }
   };
 
@@ -289,7 +292,7 @@ export function SubscriptionPage() {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('ru-RU', {
+    return new Date(dateStr).toLocaleDateString(lang, {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
@@ -298,7 +301,9 @@ export function SubscriptionPage() {
 
   const formatPrice = (price: string) => {
     const num = parseFloat(price);
-    return num === 0 ? 'Бесплатно' : `${num.toLocaleString('ru-RU')} ₽`;
+    return num === 0
+      ? t.free
+      : new Intl.NumberFormat(lang, { style: 'currency', currency: 'RUB', maximumFractionDigits: 2 }).format(num);
   };
 
   if (loading) {
@@ -314,9 +319,9 @@ export function SubscriptionPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <CreditCard className="w-7 h-7 text-purple-600" />
-          Подписка
+          {t.title}
         </h1>
-        <p className="text-gray-600 mt-1">Управление тарифным планом и платежами</p>
+        <p className="text-gray-600 mt-1">{t.subtitle}</p>
       </div>
 
       {currentSubscription && currentSubscription.plan.code !== 'free' && (
@@ -327,11 +332,11 @@ export function SubscriptionPage() {
                 {getPlanIcon(currentSubscription.plan.code)}
                 <div>
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-xl">Ваш текущий план: {currentSubscription.plan.name}</CardTitle>
-                    <Badge className="bg-green-500">✓ АКТИВНА</Badge>
+                    <CardTitle className="text-xl">{t.currentPlan(currentSubscription.plan.name)}</CardTitle>
+                    <Badge className="bg-green-500">{t.active}</Badge>
                   </div>
                   <CardDescription>
-                    {currentSubscription.subscription.billingPeriod === 'yearly' ? 'Годовая подписка' : 'Месячная подписка'}
+                    {currentSubscription.subscription.billingPeriod === 'yearly' ? t.yearly : t.monthly}
                   </CardDescription>
                 </div>
               </div>
@@ -342,14 +347,14 @@ export function SubscriptionPage() {
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 <div>
-                  <p className="text-xs text-gray-500">Активна до</p>
+                  <p className="text-xs text-gray-500">{t.activeUntil}</p>
                   <p className="font-medium text-gray-800">{formatDate(currentSubscription.subscription.currentPeriodEnd)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4" />
                 <div>
-                  <p className="text-xs text-gray-500">Следующий платеж</p>
+                  <p className="text-xs text-gray-500">{t.nextPayment}</p>
                   <p className="font-medium text-gray-800">{formatDate(currentSubscription.subscription.currentPeriodEnd)}</p>
                 </div>
               </div>
@@ -364,22 +369,22 @@ export function SubscriptionPage() {
                   className="w-4 h-4 rounded cursor-pointer"
                 />
                 <div className="flex-1">
-                  <p className="font-medium text-sm text-green-900">Автоматическое продление</p>
-                  <p className="text-xs text-green-700">Подписка будет автоматически продлеваться</p>
+                  <p className="font-medium text-sm text-green-900">{t.autoRenew}</p>
+                  <p className="text-xs text-green-700">{t.autoRenewHint}</p>
                 </div>
               </div>
             )}
             {currentSubscription.subscription.cancelAtPeriodEnd && (
               <div className="mt-4 p-3 bg-orange-50 rounded-lg flex items-center gap-2 text-orange-700">
                 <AlertCircle className="w-5 h-5" />
-                <span>Подписка будет отменена {formatDate(currentSubscription.subscription.currentPeriodEnd)}</span>
+                <span>{t.willCancel(formatDate(currentSubscription.subscription.currentPeriodEnd))}</span>
               </div>
             )}
           </CardContent>
           {!currentSubscription.subscription.cancelAtPeriodEnd && (
             <CardFooter>
               <Button variant="outline" onClick={handleCancelSubscription} className="text-red-600 hover:bg-red-50">
-                Отменить подписку
+                {t.cancel}
               </Button>
             </CardFooter>
           )}
@@ -388,7 +393,7 @@ export function SubscriptionPage() {
 
       <div className="flex items-center justify-center gap-4 mb-8">
         <span className={`text-sm font-medium transition-colors min-w-fit ${billingPeriod === 'monthly' ? 'text-gray-900' : 'text-gray-500'}`}>
-          Ежемесячно
+          {t.perMonth}
         </span>
         <button
           onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'yearly' : 'monthly')}
@@ -404,7 +409,7 @@ export function SubscriptionPage() {
         </button>
         <div className="flex items-center gap-2 min-w-fit">
           <span className={`text-sm font-medium transition-colors ${billingPeriod === 'yearly' ? 'text-gray-900' : 'text-gray-500'}`}>
-            Ежегодно
+            {t.perYear}
           </span>
           {billingPeriod === 'yearly' && (
             <Badge className="bg-green-100 text-green-700">-20%</Badge>
@@ -414,7 +419,7 @@ export function SubscriptionPage() {
 
       {(yoomoneyConfigured || alfabankConfigured) && (
         <div className="flex items-center justify-center gap-4 mb-6">
-          <span className="text-sm text-gray-600">Способ оплаты:</span>
+          <span className="text-sm text-gray-600">{t.paymentMethod}</span>
           <div className="flex gap-2">
             <button
               onClick={() => setSelectedProvider('yookassa')}
@@ -440,7 +445,7 @@ export function SubscriptionPage() {
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
             >
-              Альфа-Банк
+              {t.alfabank}
             </button>
           </div>
         </div>
@@ -449,7 +454,7 @@ export function SubscriptionPage() {
       {!yoomoneyConfigured && !alfabankConfigured && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-yellow-600" />
-          <span className="text-yellow-800">Платежные системы в процессе настройки. Оплата временно недоступна.</span>
+          <span className="text-yellow-800">{t.unavailable}</span>
         </div>
       )}
 
@@ -469,12 +474,12 @@ export function SubscriptionPage() {
             >
               {plan.code === 'standard' && (
                 <div className="absolute top-0 right-0 bg-blue-600 text-white text-xs px-3 py-1 rounded-bl-lg">
-                  Популярный
+                  {t.popular}
                 </div>
               )}
               {plan.code === 'premium' && (
                 <div className="absolute top-0 right-0 bg-yellow-600 text-white text-xs px-3 py-1 rounded-bl-lg">
-                  Лучший
+                  {t.best}
                 </div>
               )}
               
@@ -493,7 +498,7 @@ export function SubscriptionPage() {
                   </span>
                   {!isFree && (
                     <span className="text-gray-500 text-sm">
-                      /{billingPeriod === 'yearly' ? 'год' : 'мес'}
+                      /{billingPeriod === 'yearly' ? t.periodYear : t.periodMonth}
                     </span>
                   )}
                 </div>
@@ -502,31 +507,31 @@ export function SubscriptionPage() {
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-500" />
                     <span>
-                      {plan.maxCourses === null ? 'Безлимит курсов' : `До ${plan.maxCourses} курсов`}
+                      {plan.maxCourses === null ? t.unlimitedCourses : t.upToCourses(plan.maxCourses)}
                     </span>
                   </li>
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-500" />
                     <span>
-                      {plan.maxPlatforms === null ? 'Все платформы' : `До ${plan.maxPlatforms} платформ`}
+                      {plan.maxPlatforms === null ? t.allPlatforms : t.upToPlatforms(plan.maxPlatforms)}
                     </span>
                   </li>
                   {plan.hasAnalytics && (
                     <li className="flex items-center gap-2 text-sm">
                       <Check className="w-4 h-4 text-green-500" />
-                      <span>Расширенная аналитика</span>
+                      <span>{t.analytics}</span>
                     </li>
                   )}
                   {plan.hasAdvancedReminders && (
                     <li className="flex items-center gap-2 text-sm">
                       <Check className="w-4 h-4 text-green-500" />
-                      <span>Умные напоминания</span>
+                      <span>{t.reminders}</span>
                     </li>
                   )}
                   {plan.hasPrioritySupport && (
                     <li className="flex items-center gap-2 text-sm">
                       <Check className="w-4 h-4 text-green-500" />
-                      <span>Приоритетная поддержка</span>
+                      <span>{t.support}</span>
                     </li>
                   )}
                 </ul>
@@ -535,11 +540,11 @@ export function SubscriptionPage() {
               <CardFooter className="mt-auto">
                 {isCurrentPlan ? (
                   <Button disabled className="w-full" variant="outline">
-                    Текущий план
+                    {t.currentPlanBtn}
                   </Button>
                 ) : isFree ? (
                   <Button disabled className="w-full" variant="outline">
-                    Базовый план
+                    {t.basicPlan}
                   </Button>
                 ) : (
                   <Button
@@ -550,11 +555,11 @@ export function SubscriptionPage() {
                     {processingPlan === plan.id ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Обработка...
+                        {t.processing}
                       </>
                     ) : (
                       <>
-                        Оформить
+                        {t.subscribe}
                         <ExternalLink className="w-4 h-4 ml-2" />
                       </>
                     )}
@@ -571,13 +576,13 @@ export function SubscriptionPage() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <History className="w-5 h-5" />
-              История платежей
+              {t.history}
               {payments.length > 0 && (
                 <Badge variant="outline">{payments.length}</Badge>
               )}
             </CardTitle>
             <Button variant="ghost" size="sm" onClick={() => setShowHistory(!showHistory)}>
-              {showHistory ? 'Скрыть' : 'Показать'}
+              {showHistory ? t.hide : t.show}
             </Button>
           </div>
         </CardHeader>
@@ -585,7 +590,7 @@ export function SubscriptionPage() {
         {showHistory && (
           <CardContent>
             {payments.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">Нет платежей</p>
+              <p className="text-gray-500 text-center py-4">{t.noPayments}</p>
             ) : (
               <div className="space-y-3">
                 {/* Сначала показываем оплаченные платежи */}
@@ -606,7 +611,7 @@ export function SubscriptionPage() {
                     <div className="text-right">
                       <p className="font-medium text-green-700">{formatPrice(payment.amount)}</p>
                       <Badge className="bg-green-500">
-                        ✓ Оплачено
+                        {t.paid}
                       </Badge>
                     </div>
                   </div>
@@ -629,7 +634,7 @@ export function SubscriptionPage() {
                     <div className="text-right">
                       <p className="font-medium text-yellow-700">{formatPrice(payment.amount)}</p>
                       <Badge variant="secondary" className="bg-yellow-200 text-yellow-800">
-                        ⏳ Ожидание платежа
+                        {t.pending}
                       </Badge>
                     </div>
                   </div>

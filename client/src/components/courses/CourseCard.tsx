@@ -21,6 +21,7 @@ import {
   CheckCircle,
   Lightbulb
 } from 'lucide-react';
+import { useLang } from '@/i18n';
 
 interface Course {
   id: string;
@@ -59,19 +60,6 @@ const difficultyColors: Record<string, string> = {
   advanced: 'bg-red-100 text-red-800',
 };
 
-const difficultyLabels: Record<string, string> = {
-  beginner: 'Начинающий',
-  intermediate: 'Средний',
-  advanced: 'Продвинутый',
-};
-
-const statusLabels: Record<string, string> = {
-  not_started: 'Не начат',
-  in_progress: 'В процессе',
-  completed: 'Завершён',
-  paused: 'Приостановлен',
-};
-
 const statusColors: Record<string, string> = {
   not_started: 'bg-gray-100 text-gray-800',
   in_progress: 'bg-blue-100 text-blue-800',
@@ -88,23 +76,22 @@ export function CourseCard({
   onUpdateStatus,
   onShowSimilar
 }: CourseCardProps) {
+  const { m, lang } = useLang();
+  const c = m.courses.card;
   const progress = parseFloat(course.progress) || 0;
   
   const formatDuration = (minutes?: number) => {
     if (!minutes) return null;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    if (hours > 0) {
-      return `${hours}ч ${mins > 0 ? `${mins}м` : ''}`;
-    }
-    return `${mins}м`;
+    return m.courses.duration(hours, mins);
   };
 
   const formatCost = (cost?: number | string | null) => {
-    if (cost === null || cost === undefined || cost === 0 || cost === '0') return 'Бесплатно';
+    if (cost === null || cost === undefined || cost === 0 || cost === '0') return m.courses.free;
     const numCost = typeof cost === 'string' ? parseFloat(cost) : cost;
-    if (isNaN(numCost)) return 'Бесплатно';
-    return `₽${numCost.toFixed(2)}`;
+    if (isNaN(numCost) || numCost === 0) return m.courses.free;
+    return new Intl.NumberFormat(lang, { style: 'currency', currency: 'RUB' }).format(numCost);
   };
 
   const handleStartCourse = () => {
@@ -164,13 +151,13 @@ export function CourseCard({
                 {onEdit && (
                   <DropdownMenuItem onClick={() => onEdit(course)}>
                     <Edit className="h-4 w-4 mr-2" />
-                    Редактировать
+                    {c.edit}
                   </DropdownMenuItem>
                 )}
                 {course.courseUrl && (
                   <DropdownMenuItem onClick={() => window.open(course.courseUrl, '_blank')}>
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    Открыть на платформе
+                    {c.openOnPlatform}
                   </DropdownMenuItem>
                 )}
                 {onDelete && (!course.source || course.source === 'manual') && (
@@ -179,7 +166,7 @@ export function CourseCard({
                     className="text-red-600"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Удалить
+                    {m.common.delete}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -197,11 +184,11 @@ export function CourseCard({
         
         <div className="flex flex-wrap gap-2 mb-3">
           <Badge variant="secondary" className={statusColors[course.status]}>
-            {statusLabels[course.status]}
+            {m.courses.status[course.status] ?? course.status}
           </Badge>
           {course.difficulty && (
             <Badge variant="secondary" className={difficultyColors[course.difficulty]}>
-              {difficultyLabels[course.difficulty]}
+              {m.courses.difficulty[course.difficulty] ?? course.difficulty}
             </Badge>
           )}
           {course.platformName && (
@@ -215,7 +202,7 @@ export function CourseCard({
             </Badge>
           )}
           {course.category && (
-            <Badge variant="outline">{course.category}</Badge>
+            <Badge variant="outline">{m.courses.categories[course.category] ?? course.category}</Badge>
           )}
           {course.duration && (
             <Badge variant="outline">{formatDuration(course.duration)}</Badge>
@@ -227,7 +214,7 @@ export function CourseCard({
 
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Прогресс</span>
+            <span className="text-muted-foreground">{c.progress}</span>
             <span className="font-medium">{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -245,19 +232,19 @@ export function CourseCard({
                 {course.status === 'not_started' && (
                   <>
                     <Play className="h-4 w-4 mr-1" />
-                    Начать
+                    {c.start}
                   </>
                 )}
                 {course.status === 'in_progress' && (
                   <>
                     <Pause className="h-4 w-4 mr-1" />
-                    Пауза
+                    {c.pause}
                   </>
                 )}
                 {course.status === 'paused' && (
                   <>
                     <Play className="h-4 w-4 mr-1" />
-                    Продолжить
+                    {c.resume}
                   </>
                 )}
               </Button>
@@ -267,14 +254,14 @@ export function CourseCard({
                 onClick={handleCompleteCourse}
               >
                 <CheckCircle className="h-4 w-4 mr-1" />
-                Завершить
+                {c.complete}
               </Button>
             </>
           )}
           {course.status === 'completed' && (
             <Button variant="outline" size="sm" className="flex-1" disabled>
               <CheckCircle className="h-4 w-4 mr-1 text-green-500" />
-              Курс завершён
+              {c.completed}
             </Button>
           )}
         </div>
@@ -286,7 +273,7 @@ export function CourseCard({
           onClick={() => onShowSimilar?.(course)}
         >
           <Lightbulb className="h-4 w-4 mr-2" />
-          Подобные курсы
+          {c.similar}
         </Button>
 
         {course.tags && course.tags.length > 0 && (

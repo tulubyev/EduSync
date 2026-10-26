@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { useLang } from '@/i18n';
 
 interface ResizeHandleProps {
   onResize: (delta: number) => void;
@@ -6,6 +7,7 @@ interface ResizeHandleProps {
 }
 
 export function ResizeHandle({ onResize, direction = 'vertical' }: ResizeHandleProps) {
+  const { m } = useLang();
   const ref = useRef<HTMLDivElement>(null);
   const isResizingRef = useRef(false);
   const startPosRef = useRef(0);
@@ -53,7 +55,7 @@ export function ResizeHandle({ onResize, direction = 'vertical' }: ResizeHandleP
       className={`${
         direction === 'vertical' ? 'w-1 cursor-col-resize hover:bg-primary/50' : 'h-1 cursor-row-resize hover:bg-primary/50'
       } bg-border transition-colors duration-200 flex-shrink-0`}
-      title={direction === 'vertical' ? 'Перетащите для изменения ширины' : 'Перетащите для изменения высоты'}
+      title={direction === 'vertical' ? m.library.resize.vertical : m.library.resize.horizontal}
     />
   );
 }

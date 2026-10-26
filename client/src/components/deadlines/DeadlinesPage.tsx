@@ -29,7 +29,7 @@ import {
   Edit
 } from 'lucide-react';
 import { format, isBefore, isToday, isTomorrow, addDays, differenceInDays } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { useLang } from '@/i18n';
 
 interface Deadline {
   id: string;
@@ -51,6 +51,8 @@ interface Course {
 }
 
 export function DeadlinesPage() {
+  const { m, lang } = useLang();
+  const d = m.deadlines;
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,12 +71,12 @@ export function DeadlinesPage() {
         },
       });
       
-      if (!response.ok) throw new Error('Ошибка загрузки дедлайнов');
+      if (!response.ok) throw new Error(d.errors.load);
       
       const data = await response.json();
       setDeadlines(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+      setError(err instanceof Error ? err.message : m.common.loadError);
     } finally {
       setLoading(false);
     }
@@ -89,7 +91,7 @@ export function DeadlinesPage() {
         },
       });
       
-      if (!response.ok) throw new Error('Ошибка загрузки курсов');
+      if (!response.ok) throw new Error(d.errors.loadCourses);
       
       const data = await response.json();
       setCourses(data);
@@ -114,7 +116,7 @@ export function DeadlinesPage() {
       body: JSON.stringify(data),
     });
     
-    if (!response.ok) throw new Error('Ошибка создания дедлайна');
+    if (!response.ok) throw new Error(d.errors.create);
     
     await fetchDeadlines();
     setIsModalOpen(false);
@@ -133,14 +135,14 @@ export function DeadlinesPage() {
       body: JSON.stringify(data),
     });
     
-    if (!response.ok) throw new Error('Ошибка обновления дедлайна');
+    if (!response.ok) throw new Error(d.errors.update);
     
     setEditingDeadline(null);
     await fetchDeadlines();
   };
 
   const handleDeleteDeadline = async (id: string) => {
-    if (!confirm('Удалить этот дедлайн?')) return;
+    if (!confirm(d.confirmDelete)) return;
     
     const token = localStorage.getItem('accessToken');
     const response = await fetch(`/api/deadlines/${id}`, {
@@ -150,7 +152,7 @@ export function DeadlinesPage() {
       },
     });
     
-    if (!response.ok) throw new Error('Ошибка удаления');
+    if (!response.ok) throw new Error(d.errors.delete);
     
     await fetchDeadlines();
   };
@@ -166,7 +168,7 @@ export function DeadlinesPage() {
       body: JSON.stringify({ status: 'completed' }),
     });
     
-    if (!response.ok) throw new Error('Ошибка обновления');
+    if (!response.ok) throw new Error(d.errors.update);
     
     await fetchDeadlines();
   };
@@ -188,28 +190,30 @@ export function DeadlinesPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return <Badge className="bg-green-100 text-green-800">Выполнено</Badge>;
+        return <Badge className="bg-green-100 text-green-800">{d.status.completed}</Badge>;
       case 'overdue':
-        return <Badge className="bg-red-100 text-red-800">Просрочено</Badge>;
+        return <Badge className="bg-red-100 text-red-800">{d.status.overdue}</Badge>;
       case 'today':
-        return <Badge className="bg-orange-100 text-orange-800">Сегодня</Badge>;
+        return <Badge className="bg-orange-100 text-orange-800">{d.status.today}</Badge>;
       case 'tomorrow':
-        return <Badge className="bg-yellow-100 text-yellow-800">Завтра</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800">{d.status.tomorrow}</Badge>;
       case 'this_week':
-        return <Badge className="bg-blue-100 text-blue-800">На этой неделе</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800">{d.status.this_week}</Badge>;
       default:
-        return <Badge className="bg-gray-100 text-gray-800">Предстоит</Badge>;
+        return <Badge className="bg-gray-100 text-gray-800">{d.status.upcoming}</Badge>;
     }
   };
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
+      case 'urgent':
+        return <Badge variant="destructive">{m.events.priorities.urgent}</Badge>;
       case 'high':
-        return <Badge variant="destructive">Высокий</Badge>;
+        return <Badge variant="destructive">{d.priority.high}</Badge>;
       case 'medium':
-        return <Badge className="bg-yellow-500">Средний</Badge>;
+        return <Badge className="bg-yellow-500">{d.priority.medium}</Badge>;
       default:
-        return <Badge variant="secondary">Низкий</Badge>;
+        return <Badge variant="secondary">{d.priority.low}</Badge>;
     }
   };
 
@@ -247,19 +251,19 @@ export function DeadlinesPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Calendar className="h-6 w-6" />
-            Дедлайны
+            {d.title}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {stats.total} активных • {stats.overdue > 0 && (
-              <span className="text-red-500">{stats.overdue} просрочено</span>
-            )} {stats.today > 0 && (
-              <span className="text-orange-500"> • {stats.today} сегодня</span>
+            {d.summaryActive(stats.total)}{stats.overdue > 0 && (
+              <span className="text-red-500"> • {d.summaryOverdue(stats.overdue)}</span>
+            )}{stats.today > 0 && (
+              <span className="text-orange-500"> • {d.summaryToday(stats.today)}</span>
             )}
           </p>
         </div>
         <Button onClick={() => setIsModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Добавить дедлайн
+          {d.add}
         </Button>
       </div>
 
@@ -271,12 +275,7 @@ export function DeadlinesPage() {
             size="sm"
             onClick={() => setFilterStatus(status)}
           >
-            {status === 'all' && 'Все'}
-            {status === 'active' && 'Активные'}
-            {status === 'today' && 'Сегодня'}
-            {status === 'this_week' && 'Неделя'}
-            {status === 'overdue' && 'Просрочено'}
-            {status === 'completed' && 'Выполнено'}
+            {d.filters[status]}
           </Button>
         ))}
       </div>
@@ -284,13 +283,13 @@ export function DeadlinesPage() {
       {filteredDeadlines.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-center">
           <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium">Нет дедлайнов</h3>
+          <h3 className="text-lg font-medium">{d.empty}</h3>
           <p className="text-muted-foreground mb-4">
-            {filterStatus !== 'all' ? 'Нет дедлайнов с таким статусом' : 'Добавьте первый дедлайн'}
+            {filterStatus !== 'all' ? d.emptyFiltered : d.emptyHint}
           </p>
           <Button onClick={() => setIsModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Добавить дедлайн
+            {d.add}
           </Button>
         </div>
       ) : (
@@ -329,7 +328,7 @@ export function DeadlinesPage() {
                       <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
-                          {format(dueDate, 'd MMMM yyyy, HH:mm', { locale: ru })}
+                          {dueDate.toLocaleString(lang, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
                         {deadline.course && (
                           <span className="flex items-center gap-1">
@@ -338,9 +337,9 @@ export function DeadlinesPage() {
                         )}
                         {status !== 'completed' && status !== 'overdue' && (
                           <span>
-                            {daysLeft === 0 ? 'Сегодня' : 
-                             daysLeft === 1 ? 'Завтра' : 
-                             `${daysLeft} дней`}
+                            {daysLeft === 0 ? d.today :
+                             daysLeft === 1 ? d.tomorrow :
+                             d.inDays(daysLeft)}
                           </span>
                         )}
                       </div>
@@ -354,13 +353,14 @@ export function DeadlinesPage() {
                           onClick={() => handleCompleteDeadline(deadline.id)}
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
-                          Выполнено
+                          {d.markDone}
                         </Button>
                       )}
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => setEditingDeadline(deadline)}
+                        aria-label={m.common.edit}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -368,6 +368,7 @@ export function DeadlinesPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteDeadline(deadline.id)}
+                        aria-label={m.common.delete}
                       >
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
@@ -405,6 +406,8 @@ interface DeadlineModalProps {
 }
 
 function DeadlineModal({ open, onClose, onSubmit, initialData, courses, isEditing }: DeadlineModalProps) {
+  const { m } = useLang();
+  const f = m.deadlines.form;
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     description: initialData?.description || '',
@@ -453,32 +456,32 @@ function DeadlineModal({ open, onClose, onSubmit, initialData, courses, isEditin
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Редактировать дедлайн' : 'Новый дедлайн'}
+            {isEditing ? f.titleEdit : f.titleNew}
           </DialogTitle>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
-            <Label>Название *</Label>
+            <Label>{f.name}</Label>
             <Input
               value={formData.title}
               onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Название дедлайна"
+              placeholder={f.namePlaceholder}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Описание</Label>
+            <Label>{f.description}</Label>
             <Textarea
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Описание задачи"
+              placeholder={f.descriptionPlaceholder}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Дата и время *</Label>
+              <Label>{f.due}</Label>
               <Input
                 type="datetime-local"
                 value={formData.dueDate}
@@ -487,7 +490,7 @@ function DeadlineModal({ open, onClose, onSubmit, initialData, courses, isEditin
             </div>
 
             <div className="space-y-2">
-              <Label>Приоритет</Label>
+              <Label>{f.priority}</Label>
               <Select 
                 value={formData.priority} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}
@@ -496,25 +499,26 @@ function DeadlineModal({ open, onClose, onSubmit, initialData, courses, isEditin
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Низкий</SelectItem>
-                  <SelectItem value="medium">Средний</SelectItem>
-                  <SelectItem value="high">Высокий</SelectItem>
+                  <SelectItem value="low">{m.deadlines.priority.low}</SelectItem>
+                  <SelectItem value="medium">{m.deadlines.priority.medium}</SelectItem>
+                  <SelectItem value="high">{m.deadlines.priority.high}</SelectItem>
+                  <SelectItem value="urgent">{m.events.priorities.urgent}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Курс</Label>
+            <Label>{f.course}</Label>
             <Select 
               value={formData.courseId} 
               onValueChange={(value) => setFormData(prev => ({ ...prev, courseId: value }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Выберите курс (опционально)" />
+                <SelectValue placeholder={f.coursePlaceholder} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Без курса</SelectItem>
+                <SelectItem value="">{f.noCourse}</SelectItem>
                 {courses.map((course) => (
                   <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>
                 ))}
@@ -524,9 +528,9 @@ function DeadlineModal({ open, onClose, onSubmit, initialData, courses, isEditin
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Отмена</Button>
+          <Button variant="outline" onClick={onClose}>{m.common.cancel}</Button>
           <Button onClick={handleSubmit} disabled={isSubmitting || !formData.title || !formData.dueDate}>
-            {isSubmitting ? 'Сохранение...' : (isEditing ? 'Сохранить' : 'Создать')}
+            {isSubmitting ? m.common.saving : (isEditing ? m.common.save : f.create)}
           </Button>
         </DialogFooter>
       </DialogContent>

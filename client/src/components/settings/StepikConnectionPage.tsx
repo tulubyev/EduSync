@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, Loader2, RefreshCw, LogOut, BookOpen, Clock } from 'lucide-react';
+import { useLang } from '@/i18n';
 
 interface StepikConnectionStatus {
   connected: boolean;
@@ -29,6 +30,8 @@ interface SyncedCourse {
 }
 
 export function StepikConnectionPage() {
+  const { m, lang } = useLang();
+  const t = m.settings.stepik;
   const [status, setStatus] = useState<StepikConnectionStatus | null>(null);
   const [courses, setCourses] = useState<SyncedCourse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +87,7 @@ export function StepikConnectionPage() {
       });
       const { authUrl, message } = await authRes.json();
       if (!authRes.ok || !authUrl) {
-        throw new Error(message || 'Не удалось получить ссылку для входа в Stepik');
+        throw new Error(message || t.errAuthUrl);
       }
 
       // Redirect to Stepik OAuth
@@ -113,7 +116,7 @@ export function StepikConnectionPage() {
         await loadStatus();
       } else {
         const error = await res.json();
-        setError(error.message || 'Sync failed');
+        setError(error.message || t.errSync);
       }
     } catch (err: any) {
       setError(err.message);
@@ -123,7 +126,7 @@ export function StepikConnectionPage() {
   };
 
   const handleDisconnect = async () => {
-    if (!window.confirm('Вы уверены? Это удалит все синхронизированные курсы.')) {
+    if (!window.confirm(t.confirmDisconnect)) {
       return;
     }
 
@@ -142,7 +145,7 @@ export function StepikConnectionPage() {
         setCourses([]);
       } else {
         const error = await res.json();
-        setError(error.message || 'Disconnect failed');
+        setError(error.message || t.errDisconnect);
       }
     } catch (err: any) {
       setError(err.message);
@@ -168,7 +171,7 @@ export function StepikConnectionPage() {
             <div className="flex gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-red-900">Ошибка</p>
+                <p className="font-medium text-red-900">{m.common.error}</p>
                 <p className="text-sm text-red-700">{error}</p>
               </div>
             </div>
@@ -183,15 +186,15 @@ export function StepikConnectionPage() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <BookOpen className="w-5 h-5" />
-                Подключение к Stepik
+                {t.title}
               </CardTitle>
               <CardDescription>
-                Синхронизируйте ваши курсы с платформы Stepik
+                {t.subtitle}
               </CardDescription>
             </div>
             {status?.connected && (
               <Badge className="bg-green-100 text-green-800 border-green-300">
-                ✓ Подключено
+                {t.connected}
               </Badge>
             )}
           </div>
@@ -201,7 +204,7 @@ export function StepikConnectionPage() {
           {!status?.connected ? (
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                Подключитесь к Stepik для синхронизации ваших курсов и отслеживания прогресса.
+                {t.intro}
               </p>
               <Button
                 onClick={handleConnect}
@@ -212,12 +215,12 @@ export function StepikConnectionPage() {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Подключение...
+                    {t.connecting}
                   </>
                 ) : (
                   <>
                     <BookOpen className="w-4 h-4 mr-2" />
-                    Подключить к Stepik
+                    {t.connect}
                   </>
                 )}
               </Button>
@@ -227,16 +230,16 @@ export function StepikConnectionPage() {
               {/* Status Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-600 mb-1">Статус синхронизации</p>
+                  <p className="text-xs text-gray-600 mb-1">{t.syncStatus}</p>
                   <p className="font-medium capitalize">
-                    {status.syncStatus === 'idle' && '✓ Готово'}
-                    {status.syncStatus === 'syncing' && '⏳ Синхронизация...'}
-                    {status.syncStatus === 'failed' && '✗ Ошибка'}
+                    {status.syncStatus === 'idle' && t.idle}
+                    {status.syncStatus === 'syncing' && t.syncing}
+                    {status.syncStatus === 'failed' && t.failed}
                   </p>
                 </div>
 
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-600 mb-1">Синхронизированные курсы</p>
+                  <p className="text-xs text-gray-600 mb-1">{t.syncedCourses}</p>
                   <p className="font-medium text-lg">{status.coursesCount}</p>
                 </div>
               </div>
@@ -246,8 +249,8 @@ export function StepikConnectionPage() {
                 <div className="bg-blue-50 p-3 rounded-lg flex items-start gap-3">
                   <Clock className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-blue-900">
-                    <p className="font-medium">Последняя синхронизация</p>
-                    <p>{new Date(status.lastSyncAt).toLocaleString('ru-RU')}</p>
+                    <p className="font-medium">{t.lastSync}</p>
+                    <p>{new Date(status.lastSyncAt).toLocaleString(lang)}</p>
                   </div>
                 </div>
               )}
@@ -257,7 +260,7 @@ export function StepikConnectionPage() {
                 <div className="bg-yellow-50 p-3 rounded-lg flex items-start gap-3 border border-yellow-200">
                   <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-yellow-900">
-                    <p className="font-medium">Ошибка синхронизации</p>
+                    <p className="font-medium">{t.syncError}</p>
                     <p>{status.lastSyncError}</p>
                   </div>
                 </div>
@@ -267,7 +270,7 @@ export function StepikConnectionPage() {
               {status.requiresReauth && (
                 <div className="bg-red-50 p-3 rounded-lg border border-red-200">
                   <p className="text-sm font-medium text-red-900 mb-3">
-                    ⚠️ Требуется повторное подключение
+                    {t.reauthRequired}
                   </p>
                   <Button
                     onClick={handleConnect}
@@ -275,7 +278,7 @@ export function StepikConnectionPage() {
                     className="w-full"
                     variant="default"
                   >
-                    Переподключить к Stepik
+                    {t.reconnect}
                   </Button>
                 </div>
               )}
@@ -291,12 +294,12 @@ export function StepikConnectionPage() {
                   {syncing || status.syncStatus === 'syncing' ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Синхронизация...
+                      {t.syncingBtn}
                     </>
                   ) : (
                     <>
                       <RefreshCw className="w-4 h-4 mr-2" />
-                      Синхронизировать
+                      {t.sync}
                     </>
                   )}
                 </Button>
@@ -310,12 +313,12 @@ export function StepikConnectionPage() {
                   {disconnecting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Отключение...
+                      {t.disconnecting}
                     </>
                   ) : (
                     <>
                       <LogOut className="w-4 h-4 mr-2" />
-                      Отключить
+                      {t.disconnect}
                     </>
                   )}
                 </Button>
@@ -328,7 +331,7 @@ export function StepikConnectionPage() {
       {/* Courses List */}
       {status?.connected && courses.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-4">Синхронизированные курсы ({courses.length})</h3>
+          <h3 className="text-lg font-semibold mb-4">{t.coursesTitle(courses.length)}</h3>
           <div className="grid gap-4">
             {courses.map(course => (
               <Card key={course.id} className="hover:shadow-md transition-shadow">
@@ -376,16 +379,16 @@ export function StepikConnectionPage() {
 
                         {course.isCompleted && (
                           <Badge className="bg-green-100 text-green-800 border-green-300">
-                            ✓ Завершен
+                            {t.completed}
                           </Badge>
                         )}
                       </div>
 
                       {(course.startDate || course.endDate) && (
                         <p className="text-xs text-gray-500 mt-2">
-                          {course.startDate && `Начало: ${new Date(course.startDate).toLocaleDateString('ru-RU')}`}
+                          {course.startDate && t.start(new Date(course.startDate).toLocaleDateString(lang))}
                           {course.startDate && course.endDate && ' • '}
-                          {course.endDate && `Конец: ${new Date(course.endDate).toLocaleDateString('ru-RU')}`}
+                          {course.endDate && t.end(new Date(course.endDate).toLocaleDateString(lang))}
                         </p>
                       )}
                     </div>
@@ -401,9 +404,9 @@ export function StepikConnectionPage() {
         <Card className="border-dashed">
           <CardContent className="pt-6 text-center">
             <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-600">Нет синхронизированных курсов</p>
+            <p className="text-gray-600">{t.empty}</p>
             <p className="text-sm text-gray-500 mt-1">
-              Нажмите кнопку синхронизации выше для загрузки ваших курсов с Stepik
+              {t.emptyHint}
             </p>
           </CardContent>
         </Card>

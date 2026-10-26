@@ -7,6 +7,7 @@ import { User, Upload, Mail, Phone, BookOpen, Shield } from 'lucide-react';
 import { StepikConnectionPage } from './StepikConnectionPage';
 import { NotificationSettingsCard } from './NotificationSettingsCard';
 import { isValidInternationalPhone, normalizePhone } from '../../utils/phoneUtils';
+import { useLang } from '@/i18n';
 
 interface UserProfile {
   id: string;
@@ -25,6 +26,8 @@ interface UserProfile {
 }
 
 export function SettingsPage() {
+  const { m, lang } = useLang();
+  const s = m.settings;
   const [activeTab, setActiveTab] = useState('profile');
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,16 +98,16 @@ export function SettingsPage() {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.email) newErrors.email = 'Email обязателен';
+    if (!formData.email) newErrors.email = s.errEmailRequired;
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Некорректный формат email';
+      newErrors.email = s.errEmailFormat;
     }
 
-    if (!formData.firstName) newErrors.firstName = 'Имя обязательно';
-    if (!formData.lastName) newErrors.lastName = 'Фамилия обязательна';
+    if (!formData.firstName) newErrors.firstName = s.errFirstName;
+    if (!formData.lastName) newErrors.lastName = s.errLastName;
 
     if (formData.phone && !isValidInternationalPhone(normalizePhone(formData.phone))) {
-      newErrors.phone = 'Номер в международном формате: +, код страны и номер';
+      newErrors.phone = s.errPhone;
     }
 
     setErrors(newErrors);
@@ -115,11 +118,11 @@ export function SettingsPage() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        setErrors(prev => ({ ...prev, photo: 'Размер фото не должен превышать 5MB' }));
+        setErrors(prev => ({ ...prev, photo: s.errPhotoSize(5) }));
         return;
       }
       if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({ ...prev, photo: 'Пожалуйста, выберите изображение' }));
+        setErrors(prev => ({ ...prev, photo: s.errPhotoType }));
         return;
       }
       setSelectedFile(file);
@@ -166,7 +169,7 @@ export function SettingsPage() {
           uploadedImageUrl = photoData.profileImage || null;
         } else {
           const err = await photoRes.json().catch(() => ({}));
-          setErrors(prev => ({ ...prev, photo: err.message || 'Ошибка загрузки фото' }));
+          setErrors(prev => ({ ...prev, photo: err.message || s.errPhotoUpload }));
         }
       }
 
@@ -188,14 +191,14 @@ export function SettingsPage() {
         const error = await response.json();
         setErrors(prev => ({
           ...prev,
-          submit: error.message || 'Ошибка при сохранении профиля',
+          submit: error.message || s.errSave,
         }));
         return;
       }
 
       const updatedProfileData = await response.json();
       
-      setSuccessMessage('✓ Профиль успешно обновлен');
+      setSuccessMessage(s.saved);
       const fullProfileData = {
         ...updatedProfileData,
         profileImageUrl: uploadedImageUrl || profile?.profileImageUrl || null,
@@ -213,7 +216,7 @@ export function SettingsPage() {
         setSuccessMessage('');
       }, 500);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Ошибка при сохранении профиля';
+      const errorMessage = error instanceof Error ? error.message : s.errSave;
       console.error('❌ Save profile error:', errorMessage);
       setErrors(prev => ({
         ...prev,
@@ -243,28 +246,9 @@ export function SettingsPage() {
     }
   };
 
-  const getPlanLabel = (plan: string) => {
-    const labels: Record<string, string> = {
-      free: 'Бесплатный план',
-      premium: 'Premium план',
-      pro: 'Pro план',
-      family: 'Семейный план',
-      business: 'Бизнес план',
-    };
-    return labels[plan] || plan;
-  };
+  const getPlanLabel = (plan: string) => s.plans[plan] || plan;
 
-  const getAdminRoleLabel = (adminRole?: string) => {
-    const labels: Record<string, string> = {
-      super_admin: 'Супер Администратор',
-      analytics_admin: 'Аналитик',
-      devops_admin: 'DevOps Администратор',
-      finance_admin: 'Финансовый Администратор',
-      api_admin: 'API Администратор',
-      security_admin: 'Администратор Безопасности',
-    };
-    return adminRole ? labels[adminRole] || adminRole : null;
-  };
+  const getAdminRoleLabel = (adminRole?: string) => (adminRole ? s.adminRoles[adminRole] || adminRole : null);
 
   const getAdminRoleBadgeColor = (adminRole?: string) => {
     switch (adminRole) {
@@ -282,8 +266,8 @@ export function SettingsPage() {
     <div className="p-8 max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold mb-2">⚙️ Настройки</h1>
-        <p className="text-muted-foreground">Управление вашим профилем и учетной записью</p>
+        <h1 className="text-3xl font-bold mb-2">{s.title}</h1>
+        <p className="text-muted-foreground">{s.subtitle}</p>
       </div>
 
       {/* Tabs Navigation */}
@@ -291,11 +275,11 @@ export function SettingsPage() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="w-4 h-4" />
-            Профиль
+            {s.tabProfile}
           </TabsTrigger>
           <TabsTrigger value="platforms" className="flex items-center gap-2">
             <BookOpen className="w-4 h-4" />
-            Платформы
+            {s.tabPlatforms}
           </TabsTrigger>
         </TabsList>
 
@@ -320,7 +304,7 @@ export function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Профиль пользователя
+                {s.profileTitle}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -331,7 +315,7 @@ export function SettingsPage() {
                     {newPhotoPreview || profile?.profileImageUrl ? (
                       <img
                         src={newPhotoPreview || profile?.profileImageUrl}
-                        alt="Profile"
+                        alt={s.photoAlt}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -347,7 +331,7 @@ export function SettingsPage() {
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <Upload className="w-5 h-5 mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm text-gray-600">Перетащите фото или нажмите</p>
+                    <p className="text-sm text-gray-600">{s.photoDrop}</p>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -366,7 +350,7 @@ export function SettingsPage() {
                 <div>
                   <label className="text-sm font-medium flex items-center gap-2 mb-2">
                     <Mail className="w-4 h-4" />
-                    Email
+                    {s.email}
                   </label>
                   <input
                     type="email"
@@ -380,7 +364,7 @@ export function SettingsPage() {
 
                 {/* First Name */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Имя</label>
+                  <label className="text-sm font-medium mb-2 block">{s.firstName}</label>
                   <input
                     type="text"
                     name="firstName"
@@ -393,7 +377,7 @@ export function SettingsPage() {
 
                 {/* Last Name */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Фамилия</label>
+                  <label className="text-sm font-medium mb-2 block">{s.lastName}</label>
                   <input
                     type="text"
                     name="lastName"
@@ -408,7 +392,7 @@ export function SettingsPage() {
                 <div>
                   <label className="text-sm font-medium flex items-center gap-2 mb-2">
                     <Phone className="w-4 h-4" />
-                    Телефон (необязательно)
+                    {s.phoneOptional}
                   </label>
                   <input
                     type="tel"
@@ -427,7 +411,7 @@ export function SettingsPage() {
                 disabled={saving}
                 className="w-full"
               >
-                {saving ? 'Сохранение...' : 'Сохранить изменения'}
+                {saving ? m.common.saving : s.saveChanges}
               </Button>
             </CardContent>
           </Card>
@@ -439,15 +423,15 @@ export function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
-                Роль в системе
+                {s.roleTitle}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Тип учётной записи</p>
+                  <p className="text-sm text-muted-foreground mb-1">{s.accountType}</p>
                   <p className="text-base font-semibold">
-                    {profile?.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                    {profile?.role === 'admin' ? s.admin : s.user}
                   </p>
                 </div>
                 <Badge className={profile?.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}>
@@ -457,7 +441,7 @@ export function SettingsPage() {
               {profile?.adminRole && (
                 <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border">
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Административная роль</p>
+                    <p className="text-sm text-muted-foreground mb-1">{s.adminRoleTitle}</p>
                     <p className="text-base font-semibold">{getAdminRoleLabel(profile.adminRole)}</p>
                   </div>
                   <Badge className={getAdminRoleBadgeColor(profile.adminRole)}>
@@ -471,12 +455,12 @@ export function SettingsPage() {
           {/* Subscription Status */}
           <Card>
             <CardHeader>
-              <CardTitle>Статус подписки</CardTitle>
+              <CardTitle>{s.subscriptionTitle}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Текущий план</p>
+                  <p className="text-sm text-muted-foreground mb-1">{s.currentPlan}</p>
                   <p className="text-lg font-semibold">{profile && getPlanLabel(profile.planType)}</p>
                 </div>
                 <Badge className={getPlanBadgeColor(profile?.planType || 'free')}>
@@ -489,20 +473,20 @@ export function SettingsPage() {
           {/* Account Info */}
           <Card>
             <CardHeader>
-              <CardTitle>Информация об учетной записи</CardTitle>
+              <CardTitle>{s.accountTitle}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">ID пользователя:</span>
+                <span className="text-muted-foreground">{s.userId}</span>
                 <span className="font-mono text-sm">{profile?.id}</span>
               </div>
               <div className="flex justify-between py-2 border-b">
-                <span className="text-muted-foreground">Создана:</span>
-                <span>{profile && new Date(profile.createdAt).toLocaleDateString('ru-RU')}</span>
+                <span className="text-muted-foreground">{s.created}</span>
+                <span>{profile && new Date(profile.createdAt).toLocaleDateString(lang)}</span>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Статус:</span>
-                <span className="text-green-600 font-medium">✓ Активна</span>
+                <span className="text-muted-foreground">{s.status}</span>
+                <span className="text-green-600 font-medium">{s.active}</span>
               </div>
             </CardContent>
           </Card>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLang } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +48,8 @@ interface LibraryTreeNavProps {
 type SortType = 'all' | 'type' | 'name' | 'date' | 'tags';
 
 export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMaterial }: LibraryTreeNavProps) {
+  const { m, lang } = useLang();
+  const nav = m.library.nav;
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['all']));
   const [activeSort, setActiveSort] = useState<SortType>('all');
 
@@ -105,28 +108,29 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMa
   };
 
   const sortByName = () => {
-    return [...notes].sort((a, b) => a.title.localeCompare(b.title, 'ru'));
+    return [...notes].sort((a, b) => a.title.localeCompare(b.title, lang));
   };
 
   const groupByDate = () => {
     const today = new Date();
-    const groups: Record<string, Note[]> = {
-      'Сегодня': [],
-      'Вчера': [],
-      'Эта неделя': [],
-      'Этот месяц': [],
-      'Ранее': [],
+    // ключи внутренние, подписи — из словаря
+    const groups: Record<keyof typeof nav.dates, Note[]> = {
+      today: [],
+      yesterday: [],
+      week: [],
+      month: [],
+      earlier: [],
     };
     
     notes.forEach(note => {
       const date = new Date(note.createdAt);
       const diffDays = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
       
-      if (diffDays === 0) groups['Сегодня'].push(note);
-      else if (diffDays === 1) groups['Вчера'].push(note);
-      else if (diffDays <= 7) groups['Эта неделя'].push(note);
-      else if (diffDays <= 30) groups['Этот месяц'].push(note);
-      else groups['Ранее'].push(note);
+      if (diffDays === 0) groups.today.push(note);
+      else if (diffDays === 1) groups.yesterday.push(note);
+      else if (diffDays <= 7) groups.week.push(note);
+      else if (diffDays <= 30) groups.month.push(note);
+      else groups.earlier.push(note);
     });
     
     return groups;
@@ -148,26 +152,20 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMa
     });
     
     if (noTags.length > 0) {
-      groups['Без тегов'] = noTags;
+      groups['__none__'] = noTags;
     }
     
     return groups;
   };
 
-  const typeLabels: Record<string, string> = {
-    image: 'Изображения',
-    video: 'Видео',
-    audio: 'Аудио',
-    link: 'Ссылки',
-    text: 'Заметки',
-  };
+  const typeLabels = nav.types;
 
   const sortButtons = [
-    { id: 'all' as SortType, label: 'Все', icon: <FileText className="h-3 w-3" /> },
-    { id: 'type' as SortType, label: 'По типу', icon: <ImageIcon className="h-3 w-3" /> },
-    { id: 'name' as SortType, label: 'По имени', icon: <SortAsc className="h-3 w-3" /> },
-    { id: 'date' as SortType, label: 'По дате', icon: <Calendar className="h-3 w-3" /> },
-    { id: 'tags' as SortType, label: 'По тегам', icon: <Hash className="h-3 w-3" /> },
+    { id: 'all' as SortType, label: nav.all, icon: <FileText className="h-3 w-3" /> },
+    { id: 'type' as SortType, label: nav.byType, icon: <ImageIcon className="h-3 w-3" /> },
+    { id: 'name' as SortType, label: nav.byName, icon: <SortAsc className="h-3 w-3" /> },
+    { id: 'date' as SortType, label: nav.byDate, icon: <Calendar className="h-3 w-3" /> },
+    { id: 'tags' as SortType, label: nav.byTags, icon: <Hash className="h-3 w-3" /> },
   ];
 
   const renderMaterialItem = (note: Note, level: number = 1) => {
@@ -241,14 +239,14 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMa
       }
       case 'date': {
         const groups = groupByDate();
-        return Object.entries(groups).map(([period, items]) => 
-          renderGroup(`date-${period}`, period, items, <Clock className="h-4 w-4 text-orange-500" />)
+        return (Object.entries(groups) as [keyof typeof nav.dates, Note[]][]).map(([period, items]) =>
+          renderGroup(`date-${period}`, nav.dates[period], items, <Clock className="h-4 w-4 text-orange-500" />)
         );
       }
       case 'tags': {
         const groups = groupByTags();
         return Object.entries(groups).map(([tag, items]) => 
-          renderGroup(`tag-${tag}`, tag === 'Без тегов' ? tag : `#${tag}`, items, <Hash className="h-4 w-4 text-green-500" />)
+          renderGroup(`tag-${tag}`, tag === '__none__' ? nav.noTags : `#${tag}`, items, <Hash className="h-4 w-4 text-green-500" />)
         );
       }
       default: {
@@ -260,7 +258,7 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMa
   return (
     <Card className="h-full flex flex-col border-r">
       <CardHeader className="pb-2 px-3 pt-3">
-        <CardTitle className="text-sm">Навигация</CardTitle>
+        <CardTitle className="text-sm">{nav.title}</CardTitle>
         <div className="flex flex-wrap gap-1 mt-2">
           {sortButtons.map(btn => (
             <Button
@@ -273,14 +271,14 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMa
                 if (btn.id === 'type') {
                   setExpandedNodes(new Set(['type-image', 'type-video', 'type-audio', 'type-link', 'type-text']));
                 } else if (btn.id === 'date') {
-                  setExpandedNodes(new Set(['date-Сегодня', 'date-Вчера', 'date-Эта неделя', 'date-Этот месяц', 'date-Ранее']));
+                  setExpandedNodes(new Set(['date-today', 'date-yesterday', 'date-week', 'date-month', 'date-earlier']));
                 } else if (btn.id === 'tags') {
                   const tagSet = new Set<string>();
                   notes.forEach(n => {
                     (n.tags || []).forEach(tag => tagSet.add(tag));
                   });
                   const expandedTagIds = Array.from(tagSet).map(t => `tag-${t}`);
-                  setExpandedNodes(new Set([...expandedTagIds, 'tag-Без тегов']));
+                  setExpandedNodes(new Set([...expandedTagIds, 'tag-__none__']));
                 } else {
                   setExpandedNodes(new Set(['all']));
                 }
@@ -295,7 +293,7 @@ export function LibraryTreeNav({ notes, selectedNodeId, onSelectNode, onSelectMa
       <CardContent className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5">
         {pinnedNotes.length > 0 && (
           <>
-            {renderGroup('pinned', 'Закреплённые', pinnedNotes, <Pin className="h-4 w-4 text-yellow-500" />)}
+            {renderGroup('pinned', nav.pinned, pinnedNotes, <Pin className="h-4 w-4 text-yellow-500" />)}
             <div className="border-b my-2" />
           </>
         )}

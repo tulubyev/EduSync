@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PlatformSelector } from './PlatformSelector';
+import { useLang } from '@/i18n';
+import { COURSE_CATEGORIES } from '@/locales/courses';
 
 interface CourseFormData {
   platformId: string;
@@ -48,20 +50,6 @@ interface AddCourseModalProps {
   platforms?: Platform[];
 }
 
-const categories = [
-  'Программирование',
-  'Data Science',
-  'Веб-разработка',
-  'Мобильная разработка',
-  'Дизайн',
-  'Маркетинг',
-  'Бизнес',
-  'Языки',
-  'Математика',
-  'Физика',
-  'Другое',
-];
-
 export function AddCourseModal({ 
   open, 
   onClose, 
@@ -70,6 +58,8 @@ export function AddCourseModal({
   isEditing = false,
   platforms = []
 }: AddCourseModalProps) {
+  const { m } = useLang();
+  const f = m.courses.form;
   const [formData, setFormData] = useState<CourseFormData>({
     platformId: '',
     title: '',
@@ -168,23 +158,23 @@ export function AddCourseModal({
     const newErrors: Record<string, string> = {};
     
     if (!formData.title.trim()) {
-      newErrors.title = 'Название курса обязательно';
+      newErrors.title = f.errTitle;
     }
     
     if (formData.courseUrl && !isValidUrl(formData.courseUrl)) {
-      newErrors.courseUrl = 'Неверный формат URL';
+      newErrors.courseUrl = f.errUrl;
     }
     
     if (formData.imageUrl && !isValidUrl(formData.imageUrl)) {
-      newErrors.imageUrl = 'Неверный формат URL изображения';
+      newErrors.imageUrl = f.errImageUrl;
     }
     
     if (formData.duration && isNaN(parseInt(formData.duration))) {
-      newErrors.duration = 'Длительность должна быть числом';
+      newErrors.duration = f.errDuration;
     }
 
     if (formData.cost && isNaN(parseFloat(formData.cost))) {
-      newErrors.cost = 'Стоимость должна быть числом';
+      newErrors.cost = f.errCost;
     }
 
     setErrors(newErrors);
@@ -247,14 +237,14 @@ export function AddCourseModal({
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Редактировать курс' : 'Добавить новый курс'}
+            {isEditing ? f.titleEdit : f.titleNew}
           </DialogTitle>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
           {!isEditing && (
             <div className="space-y-2">
-              <Label htmlFor="platform">Образовательная платформа *</Label>
+              <Label htmlFor="platform">{f.platform}</Label>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -264,7 +254,7 @@ export function AddCourseModal({
                 >
                   {formData.platformId && (allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))
                     ? (allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))?.displayName || (allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))?.name
-                    : 'Выбрать платформу'}
+                    : f.choosePlatform}
                 </Button>
                 {formData.platformId && (
                   <Button
@@ -279,24 +269,24 @@ export function AddCourseModal({
               </div>
               {formData.platformId && (
                 <p className="text-xs text-green-600">
-                  ✓ Платформа выбрана: {(allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))?.displayName || (allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))?.name}
+                  {f.platformChosen((allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))?.displayName || (allPlatforms.find(p => p.id === formData.platformId) || platforms.find(p => p.id === formData.platformId))?.name || '')}
                 </p>
               )}
               {!formData.platformId && (
                 <p className="text-xs text-amber-600">
-                  Выберите платформу, чтобы начать добавление курса
+                  {f.choosePlatformHint}
                 </p>
               )}
             </div>
           )}
           
           <div className="space-y-2">
-            <Label htmlFor="title">Название курса *</Label>
+            <Label htmlFor="title">{f.title}</Label>
             <Input
               id="title"
               value={formData.title}
               onChange={(e) => handleChange('title', e.target.value)}
-              placeholder="Введите название курса"
+              placeholder={f.titlePlaceholder}
               className={errors.title ? 'border-red-500' : ''}
             />
             {errors.title && (
@@ -305,29 +295,29 @@ export function AddCourseModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Описание</Label>
+            <Label htmlFor="description">{f.description}</Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => handleChange('description', e.target.value)}
-              placeholder="Краткое описание курса"
+              placeholder={f.descriptionPlaceholder}
               rows={3}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="instructor">Преподаватель</Label>
+              <Label htmlFor="instructor">{f.instructor}</Label>
               <Input
                 id="instructor"
                 value={formData.instructor}
                 onChange={(e) => handleChange('instructor', e.target.value)}
-                placeholder="Имя преподавателя"
+                placeholder={f.instructorPlaceholder}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="duration">Длительность (мин)</Label>
+              <Label htmlFor="duration">{f.duration}</Label>
               <Input
                 id="duration"
                 type="number"
@@ -343,18 +333,18 @@ export function AddCourseModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cost">Стоимость курса (₽)</Label>
+            <Label htmlFor="cost">{f.cost}</Label>
             <Input
               id="cost"
               type="number"
               step="0.01"
               value={formData.cost}
               onChange={(e) => handleChange('cost', e.target.value)}
-              placeholder="0 - бесплатный курс"
+              placeholder={f.costPlaceholder}
               className={errors.cost ? 'border-red-500' : ''}
             />
             <p className="text-xs text-muted-foreground">
-              Оставьте пустым или введите 0 для бесплатного курса
+              {f.costHint}
             </p>
             {errors.cost && (
               <p className="text-sm text-red-500">{errors.cost}</p>
@@ -363,42 +353,42 @@ export function AddCourseModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="category">Категория</Label>
+              <Label htmlFor="category">{f.category}</Label>
               <Select 
                 value={formData.category} 
                 onValueChange={(value) => handleChange('category', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите категорию" />
+                  <SelectValue placeholder={f.categoryPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  {COURSE_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{m.courses.categories[cat] ?? cat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="difficulty">Сложность</Label>
+              <Label htmlFor="difficulty">{f.difficulty}</Label>
               <Select 
                 value={formData.difficulty} 
                 onValueChange={(value) => handleChange('difficulty', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите уровень" />
+                  <SelectValue placeholder={f.difficultyPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="beginner">Начинающий</SelectItem>
-                  <SelectItem value="intermediate">Средний</SelectItem>
-                  <SelectItem value="advanced">Продвинутый</SelectItem>
+                  {(['beginner', 'intermediate', 'advanced'] as const).map((d) => (
+                    <SelectItem key={d} value={d}>{m.courses.difficulty[d]}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="courseUrl">Ссылка на курс</Label>
+            <Label htmlFor="courseUrl">{f.courseUrl}</Label>
             <Input
               id="courseUrl"
               value={formData.courseUrl}
@@ -412,7 +402,7 @@ export function AddCourseModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="imageUrl">URL изображения</Label>
+            <Label htmlFor="imageUrl">{f.imageUrl}</Label>
             <Input
               id="imageUrl"
               value={formData.imageUrl}
@@ -426,7 +416,7 @@ export function AddCourseModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tags">Теги (через запятую)</Label>
+            <Label htmlFor="tags">{f.tags}</Label>
             <Input
               id="tags"
               value={formData.tags}
@@ -438,10 +428,10 @@ export function AddCourseModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Отмена
+            {m.common.cancel}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Сохранение...' : (isEditing ? 'Сохранить' : 'Добавить')}
+            {isSubmitting ? m.common.saving : (isEditing ? m.common.save : m.common.add)}
           </Button>
         </DialogFooter>
       </DialogContent>

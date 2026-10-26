@@ -3,6 +3,7 @@ import { Check, ExternalLink, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useLang } from '@/i18n';
 
 /** Курс каталога — обезличенный, без владельца (GET /api/courses/catalog/all) */
 export interface CatalogCourse {
@@ -29,6 +30,8 @@ const OTHER = 'other';
 
 /** Каталог по площадкам: курс принадлежит площадке или школе, данных учеников здесь нет */
 export function CatalogView({ courses, platforms, myCourseUrls, onAdd }: CatalogViewProps) {
+  const { m, lang } = useLang();
+  const t = m.courses.catalog;
   const [platformFilter, setPlatformFilter] = useState('all');
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
@@ -37,7 +40,7 @@ export function CatalogView({ courses, platforms, myCourseUrls, onAdd }: Catalog
   const groupOf = (c: CatalogCourse) => {
     if (c.platformId && platforms[c.platformId]) return { key: c.platformId, name: platforms[c.platformId].name, color: platforms[c.platformId].color };
     if (c.source && c.source !== 'manual') return { key: `source:${c.source}`, name: SOURCE_NAMES[c.source] ?? c.source, color: '#667eea' };
-    return { key: OTHER, name: 'Другие площадки', color: '#9ca3af' };
+    return { key: OTHER, name: t.otherPlatforms, color: '#9ca3af' };
   };
 
   const groups = useMemo(() => {
@@ -49,8 +52,8 @@ export function CatalogView({ courses, platforms, myCourseUrls, onAdd }: Catalog
     }
     // по алфавиту, «Другие площадки» — в конце
     return Array.from(map.entries())
-      .sort(([ka, a], [kb, b]) => (ka === OTHER ? 1 : kb === OTHER ? -1 : a.name.localeCompare(b.name, 'ru')));
-  }, [courses, platforms]);
+      .sort(([ka, a], [kb, b]) => (ka === OTHER ? 1 : kb === OTHER ? -1 : a.name.localeCompare(b.name, lang)));
+  }, [courses, platforms, lang]);
 
   const q = query.trim().toLowerCase();
   const visible = groups
@@ -64,14 +67,14 @@ export function CatalogView({ courses, platforms, myCourseUrls, onAdd }: Catalog
     try {
       await onAdd(c);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось добавить курс');
+      setError(e instanceof Error ? e.message : t.errAdd);
     } finally {
       setAdding(null);
     }
   };
 
   if (courses.length === 0) {
-    return <p className="py-16 text-center text-muted-foreground">Каталог пока пуст: курсы появятся, когда ученики подключат площадки.</p>;
+    return <p className="py-16 text-center text-muted-foreground">{t.empty}</p>;
   }
 
   return (
@@ -79,18 +82,18 @@ export function CatalogView({ courses, platforms, myCourseUrls, onAdd }: Catalog
       <div className="mb-6 flex flex-col gap-3 md:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Поиск в каталоге..." value={query} onChange={(e) => setQuery(e.target.value)} className="pl-10" />
+          <Input placeholder={t.search} value={query} onChange={(e) => setQuery(e.target.value)} className="pl-10" />
         </div>
         <Select value={platformFilter} onValueChange={setPlatformFilter}>
-          <SelectTrigger className="md:w-[220px]" aria-label="Площадка"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="md:w-[220px]" aria-label={t.platform}><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Все площадки</SelectItem>
+            <SelectItem value="all">{t.allPlatforms}</SelectItem>
             {groups.map(([key, g]) => <SelectItem key={key} value={key}>{g.name} ({g.items.length})</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
-      {visible.length === 0 && <p className="py-10 text-center text-muted-foreground">Ничего не найдено</p>}
+      {visible.length === 0 && <p className="py-10 text-center text-muted-foreground">{t.nothingFound}</p>}
 
       <div className="space-y-8">
         {visible.map(([key, g]) => (
@@ -107,20 +110,20 @@ export function CatalogView({ courses, platforms, myCourseUrls, onAdd }: Catalog
                   <div key={c.id} className="flex flex-col rounded-xl border bg-white p-4">
                     <h3 className="break-words font-medium text-gray-900">{c.title}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {[g.name, c.category].filter(Boolean).join(' · ')}
+                      {[g.name, c.category && (m.courses.categories[c.category] ?? c.category)].filter(Boolean).join(' · ')}
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       {c.courseUrl && (
                         <a href={c.courseUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-purple-700 hover:underline">
-                          <ExternalLink className="h-4 w-4" /> На площадке
+                          <ExternalLink className="h-4 w-4" /> {t.onPlatform}
                         </a>
                       )}
                       <span className="flex-1" />
                       {mine ? (
-                        <span className="inline-flex items-center gap-1 text-sm text-green-700"><Check className="h-4 w-4" /> Уже у вас</span>
+                        <span className="inline-flex items-center gap-1 text-sm text-green-700"><Check className="h-4 w-4" /> {t.alreadyYours}</span>
                       ) : (
                         <Button size="sm" variant="outline" onClick={() => add(c)} disabled={adding === c.id}>
-                          <Plus className="mr-1 h-4 w-4" /> Добавить к себе
+                          <Plus className="mr-1 h-4 w-4" /> {t.addToMine}
                         </Button>
                       )}
                     </div>

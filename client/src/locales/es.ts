@@ -1,6 +1,6 @@
-import type { Messages } from './ru';
+import type { CoreMessages } from './ru';
 
-export const es: Messages = {
+export const es: CoreMessages = {
   common: {
     loading: 'Cargando…',
     error: 'Error',

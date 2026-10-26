@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, Loader2 } from 'lucide-react';
+import { useLang } from '@/i18n';
 
 interface PlatformAuthModalProps {
   open: boolean;
@@ -13,6 +14,8 @@ interface PlatformAuthModalProps {
 }
 
 export function PlatformAuthModal({ open, onOpenChange, platform }: PlatformAuthModalProps) {
+  const { m } = useLang();
+  const a = m.platforms.auth;
   const [authType, setAuthType] = useState<'username_password' | 'api_key' | 'oauth'>('username_password');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -38,10 +41,10 @@ export function PlatformAuthModal({ open, onOpenChange, platform }: PlatformAuth
 
     try {
       if (authType === 'username_password' && (!username || !password)) {
-        throw new Error('Заполните логин и пароль');
+        throw new Error(a.errCredentials);
       }
       if (authType === 'api_key' && !apiKey) {
-        throw new Error('Заполните API ключ');
+        throw new Error(a.errApiKey);
       }
 
       const token = localStorage.getItem('accessToken');
@@ -64,13 +67,13 @@ export function PlatformAuthModal({ open, onOpenChange, platform }: PlatformAuth
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.message || 'Ошибка авторизации');
+        throw new Error(data.message || a.errAuth);
       }
 
       setSuccess(true);
       setTimeout(() => handleClose(), 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
+      setError(err instanceof Error ? err.message : a.errUnknown);
     } finally {
       setLoading(false);
     }
@@ -82,32 +85,32 @@ export function PlatformAuthModal({ open, onOpenChange, platform }: PlatformAuth
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Подключить {platform.name}</DialogTitle>
+          <DialogTitle>{a.title(platform.name)}</DialogTitle>
           <DialogDescription>
-            Введите учетные данные для авторизации на платформе
+            {a.description}
           </DialogDescription>
         </DialogHeader>
 
         {success ? (
           <div className="py-8 text-center">
-            <div className="text-green-600 text-lg font-medium mb-2">✓ Успешно!</div>
+            <div className="text-green-600 text-lg font-medium mb-2">{a.success}</div>
             <p className="text-sm text-muted-foreground">
-              Учетные данные сохранены и зашифрованы
+              {a.saved}
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Auth Type Selection */}
             <div className="space-y-2">
-              <Label>Тип авторизации</Label>
+              <Label>{a.authType}</Label>
               <Select value={authType} onValueChange={(value: any) => setAuthType(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="username_password">Логин и пароль</SelectItem>
-                  <SelectItem value="api_key">API ключ</SelectItem>
-                  <SelectItem value="oauth">OAuth (скоро)</SelectItem>
+                  <SelectItem value="username_password">{a.usernamePassword}</SelectItem>
+                  <SelectItem value="api_key">{a.apiKey}</SelectItem>
+                  <SelectItem value="oauth">{a.oauthSoon}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -116,29 +119,29 @@ export function PlatformAuthModal({ open, onOpenChange, platform }: PlatformAuth
             {authType === 'username_password' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="username">Логин или Email</Label>
+                  <Label htmlFor="username">{a.username}</Label>
                   <Input
                     id="username"
                     type="text"
-                    placeholder="Введите логин"
+                    placeholder={a.usernamePlaceholder}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     disabled={loading}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Пароль</Label>
+                  <Label htmlFor="password">{a.password}</Label>
                   <Input
                     id="password"
                     type="password"
-                    placeholder="Введите пароль"
+                    placeholder={a.passwordPlaceholder}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  ⚠️ Пароль будет зашифрован и надежно сохранен
+                  {a.passwordNote}
                 </p>
               </>
             )}
@@ -147,18 +150,18 @@ export function PlatformAuthModal({ open, onOpenChange, platform }: PlatformAuth
             {authType === 'api_key' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="apiKey">API ключ</Label>
+                  <Label htmlFor="apiKey">{a.apiKey}</Label>
                   <Input
                     id="apiKey"
                     type="password"
-                    placeholder="Введите API ключ"
+                    placeholder={a.apiKeyPlaceholder}
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     disabled={loading}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  ⚠️ Ключ будет зашифрован и надежно сохранен
+                  {a.apiKeyNote}
                 </p>
               </>
             )}
@@ -166,7 +169,7 @@ export function PlatformAuthModal({ open, onOpenChange, platform }: PlatformAuth
             {/* OAuth Info */}
             {authType === 'oauth' && (
               <div className="p-3 bg-blue-50 rounded text-sm">
-                OAuth авторизация будет доступна в ближайшее время
+                {a.oauthNote}
               </div>
             )}
 
@@ -188,10 +191,10 @@ export function PlatformAuthModal({ open, onOpenChange, platform }: PlatformAuth
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Сохранение...
+                    {m.common.saving}
                   </>
                 ) : (
-                  'Сохранить учетные данные'
+                  a.save
                 )}
               </Button>
               <Button
@@ -200,7 +203,7 @@ export function PlatformAuthModal({ open, onOpenChange, platform }: PlatformAuth
                 onClick={handleClose}
                 disabled={loading}
               >
-                Отмена
+                {m.common.cancel}
               </Button>
             </div>
           </form>
