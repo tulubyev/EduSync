@@ -306,7 +306,7 @@ adminRouter.get('/users', authenticateToken, requirePermission('users.manage'), 
     const pageNum = Math.max(1, Number(page) || 1);
     const pageSize = Math.min(200, Math.max(1, Number(limit) || 20));
     const users = {
-      users: filtered.slice((pageNum - 1) * pageSize, pageNum * pageSize).map(({ passwordHash, ...rest }) => rest),
+      users: filtered.slice((pageNum - 1) * pageSize, pageNum * pageSize).map(({ passwordHash, calendarToken, ...rest }) => rest),
       total: filtered.length,
       page: pageNum,
       limit: pageSize
@@ -394,7 +394,8 @@ adminRouter.get('/users/detailed/all', authenticateToken, requireAdmin, asyncHan
   const users = await storage.getAllUsers();
   
   // Enrich users with additional info
-  const enrichedUsers = (users || []).map((user: any) => ({
+  // хеш пароля и секрет ленты календаря в панель не отдаются
+  const enrichedUsers = (users || []).map(({ passwordHash, calendarToken, ...user }: any) => ({
     ...user,
     subscription: user.subscriptionPlan || 'free',
     connectedPlatforms: user.platformConnections?.length || 0,

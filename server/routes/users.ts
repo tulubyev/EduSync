@@ -42,7 +42,7 @@ router.get("/profile", authenticateToken as any, async (req: AuthRequest, res: R
     }
 
     // Return user profile without password hash
-    const { passwordHash, profileImage, ...profileData } = user;
+    const { passwordHash, calendarToken, profileImage, ...profileData } = user;
     
     const responseData = {
       ...profileData,
@@ -109,7 +109,7 @@ router.post("/profile", authenticateToken as any, async (req: AuthRequest, res: 
 
     console.log("✅ User profile updated:", { userId, email, phone });
 
-    const { passwordHash, profileImage, ...profileData } = updatedUser;
+    const { passwordHash, calendarToken, profileImage, ...profileData } = updatedUser;
     
     const responseData = {
       ...profileData,
@@ -153,7 +153,7 @@ router.post(
 
       console.log("✅ Profile photo uploaded to database:", { userId, size: base64Image.length });
 
-      const { passwordHash, profileImage, ...profileData } = updatedUser;
+      const { passwordHash, calendarToken, profileImage, ...profileData } = updatedUser;
       const responseData = {
         ...profileData,
         profileImage: profileImage ? `data:image/jpeg;base64,${profileImage}` : null,
@@ -183,7 +183,7 @@ router.get("/admin/:userId", authenticateToken as any, async (req: AuthRequest, 
       return res.status(404).json({ message: "Пользователь не найден" });
     }
 
-    const { passwordHash, profileImage, ...profileData } = user;
+    const { passwordHash, calendarToken, profileImage, ...profileData } = user;
     const responseData = {
       ...profileData,
       profileImageUrl: profileImage ? `data:image/webp;base64,${profileImage}` : null,
@@ -222,7 +222,7 @@ router.put("/admin/:userId", authenticateToken as any, async (req: AuthRequest, 
 
     console.log("✅ User updated by admin:", { userId, email });
 
-    const { passwordHash, profileImage, ...profileData } = updatedUser;
+    const { passwordHash, calendarToken, profileImage, ...profileData } = updatedUser;
     const responseData = {
       ...profileData,
       profileImageUrl: profileImage ? `data:image/webp;base64,${profileImage}` : null,

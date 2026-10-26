@@ -15,6 +15,7 @@ import subscriptionsRouter from "./subscriptions.js";
 import stepikRouter from "./stepik.js";
 import recordingRouter from "./recording.js";
 import aiRouter from "./ai.js";
+import calendarRouter from "./calendar.js";
 
 const mainRouter = Router();
 
@@ -31,6 +32,9 @@ mainRouter.use('/users', rateLimiters.general, usersRouter);
 mainRouter.use('/courses', rateLimiters.general, coursesRouter);
 mainRouter.use('/deadlines', rateLimiters.general, deadlinesRouter);
 mainRouter.use('/events', rateLimiters.general, eventsRouter);
+// Лента .ics: календари (Google и др.) забирают её со своих общих адресов — общий лимит по IP здесь мешал бы,
+// доступ защищает 256-битный секрет в ссылке
+mainRouter.use('/calendar', calendarRouter);
 mainRouter.use('/library', rateLimiters.general, libraryRouter);
 mainRouter.use('/recording', rateLimiters.general, recordingRouter);
 mainRouter.use('/platforms', rateLimiters.general, platformsRouter);

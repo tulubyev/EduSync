@@ -1,0 +1,126 @@
+import type { Lang } from '@shared/languages';
+
+// Подписка на ленту .ics в Google, Яндекс, Apple и Outlook (#18); русский — исходный
+const ru = {
+  button: 'Подписаться',
+  title: 'Ваше расписание в Google, Яндекс, Apple и Outlook',
+  intro: 'Уроки, вебинары, задания и экзамены из My EPA появятся в вашем календаре и будут обновляться сами.',
+  create: 'Создать ссылку',
+  link: 'Секретная ссылка на календарь',
+  copy: 'Скопировать',
+  copied: 'Скопировано',
+  google: 'Добавить в Google Calendar',
+  apple: 'Apple Календарь и Outlook',
+  other: 'В другом календаре выберите «Добавить по ссылке» (подписка по URL) и вставьте ссылку.',
+  refresh: 'Google обновляет такие календари раз в несколько часов, Apple и Outlook — обычно чаще.',
+  secret: 'Ссылка открывает ваше расписание без пароля — не публикуйте её. Если она попала к посторонним, перевыпустите.',
+  reissue: 'Перевыпустить',
+  reissueConfirm: 'Старая ссылка перестанет работать во всех календарях. Продолжить?',
+  disable: 'Отключить',
+  disableConfirm: 'Ссылка перестанет работать, календари перестанут обновляться. Продолжить?',
+  error: 'Не удалось выполнить действие. Попробуйте ещё раз.',
+};
+
+export type CalendarFeedMessages = typeof ru;
+
+const en: CalendarFeedMessages = {
+  button: 'Subscribe',
+  title: 'Your schedule in Google, Yandex, Apple and Outlook',
+  intro: 'Lessons, webinars, assignments and exams from My EPA will appear in your calendar and update by themselves.',
+  create: 'Create link',
+  link: 'Secret calendar link',
+  copy: 'Copy',
+  copied: 'Copied',
+  google: 'Add to Google Calendar',
+  apple: 'Apple Calendar and Outlook',
+  other: 'In another calendar, choose “Add from URL” (subscribe by URL) and paste the link.',
+  refresh: 'Google refreshes such calendars every few hours; Apple and Outlook usually more often.',
+  secret: 'The link opens your schedule without a password — do not publish it. If it gets out, reissue it.',
+  reissue: 'Reissue',
+  reissueConfirm: 'The old link will stop working in all calendars. Continue?',
+  disable: 'Turn off',
+  disableConfirm: 'The link will stop working and calendars will no longer update. Continue?',
+  error: 'Something went wrong. Please try again.',
+};
+
+const fr: CalendarFeedMessages = {
+  button: 'S’abonner',
+  title: 'Votre planning dans Google, Yandex, Apple et Outlook',
+  intro: 'Les leçons, webinaires, devoirs et examens de My EPA apparaîtront dans votre calendrier et se mettront à jour tout seuls.',
+  create: 'Créer le lien',
+  link: 'Lien secret du calendrier',
+  copy: 'Copier',
+  copied: 'Copié',
+  google: 'Ajouter à Google Agenda',
+  apple: 'Calendrier Apple et Outlook',
+  other: 'Dans un autre calendrier, choisissez « Ajouter à partir d’une URL » (abonnement) et collez le lien.',
+  refresh: 'Google actualise ces calendriers toutes les quelques heures ; Apple et Outlook en général plus souvent.',
+  secret: 'Le lien ouvre votre planning sans mot de passe — ne le publiez pas. S’il a été divulgué, régénérez-le.',
+  reissue: 'Régénérer',
+  reissueConfirm: 'L’ancien lien cessera de fonctionner dans tous les calendriers. Continuer ?',
+  disable: 'Désactiver',
+  disableConfirm: 'Le lien cessera de fonctionner et les calendriers ne seront plus mis à jour. Continuer ?',
+  error: 'L’action a échoué. Réessayez.',
+};
+
+const de: CalendarFeedMessages = {
+  button: 'Abonnieren',
+  title: 'Ihr Plan in Google, Yandex, Apple und Outlook',
+  intro: 'Lektionen, Webinare, Aufgaben und Prüfungen aus My EPA erscheinen in Ihrem Kalender und aktualisieren sich von selbst.',
+  create: 'Link erstellen',
+  link: 'Geheimer Kalenderlink',
+  copy: 'Kopieren',
+  copied: 'Kopiert',
+  google: 'Zu Google Kalender hinzufügen',
+  apple: 'Apple Kalender und Outlook',
+  other: 'Wählen Sie in einem anderen Kalender „Per URL hinzufügen“ (Abonnement) und fügen Sie den Link ein.',
+  refresh: 'Google aktualisiert solche Kalender alle paar Stunden, Apple und Outlook meist häufiger.',
+  secret: 'Der Link öffnet Ihren Plan ohne Passwort — veröffentlichen Sie ihn nicht. Falls er in fremde Hände gelangt ist, erstellen Sie ihn neu.',
+  reissue: 'Neu erstellen',
+  reissueConfirm: 'Der alte Link funktioniert dann in keinem Kalender mehr. Fortfahren?',
+  disable: 'Deaktivieren',
+  disableConfirm: 'Der Link funktioniert dann nicht mehr, Kalender werden nicht mehr aktualisiert. Fortfahren?',
+  error: 'Das hat nicht geklappt. Bitte erneut versuchen.',
+};
+
+const es: CalendarFeedMessages = {
+  button: 'Suscribirse',
+  title: 'Tu horario en Google, Yandex, Apple y Outlook',
+  intro: 'Las clases, webinars, tareas y exámenes de My EPA aparecerán en tu calendario y se actualizarán solos.',
+  create: 'Crear enlace',
+  link: 'Enlace secreto del calendario',
+  copy: 'Copiar',
+  copied: 'Copiado',
+  google: 'Añadir a Google Calendar',
+  apple: 'Calendario de Apple y Outlook',
+  other: 'En otro calendario, elige «Añadir desde URL» (suscripción) y pega el enlace.',
+  refresh: 'Google actualiza estos calendarios cada pocas horas; Apple y Outlook, normalmente más a menudo.',
+  secret: 'El enlace abre tu horario sin contraseña: no lo publiques. Si alguien más lo ha visto, vuelve a generarlo.',
+  reissue: 'Regenerar',
+  reissueConfirm: 'El enlace anterior dejará de funcionar en todos los calendarios. ¿Continuar?',
+  disable: 'Desactivar',
+  disableConfirm: 'El enlace dejará de funcionar y los calendarios ya no se actualizarán. ¿Continuar?',
+  error: 'No se pudo completar la acción. Inténtalo de nuevo.',
+};
+
+const it: CalendarFeedMessages = {
+  button: 'Iscriviti',
+  title: 'Il tuo orario in Google, Yandex, Apple e Outlook',
+  intro: 'Lezioni, webinar, compiti ed esami di My EPA compariranno nel tuo calendario e si aggiorneranno da soli.',
+  create: 'Crea link',
+  link: 'Link segreto del calendario',
+  copy: 'Copia',
+  copied: 'Copiato',
+  google: 'Aggiungi a Google Calendar',
+  apple: 'Calendario Apple e Outlook',
+  other: 'In un altro calendario scegli «Aggiungi da URL» (iscrizione) e incolla il link.',
+  refresh: 'Google aggiorna questi calendari ogni qualche ora; Apple e Outlook di solito più spesso.',
+  secret: 'Il link apre il tuo orario senza password: non pubblicarlo. Se è finito in mani altrui, rigeneralo.',
+  reissue: 'Rigenera',
+  reissueConfirm: 'Il vecchio link smetterà di funzionare in tutti i calendari. Continuare?',
+  disable: 'Disattiva',
+  disableConfirm: 'Il link smetterà di funzionare e i calendari non si aggiorneranno più. Continuare?',
+  error: 'Operazione non riuscita. Riprova.',
+};
+
+export const calendarFeed: Record<Lang, CalendarFeedMessages> = { ru, en, fr, de, es, it };
