@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { BookOpen, CheckCircle2, Circle, ExternalLink, FileText, Pencil, Trash2, Video, VideoOff } from 'lucide-react';
+import { AlarmClock, BookOpen, CheckCircle2, Circle, ExternalLink, FileText, Pencil, Trash2, Video, VideoOff } from 'lucide-react';
+import type { RecordingHint } from '@shared/recordingHints';
 import { DUE_TYPES, type EventType } from '@shared/learningEvents';
 import { useLang } from '@/i18n';
 import type { TimeZoneChoice } from '../recording/timezones';
 import { deleteEvent, isPast, updateEvent, type LearningEventDto } from './eventsApi';
 import { dayTitle, dayKeyOf, timeOf } from './eventTime';
+import { hintReason } from './hintText';
 
 export const EVENT_COLORS: Record<EventType, string> = {
   lesson: '#3b82f6',
@@ -25,9 +27,12 @@ interface EventCardProps {
   onRecord: (event: LearningEventDto) => void;
   /** Показать дату (в ленте «Сегодня» для просроченных и следующих) */
   showDate?: boolean;
+  /** Вебинар в неудобное время — предложить запись (#48) */
+  hint?: RecordingHint;
+  onDismissHint?: (eventId: string) => void;
 }
 
-export function EventCard({ event, timeZone, onChanged, onEdit, onRecord, showDate }: EventCardProps) {
+export function EventCard({ event, timeZone, onChanged, onEdit, onRecord, showDate, hint, onDismissHint }: EventCardProps) {
   const { m, lang } = useLang();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +117,7 @@ export function EventCard({ event, timeZone, onChanged, onEdit, onRecord, showDa
                 <ExternalLink className="h-4 w-4" /> {m.events.card.joinWebinar}
               </a>
             )}
-            {canRecord && (
+            {canRecord && !hint && (
               <button type="button" onClick={() => onRecord(event)} className="inline-flex items-center gap-1 text-gray-700 hover:text-purple-700">
                 <VideoOff className="h-4 w-4" /> {m.events.card.cantAttend}
               </button>
@@ -125,6 +130,22 @@ export function EventCard({ event, timeZone, onChanged, onEdit, onRecord, showDa
               </Link>
             )}
           </div>
+          {hint && canRecord && (
+            <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
+              <p className="flex items-start gap-1.5">
+                <AlarmClock className="mt-0.5 h-4 w-4 shrink-0" />
+                <span><strong>{m.hints.inconvenient}</strong>: {hintReason(hint, m)}. {m.hints.offer}</span>
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-3 pl-5">
+                <button type="button" onClick={() => onRecord(event)} className="inline-flex items-center gap-1 rounded bg-purple-600 px-2.5 py-1 text-white hover:bg-purple-700">
+                  <Video className="h-4 w-4" /> {m.hints.record}
+                </button>
+                {onDismissHint && (
+                  <button type="button" onClick={() => onDismissHint(event.id)} className="text-amber-800 hover:underline">{m.hints.dismiss}</button>
+                )}
+              </div>
+            </div>
+          )}
           {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
         </div>
         <div className="flex shrink-0 gap-1">

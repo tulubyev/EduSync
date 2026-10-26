@@ -7,6 +7,7 @@ import { User, Upload, Mail, Phone, BookOpen, Shield } from 'lucide-react';
 import { StepikConnectionPage } from './StepikConnectionPage';
 import { NotificationSettingsCard } from './NotificationSettingsCard';
 import { DataExportCard } from './DataExportCard';
+import { ScheduleSettingsCard } from './ScheduleSettingsCard';
 import { isValidInternationalPhone, normalizePhone } from '../../utils/phoneUtils';
 import { useLang } from '@/i18n';
 
@@ -418,6 +419,8 @@ export function SettingsPage() {
           </Card>
 
           <NotificationSettingsCard />
+
+          <ScheduleSettingsCard />
 
           {/* Role Status */}
           <Card>
