@@ -8,6 +8,9 @@ import { promises as fs } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config/environment';
 import { isLang } from '@shared/languages';
+import { collectUserData } from '../services/dataExport';
+import { buildExportEntries } from '../services/dataExportFiles';
+import { buildZip } from '../services/zip';
 
 interface AuthRequest extends Request {
   user?: { id: string; role?: string | null };
@@ -45,6 +48,34 @@ const upload = multer({
  */
 
 // Язык кабинета ученика (shared/languages.ts)
+// Выгрузка всех данных ученика одним ZIP-архивом (#44): только свои данные, не чаще раза в 10 минут.
+// Счётчик в памяти процесса: при нескольких процессах — раз в 10 минут на каждый; это защита от лишней нагрузки, не квота
+const EXPORT_INTERVAL_MS = 10 * 60 * 1000;
+const lastExport = new Map<string, number>();
+
+router.get('/export', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  const userId = req.user!.id;
+  const now = Date.now();
+  const last = lastExport.get(userId);
+  if (last && now - last < EXPORT_INTERVAL_MS) {
+    const retryAfter = Math.ceil((EXPORT_INTERVAL_MS - (now - last)) / 1000);
+    res.setHeader('Retry-After', String(retryAfter));
+    return res.status(429).json({ message: 'Архив можно скачивать не чаще раза в 10 минут', retryAfter });
+  }
+  try {
+    const date = new Date();
+    const zip = buildZip(buildExportEntries(await collectUserData(userId), date), date);
+    lastExport.set(userId, now);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="myepa-data-${date.toISOString().slice(0, 10)}.zip"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(zip);
+  } catch (error) {
+    logger.error('Data export error', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ message: 'Не удалось собрать архив' });
+  }
+});
+
 router.put('/language', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const { language } = req.body ?? {};
