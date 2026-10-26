@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/select';
 import { PlatformSelector } from './PlatformSelector';
 import { useLang } from '@/i18n';
+import { authService } from '@/services/authService';
+import { Link2, Loader2 } from 'lucide-react';
 import { COURSE_CATEGORIES } from '@/locales/courses';
 
 interface CourseFormData {
@@ -58,7 +60,7 @@ export function AddCourseModal({
   isEditing = false,
   platforms = []
 }: AddCourseModalProps) {
-  const { m } = useLang();
+  const { m, lang } = useLang();
   const f = m.courses.form;
   const [formData, setFormData] = useState<CourseFormData>({
     platformId: '',
@@ -79,6 +81,10 @@ export function AddCourseModal({
   const [showPlatformSelector, setShowPlatformSelector] = useState(false);
   const [connectedPlatforms, setConnectedPlatforms] = useState<Set<string>>(new Set());
   const [allPlatforms, setAllPlatforms] = useState<any[]>([]);
+  // «Добавить по ссылке» (#19): страница курса заполняет форму
+  const [link, setLink] = useState('');
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [linkNote, setLinkNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   const fetchConnectedPlatforms = async () => {
     try {
@@ -142,10 +148,43 @@ export function AddCourseModal({
         });
       }
       setErrors({});
+      setLink('');
+      setLinkNote(null);
       fetchConnectedPlatforms();
       fetchAllPlatforms();
     }
   }, [open, initialData]);
+
+  const fillFromLink = async () => {
+    const url = link.trim();
+    if (!url) return;
+    setLinkBusy(true);
+    setLinkNote(null);
+    try {
+      const r = await authService.authenticatedFetch('/api/courses/preview', { method: 'POST', body: JSON.stringify({ url, lang }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.code === 'blocked' ? f.errLinkBlocked : f.errLink);
+      // площадка: из справочника по id или по коду
+      const platform = d.platform
+        ? allPlatforms.find((p) => (d.platform.id && p.id === d.platform.id) || p.code === d.platform.code)
+        : null;
+      setFormData((prev) => ({
+        ...prev,
+        title: d.title || prev.title,
+        description: d.description || prev.description,
+        imageUrl: d.imageUrl || prev.imageUrl,
+        courseUrl: d.courseUrl || url,
+        platformId: platform?.id || prev.platformId,
+      }));
+      setErrors({});
+      const notes = [d.platform ? f.detected(platform?.displayName || platform?.name || d.platform.name) : null, d.partial ? f.filledPartial : null];
+      setLinkNote({ ok: !d.partial, text: notes.filter(Boolean).join(' · ') || f.detected(d.siteName || new URL(d.courseUrl || url).hostname) });
+    } catch (e) {
+      setLinkNote({ ok: false, text: e instanceof Error ? e.message : f.errLink });
+    } finally {
+      setLinkBusy(false);
+    }
+  };
 
   const handleChange = (field: keyof CourseFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -242,6 +281,28 @@ export function AddCourseModal({
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
+          {!isEditing && (
+            <div className="space-y-2 rounded-lg border border-purple-200 bg-purple-50 p-3">
+              <Label htmlFor="course-link" className="flex items-center gap-1.5"><Link2 className="h-4 w-4" /> {f.byLink}</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="course-link"
+                  type="url"
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); fillFromLink(); } }}
+                  placeholder="https://www.coursera.org/learn/…"
+                  className="bg-white"
+                />
+                <Button type="button" onClick={fillFromLink} disabled={linkBusy || !link.trim()} className="shrink-0 gap-1">
+                  {linkBusy && <Loader2 className="h-4 w-4 animate-spin" />} {linkBusy ? f.filling : f.fill}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-600">{f.byLinkHint}</p>
+              {linkNote && <p className={`text-sm ${linkNote.ok ? 'text-green-700' : 'text-amber-700'}`}>{linkNote.text}</p>}
+            </div>
+          )}
+
           {!isEditing && (
             <div className="space-y-2">
               <Label htmlFor="platform">{f.platform}</Label>
