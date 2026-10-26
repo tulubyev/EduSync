@@ -329,6 +329,13 @@ export const userSettings = pgTable("user_settings", {
   weeklyDigest: boolean("weekly_digest").default(true),
   studyGoalMinutes: integer("study_goal_minutes").default(60), // daily goal
   preferredStudyTime: varchar("preferred_study_time", { length: 20 }), // morning, afternoon, evening
+  // Удобные и рабочие часы (#48, shared/recordingHints.ts): минуты от полуночи в поясе ученика
+  comfortFrom: integer("comfort_from").notNull().default(480),
+  comfortTo: integer("comfort_to").notNull().default(1320),
+  workFrom: integer("work_from"),
+  workTo: integer("work_to"),
+  workDays: integer("work_days").array().notNull().default(sql`'{1,2,3,4,5}'`),
+  recordingHints: boolean("recording_hints").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({

@@ -14,6 +14,7 @@ import { useEventDialogs } from './useEventDialogs';
 import { useLang } from '@/i18n';
 import { tzOptionLabel } from './tzLabels';
 import { CalendarFeedDialog } from './CalendarFeedDialog';
+import { useRecordingHints } from './useRecordingHints';
 
 type View = 'week' | 'month';
 const VIEW_KEY = 'calendar.view';
@@ -76,8 +77,12 @@ export function CalendarPage() {
   };
   const goToday = () => { setAnchor(todayKey); setSelected(todayKey); };
 
+  const { hints, dismiss } = useRecordingHints(events, timeZone);
   const card = (e: LearningEventDto) => (
-    <EventCard key={e.id} event={e} timeZone={timeZone} onChanged={reload} onEdit={openEdit} onRecord={openRecord} />
+    <EventCard
+      key={e.id} event={e} timeZone={timeZone} onChanged={reload} onEdit={openEdit} onRecord={openRecord}
+      hint={hints.get(e.id)} onDismissHint={dismiss}
+    />
   );
   const currentMonth = fromKey(anchor).month;
 

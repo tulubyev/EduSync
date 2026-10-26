@@ -16,9 +16,10 @@ import { analytics } from './analytics';
 import { auth } from './auth';
 import { site } from './site';
 import { calendarFeed } from './calendarFeed';
+import { hints } from './hints';
 
 // Разделы кабинета и публичного сайта — каждый в своём файле со всеми языками
-const AREAS = { courses, deadlines, library, settings, subscription, platforms, recordings, analytics, auth, site, calendarFeed };
+const AREAS = { courses, deadlines, library, settings, subscription, platforms, recordings, analytics, auth, site, calendarFeed, hints };
 type Areas = { [K in keyof typeof AREAS]: (typeof AREAS)[K]['ru'] };
 
 export type Messages = CoreMessages & Areas;

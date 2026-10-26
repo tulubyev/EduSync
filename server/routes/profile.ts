@@ -11,6 +11,11 @@ import { isLang } from '@shared/languages';
 import { collectUserData } from '../services/dataExport';
 import { buildExportEntries } from '../services/dataExportFiles';
 import { buildZip } from '../services/zip';
+import { z } from 'zod';
+import { eq } from 'drizzle-orm';
+import { db } from '../db';
+import { userSettings } from '@shared/schema';
+import { DEFAULT_SCHEDULE_PREFS, type SchedulePrefs } from '@shared/recordingHints';
 
 interface AuthRequest extends Request {
   user?: { id: string; role?: string | null };
@@ -48,6 +53,50 @@ const upload = multer({
  */
 
 // Язык кабинета ученика (shared/languages.ts)
+// Удобные и рабочие часы ученика (#48): по ним кабинет предлагает записать вебинар в неудобное время
+const minutes = z.number().int().min(0).max(24 * 60);
+const schedulePrefsSchema = z
+  .object({
+    comfortFrom: minutes,
+    comfortTo: minutes,
+    workFrom: minutes.nullable(),
+    workTo: minutes.nullable(),
+    workDays: z.array(z.number().int().min(1).max(7)).max(7),
+    recordingHints: z.boolean(),
+  })
+  .refine((p) => p.comfortFrom < p.comfortTo, { message: 'Удобное время: начало должно быть раньше конца' })
+  .refine((p) => (p.workFrom === null) === (p.workTo === null), { message: 'Рабочее время: укажите начало и конец' })
+  .refine((p) => p.workFrom === null || p.workTo === null || p.workFrom < p.workTo, { message: 'Рабочее время: начало должно быть раньше конца' });
+
+router.get('/schedule', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const [row] = await db.select().from(userSettings).where(eq(userSettings.userId, req.user!.id));
+    const prefs: SchedulePrefs = row
+      ? { comfortFrom: row.comfortFrom, comfortTo: row.comfortTo, workFrom: row.workFrom, workTo: row.workTo, workDays: row.workDays, recordingHints: row.recordingHints }
+      : DEFAULT_SCHEDULE_PREFS;
+    res.json(prefs);
+  } catch (error) {
+    logger.error('Schedule prefs load error', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ message: 'Не удалось загрузить настройки времени' });
+  }
+});
+
+router.put('/schedule', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  const parsed = schedulePrefsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || 'Неверные настройки времени' });
+  const prefs = { ...parsed.data, workDays: Array.from(new Set(parsed.data.workDays)).sort((a, b) => a - b) };
+  try {
+    await db
+      .insert(userSettings)
+      .values({ userId: req.user!.id, ...prefs })
+      .onConflictDoUpdate({ target: userSettings.userId, set: { ...prefs, updatedAt: new Date() } });
+    res.json(prefs);
+  } catch (error) {
+    logger.error('Schedule prefs save error', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ message: 'Не удалось сохранить настройки времени' });
+  }
+});
+
 // Выгрузка всех данных ученика одним ZIP-архивом (#44): только свои данные, не чаще раза в 10 минут.
 // Счётчик в памяти процесса: при нескольких процессах — раз в 10 минут на каждый; это защита от лишней нагрузки, не квота
 const EXPORT_INTERVAL_MS = 10 * 60 * 1000;
