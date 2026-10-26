@@ -72,7 +72,7 @@ function App() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [location, navigate] = useLocation();
-  const { t, m } = useLang();
+  const { m } = useLang();
 
   // Язык кабинета — из профиля ученика; выбор в переключателе сохраняется в профиле
   useEffect(() => {
@@ -179,7 +179,7 @@ function App() {
             onClick={() => setShowAuthForm(false)}
             className="m-4 mb-0 sm:m-0 sm:absolute sm:top-5 sm:left-5 px-5 py-2.5 bg-white/90 text-gray-700 border-none rounded-lg text-sm font-medium cursor-pointer z-50 shadow-md hover:bg-white transition-colors"
           >
-            ← {t({ ru: 'На главную', en: 'Home' })}
+            ← {m.common.toHome}
           </button>
           <AuthForm key={authMode} initialMode={authMode} onAuthSuccess={handleAuthSuccess} />
         </div>

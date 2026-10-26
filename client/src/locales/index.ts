@@ -11,9 +11,13 @@ import { library } from './library';
 import { settings } from './settings';
 import { subscription } from './subscription';
 import { platforms } from './platforms';
+import { recordings } from './recordings';
+import { analytics } from './analytics';
+import { auth } from './auth';
+import { site } from './site';
 
-// Разделы кабинета — каждый в своём файле со всеми языками
-const AREAS = { courses, deadlines, library, settings, subscription, platforms };
+// Разделы кабинета и публичного сайта — каждый в своём файле со всеми языками
+const AREAS = { courses, deadlines, library, settings, subscription, platforms, recordings, analytics, auth, site };
 type Areas = { [K in keyof typeof AREAS]: (typeof AREAS)[K]['ru'] };
 
 export type Messages = CoreMessages & Areas;

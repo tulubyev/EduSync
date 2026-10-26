@@ -19,7 +19,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AlertCircle } from 'lucide-react';
-import { TIME_ZONE_OPTIONS, browserTimeZone, fmtZoned, timeZoneShort, useRecordingTimeZone, zonedInputToUtcIso, type TimeZoneChoice } from './timezones';
+import { TIME_ZONE_OPTIONS, browserTimeZone, fmtZoned, useRecordingTimeZone, zonedInputToUtcIso, type TimeZoneChoice } from './timezones';
+import { tzOptionLabel } from '../events/tzLabels';
+import { useLang } from '@/i18n';
 
 interface RecordingModalProps {
   open: boolean;
@@ -49,6 +51,8 @@ export interface RecordingData {
 }
 
 export function RecordingModal({ open, onClose, onSubmit, isLoading, error, initial }: RecordingModalProps) {
+  const { m } = useLang();
+  const t = m.recordings.form;
   const [formData, setFormData] = useState<RecordingData>({
     title: '',
     description: '',
@@ -79,25 +83,25 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
     const newErrors: Record<string, string> = {};
 
     if (!formData.title.trim()) {
-      newErrors.title = 'Название обязательно';
+      newErrors.title = t.errName;
     }
 
     if (!formData.streamUrl.trim()) {
-      newErrors.streamUrl = 'Ссылка на трансляцию обязательна';
+      newErrors.streamUrl = t.errUrl;
     } else if (!isValidUrl(formData.streamUrl)) {
-      newErrors.streamUrl = 'Некорректная ссылка';
+      newErrors.streamUrl = t.errUrlInvalid;
     }
 
     if (!formData.scheduledTime) {
-      newErrors.scheduledTime = 'Время трансляции обязательно';
+      newErrors.scheduledTime = t.errStart;
     }
 
     if (formData.duration && (formData.duration < 1 || formData.duration > 1440)) {
-      newErrors.duration = 'Длительность должна быть от 1 до 1440 минут';
+      newErrors.duration = t.errDuration;
     }
 
     if (!formData.rightsConfirmed) {
-      newErrors.rightsConfirmed = 'Подтвердите, что вы вправе записывать это событие';
+      newErrors.rightsConfirmed = t.errRights;
     }
 
     setErrors(newErrors);
@@ -138,16 +142,16 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Записать трансляцию</DialogTitle>
+          <DialogTitle>{t.title}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
           {/* Название */}
           <div className="space-y-2">
-            <Label htmlFor="title">Название трансляции</Label>
+            <Label htmlFor="title">{t.name}</Label>
             <Input
               id="title"
-              placeholder="Введите название..."
+              placeholder={t.namePlaceholder}
               value={formData.title}
               onChange={(e) => {
                 setFormData({ ...formData, title: e.target.value });
@@ -165,10 +169,10 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
 
           {/* Описание */}
           <div className="space-y-2">
-            <Label htmlFor="description">Описание (опционально)</Label>
+            <Label htmlFor="description">{t.description}</Label>
             <Textarea
               id="description"
-              placeholder="Описание трансляции..."
+              placeholder={t.descriptionPlaceholder}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="min-h-[60px]"
@@ -177,7 +181,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
 
           {/* Ссылка на трансляцию */}
           <div className="space-y-2">
-            <Label htmlFor="streamUrl">Ссылка на трансляцию</Label>
+            <Label htmlFor="streamUrl">{t.streamUrl}</Label>
             <Input
               id="streamUrl"
               type="url"
@@ -199,11 +203,11 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
 
           {/* Пароль */}
           <div className="space-y-2">
-            <Label htmlFor="streamPassword">Пароль для входа (опционально)</Label>
+            <Label htmlFor="streamPassword">{t.password}</Label>
             <Input
               id="streamPassword"
               type="password"
-              placeholder="Пароль если требуется..."
+              placeholder={t.passwordPlaceholder}
               value={formData.streamPassword}
               onChange={(e) => setFormData({ ...formData, streamPassword: e.target.value })}
             />
@@ -212,36 +216,36 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
           {/* Данные для входа в вебинар */}
           <div className="border border-gray-200 rounded-lg p-3 space-y-3 bg-gray-50">
             <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">
-              Данные для регистрации на вебинар (Bizon365 и др.)
+              {t.joinTitle}
             </p>
 
             <div className="space-y-2">
-              <Label htmlFor="joinName">Имя участника</Label>
+              <Label htmlFor="joinName">{t.joinName}</Label>
               <Input
                 id="joinName"
-                placeholder="Александр"
+                placeholder={t.joinNamePlaceholder}
                 value={formData.joinName}
                 onChange={(e) => setFormData({ ...formData, joinName: e.target.value })}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="joinEmail">Email участника</Label>
+              <Label htmlFor="joinEmail">{t.joinEmail}</Label>
               <Input
                 id="joinEmail"
                 type="email"
-                placeholder="example@mail.ru"
+                placeholder={t.emailPlaceholder}
                 value={formData.joinEmail}
                 onChange={(e) => setFormData({ ...formData, joinEmail: e.target.value })}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="joinPhone">Телефон участника</Label>
+              <Label htmlFor="joinPhone">{t.joinPhone}</Label>
               <Input
                 id="joinPhone"
                 type="tel"
-                placeholder="+79001234567"
+                placeholder={t.phonePlaceholder}
                 value={formData.joinPhone}
                 onChange={(e) => setFormData({ ...formData, joinPhone: e.target.value })}
               />
@@ -250,7 +254,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
 
           {/* Время трансляции */}
           <div className="space-y-2">
-            <Label htmlFor="scheduledTime">Время начала трансляции</Label>
+            <Label htmlFor="scheduledTime">{t.start}</Label>
             <div className="flex flex-col gap-2">
               <Input
                 id="scheduledTime"
@@ -260,19 +264,19 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
                 className={`${errors.scheduledTime ? 'border-red-500' : ''}`}
               />
               <Select value={timeZone} onValueChange={(v) => setTimeZone(v as TimeZoneChoice)}>
-                <SelectTrigger aria-label="Часовой пояс">
+                <SelectTrigger aria-label={m.events.calendar.timeZone}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {TIME_ZONE_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.value === 'local' ? `Местное время (${browserTimeZone()})` : o.label}</SelectItem>
+                    <SelectItem key={o.value} value={o.value}>{o.value === 'local' ? `${m.timeZones.local} (${browserTimeZone()})` : tzOptionLabel(o.value, m)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             {startUtc && timeZone !== 'Europe/Moscow' && (
               <p className="text-xs text-gray-500">
-                Это {fmtZoned(startUtc, 'Europe/Moscow').date} {fmtZoned(startUtc, 'Europe/Moscow').time} по Москве
+                {t.inMoscow(fmtZoned(startUtc, 'Europe/Moscow').date, fmtZoned(startUtc, 'Europe/Moscow').time)}
                 {timeZone !== 'UTC' ? `, ${fmtZoned(startUtc, 'UTC').time} UTC` : ''}
               </p>
             )}
@@ -286,7 +290,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
 
           {/* Длительность */}
           <div className="space-y-2">
-            <Label htmlFor="duration">Ожидаемая длительность (минут)</Label>
+            <Label htmlFor="duration">{t.duration}</Label>
             <Input
               id="duration"
               type="number"
@@ -309,15 +313,15 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
 
           {/* Место сохранения */}
           <div className="space-y-2">
-            <Label htmlFor="saveTarget">Где сохранить запись</Label>
+            <Label htmlFor="saveTarget">{t.saveTarget}</Label>
             <Select value={formData.saveTarget} onValueChange={(value: any) => setFormData({ ...formData, saveTarget: value })}>
               <SelectTrigger id="saveTarget">
-                <SelectValue placeholder="Выберите место..." />
+                <SelectValue placeholder={t.saveTargetPlaceholder} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="beget">На Beget S3 (рекомендуется)</SelectItem>
-                <SelectItem value="yandex_disk">На Яндекс.Диск</SelectItem>
-                <SelectItem value="library">В библиотеке материалов</SelectItem>
+                <SelectItem value="beget">{t.targetCloud}</SelectItem>
+                <SelectItem value="yandex_disk">{t.targetYandex}</SelectItem>
+                <SelectItem value="library">{t.targetLibrary}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -325,9 +329,9 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
           {/* Информационное сообщение */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">
-              ℹ️ Запись начнётся автономно в назначенное время. Длинные записи автоматически разбиваются на части по 20 минут.
-              {formData.saveTarget === 'beget' && ' Видео будет загружено на Beget S3 хранилище.'}
-              {formData.saveTarget === 'yandex_disk' && ' Файлы будут загружены на ваш Яндекс.Диск.'}
+              {t.info}
+              {formData.saveTarget === 'beget' && t.infoCloud}
+              {formData.saveTarget === 'yandex_disk' && t.infoYandex}
             </p>
           </div>
 
@@ -344,8 +348,7 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
                 className="mt-0.5"
               />
               <Label htmlFor="rightsConfirmed" className="text-sm font-normal leading-snug">
-                Я вправе записывать это событие: я его участник, а запись нужна мне для личного использования
-                или организатор разрешил запись
+                {t.rights}
               </Label>
             </div>
             {errors.rightsConfirmed && (
@@ -367,10 +370,10 @@ export function RecordingModal({ open, onClose, onSubmit, isLoading, error, init
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Отмена
+            {m.common.cancel}
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
-            {isLoading ? 'Планирование записи...' : 'Запланировать запись'}
+            {isLoading ? t.submitting : t.submit}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { LegalDocument } from './LegalDocument';
+import { LegalDocument, type LegalDocName } from './LegalDocument';
 import { useLang } from '../i18n';
+import type { Messages } from '../locales';
+import type { SiteItem, SiteSection } from '../locales/site';
 
 interface FooterPageProps {
   page: string;
@@ -28,7 +30,29 @@ export function pathForPage(page: string): string {
   return Object.keys(PUBLIC_PAGE_PATHS).find(path => PUBLIC_PAGE_PATHS[path] === page) ?? '/';
 }
 
+// Страница сайта → её тексты в словаре (m.site.pages)
+const PAGE_TEXTS: Record<string, keyof Messages['site']['pages']> = {
+  'course-management': 'courses',
+  'progress-tracking': 'progress',
+  'deadline-management': 'deadlines',
+  'schedule-planning': 'schedule',
+  documentation: 'docs',
+  'api-reference': 'api',
+  'system-status': 'status',
+  contact: 'contact',
+  security: 'security',
+};
+
+const LEGAL_PAGES: Record<string, LegalDocName> = {
+  'privacy-policy': 'privacy-policy',
+  'terms-of-service': 'terms',
+  'cookie-policy': 'cookies',
+  consent: 'consent',
+};
+
 function ServiceStatus() {
+  const { m, lang } = useLang();
+  const t = m.site.serviceStatus;
   const [state, setState] = useState<'checking' | 'up' | 'down'>('checking');
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
 
@@ -40,324 +64,60 @@ function ServiceStatus() {
       .finally(() => setCheckedAt(new Date()));
   }, []);
 
-  const label = state === 'checking' ? 'Проверяем…' : state === 'up' ? 'Работает' : 'Недоступен';
+  const label = state === 'checking' ? t.checking : state === 'up' ? t.up : t.down;
   return (
     <section>
-      <h2>Статус сервиса</h2>
+      <h2>{t.title}</h2>
       <div className="status-grid">
         <div className={`status-item ${state === 'up' ? 'operational' : ''}`}>
           <span className="status-indicator"></span>
-          <span>Сервер My EPA</span>
+          <span>{t.server}</span>
           <span className="status-label">{label}</span>
         </div>
       </div>
       {checkedAt && (
-        <p>Проверено из вашего браузера: {checkedAt.toLocaleString('ru-RU')}.</p>
+        <p>{t.checkedAt(checkedAt.toLocaleString(lang))}</p>
       )}
     </section>
   );
 }
 
+function Item({ item }: { item: SiteItem }) {
+  if (typeof item === 'string') return <li>{item}</li>;
+  return <li><strong>{item[0]}</strong> — {item[1]}</li>;
+}
+
+function Section({ section }: { section: SiteSection }) {
+  return (
+    <section>
+      <h2>{section.title}</h2>
+      {section.text?.map((line, i) => <p key={i}>{line}</p>)}
+      {section.code?.map((block, i) => (
+        <div key={i} className="code-block">
+          {block.map((line, j) => <p key={j}>{j === 0 && block.length > 1 ? <strong>{line}</strong> : line}</p>)}
+        </div>
+      ))}
+      {section.items && <ul>{section.items.map((item, i) => <Item key={i} item={item} />)}</ul>}
+      {section.steps && <ol>{section.steps.map((item, i) => <Item key={i} item={item} />)}</ol>}
+    </section>
+  );
+}
+
 export function FooterPage({ page, onBack }: FooterPageProps) {
-  const { t } = useLang();
+  const { m } = useLang();
   const renderContent = () => {
-    switch (page) {
-      case 'course-management':
-        return (
-          <>
-            <h1>Управление курсами</h1>
-            <p className="subtitle">Объединяйте курсы с разных платформ в одном месте</p>
-            
-            <section>
-              <h2>Возможности</h2>
-              <ul>
-                <li><strong>Агрегация курсов</strong> — подключайте курсы с Coursera, Udemy, edX, Stepik и других платформ</li>
-                <li><strong>Единый дашборд</strong> — все ваши курсы в одном интерфейсе</li>
-                <li><strong>Автоматическая синхронизация</strong> — прогресс обновляется автоматически</li>
-                <li><strong>Категоризация</strong> — группируйте курсы по темам и приоритетам</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Площадки</h2>
-              <p>Сейчас подключается Stepik. Обмен данными с Coursera, edX и другими российскими и
-              международными площадками готовится.</p>
-            </section>
-
-            <section>
-              <h2>Как подключить платформу</h2>
-              <ol>
-                <li>Перейдите в Настройки → Интеграции</li>
-                <li>Нажмите "Подключить платформу"</li>
-                <li>Выберите нужную платформу</li>
-                <li>Авторизуйтесь через OAuth или введите API-ключ</li>
-                <li>Дождитесь синхронизации курсов</li>
-              </ol>
-            </section>
-          </>
-        );
-
-      case 'progress-tracking':
-        return (
-          <>
-            <h1>Отслеживание прогресса</h1>
-            <p className="subtitle">Детальная аналитика вашего обучения</p>
-            
-            <section>
-              <h2>Аналитика обучения</h2>
-              <ul>
-                <li><strong>Общий прогресс</strong> — процент завершения по всем курсам</li>
-                <li><strong>Статистика по времени</strong> — сколько времени вы учитесь ежедневно/еженедельно</li>
-                <li><strong>Графики активности</strong> — визуализация вашего прогресса</li>
-                <li><strong>Сравнение</strong> — сравните свой прогресс с прошлыми периодами</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Метрики</h2>
-              <ul>
-                <li>Количество завершённых уроков</li>
-                <li>Время, проведённое за обучением</li>
-                <li>Серии ежедневного обучения (streaks)</li>
-                <li>Достигнутые цели</li>
-              </ul>
-            </section>
-          </>
-        );
-
-      case 'deadline-management':
-        return (
-          <>
-            <h1>Управление дедлайнами</h1>
-            <p className="subtitle">Никогда не пропустите важный срок</p>
-            
-            <section>
-              <h2>Функции календаря</h2>
-              <ul>
-                <li><strong>Единый календарь</strong> — все дедлайны со всех платформ в одном месте</li>
-                <li><strong>Напоминания</strong> — уведомления за день, час, 15 минут до дедлайна</li>
-                <li><strong>Цветовая кодировка</strong> — визуальное разделение по срочности</li>
-                <li><strong>Синхронизация</strong> — экспорт в Google Calendar, Apple Calendar</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Типы дедлайнов</h2>
-              <ul>
-                <li>Задания и тесты</li>
-                <li>Проектные работы</li>
-                <li>Экзамены</li>
-                <li>Сертификационные сроки</li>
-              </ul>
-            </section>
-          </>
-        );
-
-      case 'schedule-planning':
-        return (
-          <>
-            <h1>Планирование расписания</h1>
-            <p className="subtitle">Оптимизируйте своё время обучения</p>
-            
-            <section>
-              <h2>Умное планирование</h2>
-              <ul>
-                <li><strong>Рекомендации по времени</strong> — система предлагает оптимальные слоты для обучения</li>
-                <li><strong>Адаптивное расписание</strong> — автоматическая корректировка при изменении планов</li>
-                <li><strong>Баланс нагрузки</strong> — равномерное распределение материала</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Адаптация под время суток</h2>
-              <ul>
-                <li><strong>Утро (5:00-9:00)</strong> — энергичный режим для активного обучения</li>
-                <li><strong>День (9:00-17:00)</strong> — фокусированный режим для глубокого погружения</li>
-                <li><strong>Вечер (17:00-22:00)</strong> — спокойный режим для повторения</li>
-                <li><strong>Ночь (22:00-5:00)</strong> — нейтральный режим для лёгкого чтения</li>
-              </ul>
-            </section>
-          </>
-        );
-
-      case 'documentation':
-        return (
-          <>
-            <h1>Документация</h1>
-            <p className="subtitle">Полное руководство по использованию платформы</p>
-            
-            <section>
-              <h2>Начало работы</h2>
-              <ol>
-                <li><strong>Регистрация</strong> — создайте аккаунт с email или телефоном</li>
-                <li><strong>Настройка профиля</strong> — укажите ваши цели обучения</li>
-                <li><strong>Подключение платформ</strong> — добавьте ваши образовательные платформы</li>
-                <li><strong>Синхронизация</strong> — дождитесь импорта курсов</li>
-              </ol>
-            </section>
-
-            <section>
-              <h2>Основные разделы</h2>
-              <ul>
-                <li><strong>Дашборд</strong> — главная страница с обзором активности</li>
-                <li><strong>Курсы</strong> — список всех подключённых курсов</li>
-                <li><strong>Дедлайны</strong> — календарь сроков</li>
-                <li><strong>Заметки</strong> — записи привязанные к курсам</li>
-                <li><strong>Аналитика</strong> — статистика обучения</li>
-                <li><strong>Настройки</strong> — персонализация и интеграции</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Часто задаваемые вопросы</h2>
-              <ul>
-                <li><strong>Как подключить курс вручную?</strong> — Курсы → Добавить курс → Заполнить форму</li>
-                <li><strong>Как изменить тему оформления?</strong> — Настройки → Внешний вид → Выбор темы</li>
-                <li><strong>Как экспортировать данные?</strong> — Настройки → Конфиденциальность → Экспорт данных</li>
-              </ul>
-            </section>
-          </>
-        );
-
-      case 'api-reference':
-        return (
-          <>
-            <h1>API Reference</h1>
-            <p className="subtitle">Документация для разработчиков</p>
-            
-            <section>
-              <h2>Аутентификация</h2>
-              <div className="code-block">
-                <p><strong>POST /api/auth/login</strong></p>
-                <p>Тело запроса: {"{ identifier, password }"}</p>
-                <p>Ответ: {"{ user, accessToken, refreshToken }"}</p>
-              </div>
-              <div className="code-block">
-                <p><strong>POST /api/auth/register</strong></p>
-                <p>Тело запроса: {"{ firstName, lastName, email, phone, password }"}</p>
-                <p>Ответ: {"{ user, accessToken, refreshToken }"}</p>
-              </div>
-            </section>
-
-            <section>
-              <h2>Защищённые эндпоинты</h2>
-              <p>Все защищённые эндпоинты требуют заголовок:</p>
-              <div className="code-block">
-                <p>Authorization: Bearer {"<accessToken>"}</p>
-              </div>
-            </section>
-
-            <section>
-              <h2>Лимиты запросов</h2>
-              <ul>
-                <li>Общие запросы: 1000 запросов / 15 минут</li>
-                <li>Аутентификация: 5 попыток / 15 минут</li>
-              </ul>
-            </section>
-          </>
-        );
-
-      case 'system-status':
-        return (
-          <>
-            <h1>Статус системы</h1>
-            <p className="subtitle">Текущее состояние сервиса</p>
-            <ServiceStatus />
-          </>
-        );
-
-      case 'contact':
-        return (
-          <>
-            <h1>Связаться с нами</h1>
-            <p className="subtitle">Мы всегда рады помочь</p>
-            
-            <section>
-              <h2>Способы связи</h2>
-              <ul>
-                <li><strong>Email:</strong> support@myepa.ru</li>
-                <li><strong>Telegram:</strong> @myepa_support</li>
-                <li><strong>Время ответа:</strong> в течение 24 часов</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Часы работы поддержки</h2>
-              <p>Понедельник — Пятница: 9:00 — 18:00 (МСК)</p>
-              <p>Суббота — Воскресенье: выходные</p>
-            </section>
-
-            <section>
-              <h2>Сообщить о проблеме</h2>
-              <p>При обращении, пожалуйста, укажите:</p>
-              <ul>
-                <li>Описание проблемы</li>
-                <li>Шаги для воспроизведения</li>
-                <li>Скриншоты (если применимо)</li>
-                <li>Ваш браузер и устройство</li>
-              </ul>
-            </section>
-          </>
-        );
-
-      case 'privacy-policy':
-        return <LegalDocument doc="privacy-policy" />;
-
-      case 'terms-of-service':
-        return <LegalDocument doc="terms" />;
-
-      case 'cookie-policy':
-        return <LegalDocument doc="cookies" />;
-
-      case 'consent':
-        return <LegalDocument doc="consent" />;
-
-      case 'security':
-        return (
-          <>
-            <h1>Безопасность</h1>
-            <p className="subtitle">Как мы защищаем ваши данные</p>
-            
-            <section>
-              <h2>Шифрование</h2>
-              <ul>
-                <li>Все соединения защищены HTTPS/TLS</li>
-                <li>Ключи доступа к подключённым площадкам хранятся зашифрованными (AES-256-GCM)</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Аутентификация</h2>
-              <ul>
-                <li>Пароли хранятся только в виде хеша</li>
-                <li>Ограничение числа попыток входа</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Защита от атак</h2>
-              <ul>
-                <li>Заголовки безопасности (Helmet) и ограничение источников запросов (CORS)</li>
-                <li>Запросы к базе — через ORM с параметрами, без склейки SQL</li>
-                <li>Обновление зависимостей с известными уязвимостями</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2>Сообщить об уязвимости</h2>
-              <p>Если вы обнаружили уязвимость, пожалуйста, сообщите нам: security@myepa.ru</p>
-            </section>
-          </>
-        );
-
-      default:
-        return (
-          <>
-            <h1>Страница не найдена</h1>
-            <p>Запрашиваемая страница не существует.</p>
-          </>
-        );
-    }
+    const legal = LEGAL_PAGES[page];
+    if (legal) return <LegalDocument doc={legal} />;
+    const key = PAGE_TEXTS[page];
+    const text = m.site.pages[key ?? 'notFound'];
+    return (
+      <>
+        <h1>{text.title}</h1>
+        <p className="subtitle">{text.subtitle}</p>
+        {text.sections.map((section, i) => <Section key={i} section={section} />)}
+        {key === 'status' && <ServiceStatus />}
+      </>
+    );
   };
 
   return (
@@ -398,7 +158,7 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
             gap: '8px'
           }}
         >
-          ← {t({ ru: 'На главную', en: 'Home' })}
+          ← {m.common.toHome}
         </button>
       </header>
 
@@ -435,6 +195,8 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
             padding-left: 24px;
             margin: 0;
           }
+          ul { list-style: disc; }
+          ol { list-style: decimal; }
           li {
             margin-bottom: 10px;
             line-height: 1.6;

@@ -27,6 +27,7 @@ import {
   PlayCircle,
   Download,
 } from 'lucide-react';
+import { useLang } from '@/i18n';
 
 interface Course {
   id: string;
@@ -51,6 +52,10 @@ interface Analytics {
 }
 
 export function AnalyticsPage() {
+  const { m, lang } = useLang();
+  const t = m.analytics;
+  const money = (value: number, digits = 2) =>
+    new Intl.NumberFormat(lang, { style: 'currency', currency: 'RUB', maximumFractionDigits: digits, minimumFractionDigits: digits }).format(value);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('month');
@@ -116,7 +121,7 @@ export function AnalyticsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [timeRange]);
+  }, [timeRange, lang]);
 
   const generateDailyProgress = (coursesData: Course[], range: 'week' | 'month' | 'all') => {
     const days = range === 'week' ? 7 : range === 'month' ? 30 : 60;
@@ -126,7 +131,7 @@ export function AnalyticsPage() {
     for (let i = days; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
-      const dateStr = date.toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' });
+      const dateStr = date.toLocaleDateString(lang, { month: 'short', day: 'numeric' });
 
       // Simulate progress based on course status
       const completedOnDay = Math.floor(Math.random() * 3);
@@ -146,7 +151,7 @@ export function AnalyticsPage() {
     const categories: Record<string, number> = {};
     coursesData.forEach(course => {
       // Since we don't have category in response, use status as grouping
-      const key = course.status === 'completed' ? 'Завершено' : 'В процессе';
+      const key = course.status === 'completed' ? t.completed : t.inProgress;
       categories[key] = (categories[key] || 0) + 1;
     });
 
@@ -170,9 +175,9 @@ export function AnalyticsPage() {
       .length;
 
     return [
-      { status: 'Завершено', cost: completed },
-      { status: 'В процессе', cost: inProgress },
-      { status: `Бесплатно (${free})`, cost: free > 0 ? 1 : 0 }, // Use 1 for visibility
+      { status: t.completed, cost: completed },
+      { status: t.inProgress, cost: inProgress },
+      { status: t.free(free), cost: free > 0 ? 1 : 0 }, // Use 1 for visibility
     ].filter(item => item.cost > 0);
   };
 
@@ -191,18 +196,18 @@ export function AnalyticsPage() {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold mb-2">📊 Аналитика</h1>
-          <p className="text-muted-foreground">Обзор вашего прогресса обучения</p>
+          <h1 className="text-3xl font-bold mb-2">{t.title}</h1>
+          <p className="text-muted-foreground">{t.subtitle}</p>
         </div>
         <div className="flex gap-2">
           <Button variant={timeRange === 'week' ? 'default' : 'outline'} onClick={() => setTimeRange('week')}>
-            Неделя
+            {t.week}
           </Button>
           <Button variant={timeRange === 'month' ? 'default' : 'outline'} onClick={() => setTimeRange('month')}>
-            Месяц
+            {t.month}
           </Button>
           <Button variant={timeRange === 'all' ? 'default' : 'outline'} onClick={() => setTimeRange('all')}>
-            Всё время
+            {t.all}
           </Button>
         </div>
       </div>
@@ -211,32 +216,32 @@ export function AnalyticsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <MetricCard
           icon={<BookOpen className="h-5 w-5" />}
-          title="Всего курсов"
+          title={t.totalCourses}
           value={analytics.totalCourses}
           color="bg-blue-50"
         />
         <MetricCard
           icon={<CheckCircle className="h-5 w-5" />}
-          title="Завершено"
+          title={t.completed}
           value={analytics.completedCourses}
           color="bg-green-50"
         />
         <MetricCard
           icon={<PlayCircle className="h-5 w-5" />}
-          title="В процессе"
+          title={t.inProgress}
           value={analytics.inProgressCourses}
           color="bg-yellow-50"
         />
         <MetricCard
           icon={<Clock className="h-5 w-5" />}
-          title="Часов обучения"
+          title={t.hours}
           value={analytics.totalHours}
           color="bg-purple-50"
         />
         <MetricCard
           icon={<DollarSign className="h-5 w-5" />}
-          title="Потрачено ₽"
-          value={`${Math.round(analytics.totalSpent)}`}
+          title={t.spent}
+          value={money(Math.round(analytics.totalSpent), 0)}
           color="bg-pink-50"
         />
       </div>
@@ -244,18 +249,18 @@ export function AnalyticsPage() {
       {/* Charts Section */}
       <Tabs defaultValue="progress" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="progress">Прогресс</TabsTrigger>
-          <TabsTrigger value="time">Время</TabsTrigger>
-          <TabsTrigger value="breakdown">Статистика</TabsTrigger>
-          <TabsTrigger value="cost">Стоимость</TabsTrigger>
+          <TabsTrigger value="progress">{t.tabProgress}</TabsTrigger>
+          <TabsTrigger value="time">{t.tabTime}</TabsTrigger>
+          <TabsTrigger value="breakdown">{t.tabBreakdown}</TabsTrigger>
+          <TabsTrigger value="cost">{t.tabCost}</TabsTrigger>
         </TabsList>
 
         {/* Progress Chart */}
         <TabsContent value="progress">
           <Card>
             <CardHeader>
-              <CardTitle>Прогресс по дням</CardTitle>
-              <CardDescription>Количество часов и курсов завершенных в день</CardDescription>
+              <CardTitle>{t.progressTitle}</CardTitle>
+              <CardDescription>{t.progressDesc}</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -269,14 +274,14 @@ export function AnalyticsPage() {
                     type="monotone"
                     dataKey="hours"
                     stroke="#667eea"
-                    name="Часы обучения"
+                    name={t.hoursSeries}
                     strokeWidth={2}
                   />
                   <Line
                     type="monotone"
                     dataKey="courses"
                     stroke="#764ba2"
-                    name="Завершено курсов"
+                    name={t.coursesSeries}
                     strokeWidth={2}
                   />
                 </LineChart>
@@ -289,8 +294,8 @@ export function AnalyticsPage() {
         <TabsContent value="time">
           <Card>
             <CardHeader>
-              <CardTitle>Распределение времени по дням</CardTitle>
-              <CardDescription>Общее время, потраченное на обучение</CardDescription>
+              <CardTitle>{t.timeTitle}</CardTitle>
+              <CardDescription>{t.timeDesc}</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -300,7 +305,7 @@ export function AnalyticsPage() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="hours" fill="#667eea" name="Часы обучения" />
+                  <Bar dataKey="hours" fill="#667eea" name={t.hoursSeries} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -312,8 +317,8 @@ export function AnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Статус курсов</CardTitle>
-                <CardDescription>Распределение по статусам</CardDescription>
+                <CardTitle>{t.statusTitle}</CardTitle>
+                <CardDescription>{t.statusDesc}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -340,12 +345,12 @@ export function AnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Детальная статистика</CardTitle>
+                <CardTitle>{t.detailsTitle}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center p-4 rounded-lg bg-green-50 border border-green-200">
                   <div>
-                    <p className="text-sm text-muted-foreground">Завершено курсов</p>
+                    <p className="text-sm text-muted-foreground">{t.completedCourses}</p>
                     <p className="text-2xl font-bold text-green-700">{analytics.completedCourses}</p>
                   </div>
                   <CheckCircle className="h-8 w-8 text-green-600" />
@@ -353,7 +358,7 @@ export function AnalyticsPage() {
 
                 <div className="flex justify-between items-center p-4 rounded-lg bg-yellow-50 border border-yellow-200">
                   <div>
-                    <p className="text-sm text-muted-foreground">В процессе</p>
+                    <p className="text-sm text-muted-foreground">{t.inProgress}</p>
                     <p className="text-2xl font-bold text-yellow-700">{analytics.inProgressCourses}</p>
                   </div>
                   <PlayCircle className="h-8 w-8 text-yellow-600" />
@@ -361,7 +366,7 @@ export function AnalyticsPage() {
 
                 <div className="flex justify-between items-center p-4 rounded-lg bg-blue-50 border border-blue-200">
                   <div>
-                    <p className="text-sm text-muted-foreground">Среднее прохождение</p>
+                    <p className="text-sm text-muted-foreground">{t.avgProgress}</p>
                     <p className="text-2xl font-bold text-blue-700">{analytics.averageProgress}%</p>
                   </div>
                   <TrendingUp className="h-8 w-8 text-blue-600" />
@@ -375,8 +380,8 @@ export function AnalyticsPage() {
         <TabsContent value="cost">
           <Card>
             <CardHeader>
-              <CardTitle>Анализ стоимости</CardTitle>
-              <CardDescription>Расходы по статусу курса</CardDescription>
+              <CardTitle>{t.costTitle}</CardTitle>
+              <CardDescription>{t.costDesc}</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -384,14 +389,14 @@ export function AnalyticsPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="status" />
                   <YAxis />
-                  <Tooltip formatter={(value) => `₽${Number(value).toFixed(2)}`} />
+                  <Tooltip formatter={(value) => money(Number(value))} />
                   <Legend />
-                  <Bar dataKey="cost" fill="#764ba2" name="Стоимость (₽)" />
+                  <Bar dataKey="cost" fill="#764ba2" name={t.costSeries} />
                 </BarChart>
               </ResponsiveContainer>
               <div className="mt-6 p-4 rounded-lg bg-gray-50 border">
-                <p className="text-sm text-muted-foreground mb-2">Общие расходы</p>
-                <p className="text-3xl font-bold">₽{analytics.totalSpent.toFixed(2)}</p>
+                <p className="text-sm text-muted-foreground mb-2">{t.totalSpent}</p>
+                <p className="text-3xl font-bold">{money(analytics.totalSpent)}</p>
               </div>
             </CardContent>
           </Card>
@@ -401,7 +406,7 @@ export function AnalyticsPage() {
       {/* Bottom Summary */}
       <Card>
         <CardHeader>
-          <CardTitle>Ваше путешествие обучения</CardTitle>
+          <CardTitle>{t.journey}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4 p-4 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 border">
@@ -409,9 +414,9 @@ export function AnalyticsPage() {
               <BookOpen className="h-6 w-6 text-purple-600" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold">Вы прошли {analytics.completedCourses} курсов</p>
+              <p className="font-semibold">{t.passed(analytics.completedCourses)}</p>
               <p className="text-sm text-muted-foreground">
-                Потратили {analytics.totalHours} часов обучения и ₽{analytics.totalSpent.toFixed(2)}
+                {t.spentSummary(analytics.totalHours, money(analytics.totalSpent))}
               </p>
             </div>
           </div>
@@ -421,9 +426,9 @@ export function AnalyticsPage() {
                 <PlayCircle className="h-6 w-6 text-blue-600" />
               </div>
               <div className="flex-1">
-                <p className="font-semibold">Продолжайте обучение</p>
+                <p className="font-semibold">{t.keepGoing}</p>
                 <p className="text-sm text-muted-foreground">
-                  {analytics.inProgressCourses} курсов в процессе с средним прогрессом {analytics.averageProgress}%
+                  {t.inProgressSummary(analytics.inProgressCourses, analytics.averageProgress)}
                 </p>
               </div>
             </div>

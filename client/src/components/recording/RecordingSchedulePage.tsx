@@ -16,6 +16,7 @@ import {
 import { RecordingTasksList } from './RecordingTasksList';
 import { RecordingModal, RecordingData } from './RecordingModal';
 import { DEFAULT_TIME_ZONE, zonedInputToUtcIso } from './timezones';
+import { useLang } from '@/i18n';
 
 interface DashboardStats {
   scheduled: number;
@@ -30,6 +31,8 @@ interface DashboardStats {
 
 
 export function RecordingSchedulePage() {
+  const { m } = useLang();
+  const t = m.recordings;
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [userStats, setUserStats] = useState<DashboardStats>({ scheduled: 0, ready: 0, in_progress: 0, uploading: 0, completed: 0, failed: 0, cancelled: 0, total: 0 });
@@ -76,12 +79,12 @@ export function RecordingSchedulePage() {
         setTasksRefreshKey(k => k + 1);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        const msg = (errorData as any).message || `Ошибка ${response.status}: не удалось запланировать запись`;
+        const msg = (errorData as any).message || t.page.httpError(response.status);
         setScheduleError(msg);
       }
     } catch (error) {
       console.error('Error scheduling recording:', error);
-      setScheduleError('Ошибка соединения с сервером. Проверьте подключение и попробуйте снова.');
+      setScheduleError(t.page.connectionError);
     } finally {
       setIsScheduling(false);
     }
@@ -94,10 +97,10 @@ export function RecordingSchedulePage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Video className="h-6 w-6 text-purple-600" />
-            Запись по расписанию
+            {t.page.title}
           </h1>
           <p className="text-gray-600 mt-1">
-            Управление автономной записью трансляций
+            {t.page.subtitle}
           </p>
         </div>
         <div className="flex gap-2">
@@ -108,11 +111,11 @@ export function RecordingSchedulePage() {
             className="min-h-11"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Обновить
+            {t.page.refresh}
           </Button>
           <Button onClick={() => setShowRecordingModal(true)} className="min-h-11">
             <Plus className="h-4 w-4 mr-2" />
-            Запланировать запись
+            {t.page.schedule}
           </Button>
         </div>
       </div>
@@ -125,7 +128,7 @@ export function RecordingSchedulePage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             <StatCard
-              title="Запланировано"
+              title={t.stats.scheduled}
               value={userStats.scheduled}
               icon={Clock}
               color="indigo"
@@ -133,7 +136,7 @@ export function RecordingSchedulePage() {
               onClick={() => setSelectedFilter(selectedFilter === 'scheduled' ? null : 'scheduled')}
             />
             <StatCard 
-              title="Ожидают" 
+              title={t.stats.ready} 
               value={userStats.ready} 
               icon={Clock} 
               color="blue" 
@@ -141,7 +144,7 @@ export function RecordingSchedulePage() {
               onClick={() => setSelectedFilter(selectedFilter === 'ready' ? null : 'ready')}
             />
             <StatCard 
-              title="Запись" 
+              title={t.stats.in_progress} 
               value={userStats.in_progress} 
               icon={Activity} 
               color="yellow"
@@ -149,7 +152,7 @@ export function RecordingSchedulePage() {
               onClick={() => setSelectedFilter(selectedFilter === 'in_progress' ? null : 'in_progress')}
             />
             <StatCard 
-              title="Загрузка" 
+              title={t.stats.uploading} 
               value={userStats.uploading} 
               icon={HardDrive} 
               color="purple"
@@ -157,7 +160,7 @@ export function RecordingSchedulePage() {
               onClick={() => setSelectedFilter(selectedFilter === 'uploading' ? null : 'uploading')}
             />
             <StatCard 
-              title="Завершено" 
+              title={t.stats.completed} 
               value={userStats.completed} 
               icon={CheckCircle} 
               color="green"
@@ -165,7 +168,7 @@ export function RecordingSchedulePage() {
               onClick={() => setSelectedFilter(selectedFilter === 'completed' ? null : 'completed')}
             />
             <StatCard 
-              title="Ошибки" 
+              title={t.stats.failed} 
               value={userStats.failed} 
               icon={AlertTriangle} 
               color="red"
@@ -173,7 +176,7 @@ export function RecordingSchedulePage() {
               onClick={() => setSelectedFilter(selectedFilter === 'failed' ? null : 'failed')}
             />
             <StatCard 
-              title="Всего" 
+              title={t.stats.total} 
               value={userStats.total} 
               icon={Video} 
               color="gray"

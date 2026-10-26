@@ -3,10 +3,11 @@ import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BookmarkPlus, Download, Loader } from 'lucide-react';
+import { useLang } from '@/i18n';
+import { videoLabel } from './recordingLink';
 
 interface TaskVideo {
   id: string;
-  label: string;
   url: string;
 }
 
@@ -22,6 +23,8 @@ interface RecordingPlayerDialogProps {
  * вкладке не воспроизводится. Здесь же — скачать файл и сохранить запись в библиотеку.
  */
 export function RecordingPlayerDialog({ taskId, title, onClose }: RecordingPlayerDialogProps) {
+  const { m } = useLang();
+  const t = m.recordings.player;
   const [videos, setVideos] = useState<TaskVideo[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,11 +45,11 @@ export function RecordingPlayerDialog({ taskId, title, onClose }: RecordingPlaye
       .then(async (r) => {
         const d = await r.json();
         if (cancelled) return;
-        if (!r.ok) throw new Error(d.message || 'Не удалось загрузить запись');
+        if (!r.ok) throw new Error(d.message || t.errLoad);
         setVideos(d.videos ?? []);
         setCurrentId(d.videos?.[0]?.id ?? null);
       })
-      .catch((e) => !cancelled && setMessage({ kind: 'error', text: e.message || 'Не удалось загрузить запись' }))
+      .catch((e) => !cancelled && setMessage({ kind: 'error', text: e.message || t.errLoad }))
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -54,6 +57,7 @@ export function RecordingPlayerDialog({ taskId, title, onClose }: RecordingPlaye
   }, [taskId]);
 
   const current = videos.find((v) => v.id === currentId) ?? null;
+  const partCount = videos.filter((v) => v.id !== 'merged').length;
 
   const download = async () => {
     if (!taskId || !current) return;
@@ -64,7 +68,7 @@ export function RecordingPlayerDialog({ taskId, title, onClose }: RecordingPlaye
         `/api/recording/tasks/${taskId}/download?video=${encodeURIComponent(current.id)}`,
       );
       const d = await r.json();
-      if (!r.ok) throw new Error(d.message || 'Не удалось получить ссылку');
+      if (!r.ok) throw new Error(d.message || t.errLink);
       // Подписанная ссылка отдаёт файл с Content-Disposition: attachment — браузер его сохранит
       const a = document.createElement('a');
       a.href = d.url;
@@ -74,7 +78,7 @@ export function RecordingPlayerDialog({ taskId, title, onClose }: RecordingPlaye
       document.body.appendChild(a);
       a.click();
       a.remove();
-      setMessage({ kind: 'ok', text: `Скачивание началось: ${d.fileName}` });
+      setMessage({ kind: 'ok', text: t.downloadStarted(d.fileName) });
     } catch (e) {
       setMessage({ kind: 'error', text: (e as Error).message });
     } finally {
@@ -92,8 +96,8 @@ export function RecordingPlayerDialog({ taskId, title, onClose }: RecordingPlaye
         body: JSON.stringify({ video: current.id }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.message || 'Не удалось сохранить');
-      setMessage({ kind: 'ok', text: 'Сохранено в библиотеку — запись можно смотреть там в любое время' });
+      if (!r.ok) throw new Error(d.message || t.errSave);
+      setMessage({ kind: 'ok', text: t.saved });
     } catch (e) {
       setMessage({ kind: 'error', text: (e as Error).message });
     } finally {
@@ -105,13 +109,13 @@ export function RecordingPlayerDialog({ taskId, title, onClose }: RecordingPlaye
     <Dialog open={!!taskId} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[900px] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="pr-6 break-words">{title || 'Запись'}</DialogTitle>
-          <DialogDescription>Просмотр записи, скачивание файла и сохранение в библиотеку</DialogDescription>
+          <DialogTitle className="pr-6 break-words">{title || t.title}</DialogTitle>
+          <DialogDescription>{t.description}</DialogDescription>
         </DialogHeader>
 
         {loading && (
           <div className="flex items-center justify-center h-48 text-gray-500 gap-2">
-            <Loader className="h-5 w-5 animate-spin" /> Загрузка…
+            <Loader className="h-5 w-5 animate-spin" /> {m.common.loading}
           </div>
         )}
 
@@ -129,7 +133,7 @@ export function RecordingPlayerDialog({ taskId, title, onClose }: RecordingPlaye
             />
             {playError && (
               <p className="text-xs text-red-600">
-                Видео не загрузилось в плеере. Скачайте файл кнопкой ниже и откройте его на компьютере.
+                {t.playError}
               </p>
             )}
 
@@ -145,7 +149,7 @@ export function RecordingPlayerDialog({ taskId, title, onClose }: RecordingPlaye
                       setPlayError(false);
                     }}
                   >
-                    {v.label}
+                    {videoLabel(v.id, partCount, m.recordings.files)}
                   </Button>
                 ))}
               </div>
@@ -154,17 +158,17 @@ export function RecordingPlayerDialog({ taskId, title, onClose }: RecordingPlaye
             <div className="flex flex-wrap gap-2 pt-1">
               <Button onClick={download} disabled={!!busy} className="gap-2">
                 {busy === 'download' ? <Loader className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Скачать на компьютер
+                {t.download}
               </Button>
               <Button variant="outline" onClick={saveToLibrary} disabled={!!busy} className="gap-2">
                 {busy === 'library' ? <Loader className="h-4 w-4 animate-spin" /> : <BookmarkPlus className="h-4 w-4" />}
-                Сохранить в библиотеку
+                {t.saveToLibrary}
               </Button>
             </div>
           </>
         )}
 
-        {!loading && !current && !message && <p className="text-sm text-gray-500">У задачи пока нет записанных файлов.</p>}
+        {!loading && !current && !message && <p className="text-sm text-gray-500">{t.noFiles}</p>}
 
         {message && (
           <p className={`text-sm ${message.kind === 'ok' ? 'text-green-700' : 'text-red-600'}`}>{message.text}</p>

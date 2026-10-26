@@ -18,20 +18,13 @@ export const browserTimeZone = (): string => {
 
 export const resolveTimeZone = (tz: TimeZoneChoice): string => (tz === 'local' ? browserTimeZone() : tz);
 
-export const TIME_ZONE_OPTIONS: Array<{ value: TimeZoneChoice; label: string }> = [
-  { value: 'Europe/Moscow', label: 'Москва (МСК, UTC+3)' },
-  { value: 'UTC', label: 'UTC (по Гринвичу)' },
-  { value: 'America/Los_Angeles', label: 'Тихоокеанское время США (PT)' },
-  { value: 'local', label: 'Местное время' },
+/** Пояса на выбор; подписи на языке ученика — tzOptionLabel и tzShort (events/tzLabels.ts) */
+export const TIME_ZONE_OPTIONS: Array<{ value: TimeZoneChoice }> = [
+  { value: 'Europe/Moscow' },
+  { value: 'UTC' },
+  { value: 'America/Los_Angeles' },
+  { value: 'local' },
 ];
-
-/** Короткая подпись пояса: МСК, UTC, PT или название местного пояса */
-export function timeZoneShort(tz: TimeZoneChoice): string {
-  if (tz === 'Europe/Moscow') return 'МСК';
-  if (tz === 'UTC') return 'UTC';
-  if (tz === 'America/Los_Angeles') return 'PT';
-  return `местное, ${browserTimeZone()}`;
-}
 
 const pad = (n: number) => String(n).padStart(2, '0');
 

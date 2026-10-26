@@ -17,7 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RecordingPlayerDialog } from './RecordingPlayerDialog';
 import { RecordingMergeDialog } from './RecordingMergeDialog';
-import { TIME_ZONE_OPTIONS, browserTimeZone, fmtZoned, timeZoneShort, useRecordingTimeZone, utcToZonedInput, zonedInputToUtcIso, type TimeZoneChoice } from './timezones';
+import { TIME_ZONE_OPTIONS, browserTimeZone, fmtZoned, useRecordingTimeZone, utcToZonedInput, zonedInputToUtcIso, type TimeZoneChoice } from './timezones';
+import { tzOptionLabel, tzShort } from '../events/tzLabels';
+import { useLang } from '@/i18n';
 
 
 interface ConfirmState {
@@ -106,6 +108,7 @@ function useNow(intervalMs = 5000) {
 }
 
 function MethodLine({ task }: { task: RecordingTask }) {
+  const t = useLang().m.recordings.start;
   const st = task.start;
   const label = st?.methodLabel ?? task.plannedMethod?.label;
   if (!label) return null;
@@ -114,10 +117,10 @@ function MethodLine({ task }: { task: RecordingTask }) {
   return (
     <div className="mt-1 space-y-0.5">
       <p className="text-xs text-gray-500">
-        Способ: {label}{platform ? ` · ${platform}` : ''}{st?.tool ? ` · ${st.tool}` : ''}
+        {t.method}: {label}{platform ? ` · ${platform}` : ''}{st?.tool ? ` · ${st.tool}` : ''}
       </p>
       {st?.fallback && (
-        <p className="text-xs text-amber-700">Запись без браузера не удалась, переключились на браузер: {st.fallback}</p>
+        <p className="text-xs text-amber-700">{t.fallback(st.fallback)}</p>
       )}
       {note && <p className="text-xs text-gray-400">{note}</p>}
     </div>
@@ -134,9 +137,11 @@ function StartStatusPanel({ task }: { task: RecordingTask }) {
 }
 
 function StartStatusBox({ task }: { task: RecordingTask }) {
+  const { m } = useLang();
+  const t = m.recordings.start;
   const [tz] = useRecordingTimeZone();
   const st = task.start;
-  const attempt = st?.attempt && st?.maxAttempts ? ` · попытка ${st.attempt}/${st.maxAttempts}` : '';
+  const attempt = st?.attempt && st?.maxAttempts ? t.attempt(st.attempt, st.maxAttempts) : '';
 
   if (task.status === 'failed' || st?.state === 'retrying') {
     const started = !!st?.recordingConfirmed;
@@ -144,20 +149,20 @@ function StartStatusBox({ task }: { task: RecordingTask }) {
     return (
       <div className={`border rounded p-2 mt-2 ${retrying ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
         <p className={`text-xs font-medium ${retrying ? 'text-amber-800' : 'text-red-800'}`}>
-          {started ? 'Запись началась, но прервалась' : 'Запись не стартовала'}
-          {retrying ? ' — будет повторная попытка' : ''}
+          {started ? t.interrupted : t.notStarted}
+          {retrying ? t.willRetry : ''}
           {attempt}
         </p>
         <p className={`text-xs mt-0.5 ${retrying ? 'text-amber-700' : 'text-red-700'}`}>
-          {st?.reason ?? task.errorMessage ?? 'Причина не определена'}
+          {st?.reason ?? task.errorMessage ?? t.unknownReason}
         </p>
-        {st?.hint && <p className="text-xs text-gray-600 mt-1">Что делать: {st.hint}</p>}
+        {st?.hint && <p className="text-xs text-gray-600 mt-1">{t.whatToDo(st.hint)}</p>}
         {(st?.code || task.errorMessage) && (
           <details className="mt-1">
-            <summary className="text-xs text-gray-400 cursor-pointer">Технические детали</summary>
+            <summary className="text-xs text-gray-400 cursor-pointer">{t.details}</summary>
             <p className="text-xs text-gray-500 mt-1 break-words">
               {st?.code && <span className="font-mono">{st.code}</span>}
-              {st?.stage && <> · этап: {st.stage}</>}
+              {st?.stage && t.stage(st.stage)}
               {task.errorMessage && <><br />{task.errorMessage}</>}
             </p>
           </details>
@@ -172,8 +177,8 @@ function StartStatusBox({ task }: { task: RecordingTask }) {
         <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded p-2 mt-2">
           <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
           <p className="text-xs text-green-800">
-            Запись стартовала: {st?.method && st.method !== 'browser' ? 'поток идёт' : 'видео получено'}
-            {st?.recordingStartedAt ? ` в ${fmtZoned(st.recordingStartedAt, tz).time} (${timeZoneShort(tz)})` : ''}
+            {t.started}: {st?.method && st.method !== 'browser' ? t.streamFlowing : t.videoReceived}
+            {st?.recordingStartedAt ? t.at(fmtZoned(st.recordingStartedAt, tz).time, tzShort(tz, m)) : ''}
             {attempt}
           </p>
         </div>
@@ -183,7 +188,7 @@ function StartStatusBox({ task }: { task: RecordingTask }) {
       <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded p-2 mt-2">
         <Loader className="h-4 w-4 text-blue-600 animate-spin flex-shrink-0" />
         <p className="text-xs text-blue-800">
-          Запуск ещё не подтверждён: {st?.stageLabel ?? 'подготовка'}…{attempt}
+          {t.notConfirmed}: {st?.stageLabel ?? t.preparing}…{attempt}
         </p>
       </div>
     );
@@ -214,6 +219,9 @@ function StartStatusBox({ task }: { task: RecordingTask }) {
 }
 
 export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: RecordingTasksListProps) {
+  const { m } = useLang();
+  const r = m.recordings;
+  const l = r.list;
   const [tasks, setTasks] = useState<RecordingTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const now = useNow(5000);
@@ -225,7 +233,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     open: false,
     title: '',
     message: '',
-    confirmLabel: 'Подтвердить',
+    confirmLabel: '',
     confirmVariant: 'destructive',
     onConfirm: () => {},
   });
@@ -312,9 +320,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
   const formatDuration = (minutes: number) => {
     const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h > 0) return `${h} ч ${m > 0 ? `${m} мин` : ''}`.trim();
-    return `${m} мин`;
+    return h > 0 ? l.hoursMinutes(h, minutes % 60) : m.common.minutes(minutes);
   };
 
   const getDomain = (url: string) => {
@@ -345,31 +351,21 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
       cancelled: 'bg-gray-100 text-gray-800',
     };
 
-    const labels: Record<string, string> = {
-      scheduled: 'Запланировано',
-      ready: 'Готова к записи',
-      in_progress: 'Идёт запись',
-      uploading: 'Загрузка видео',
-      completed: 'Завершена',
-      failed: 'Ошибка',
-      cancelled: 'Отменена',
-    };
-
     return (
       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${styles[status] ?? 'bg-gray-100 text-gray-800'}`}>
         {status === 'completed' && <CheckCircle className="h-4 w-4" />}
         {(status === 'in_progress' || status === 'uploading') && <Clock className="h-4 w-4 animate-spin" />}
         {status === 'failed' && <AlertCircle className="h-4 w-4" />}
-        {labels[status] ?? status}
+        {r.status[status] ?? status}
       </span>
     );
   };
 
   const handleDelete = (taskId: string) => {
     showConfirm({
-      title: 'Удалить запись?',
-      message: 'Задача будет удалена безвозвратно.',
-      confirmLabel: 'Удалить',
+      title: r.confirm.deleteTitle,
+      message: r.confirm.deleteText,
+      confirmLabel: r.confirm.deleteOk,
       confirmVariant: 'destructive',
       onConfirm: async () => {
         closeConfirm();
@@ -385,9 +381,9 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
   const handleCancel = (taskId: string) => {
     showConfirm({
-      title: 'Отменить запись?',
-      message: 'Задача будет переведена в статус "Отменена". После этого её можно удалить.',
-      confirmLabel: 'Отменить запись',
+      title: r.confirm.cancelTitle,
+      message: r.confirm.cancelText,
+      confirmLabel: r.confirm.cancelOk,
       confirmVariant: 'destructive',
       onConfirm: async () => {
         closeConfirm();
@@ -441,19 +437,19 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
     setEditError(null);
 
     if (!editFormData.title.trim()) {
-      setEditError('Укажите название записи');
+      setEditError(r.edit.errName);
       return;
     }
     if (!editFormData.streamUrl.trim()) {
-      setEditError('Укажите ссылку на трансляцию');
+      setEditError(r.form.errUrl);
       return;
     }
     if (!editFormData.scheduledTime) {
-      setEditError('Укажите дату и время начала');
+      setEditError(r.edit.errStart);
       return;
     }
     if (editFormData.duration < 1 || editFormData.duration > 1440) {
-      setEditError('Длительность должна быть от 1 до 1440 минут');
+      setEditError(r.form.errDuration);
       return;
     }
 
@@ -483,25 +479,25 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
         }, 1000);
       } else {
         const data = await response.json().catch(() => ({}));
-        setEditError(data.message || 'Ошибка при сохранении. Попробуйте ещё раз.');
+        setEditError(data.message || r.edit.errSave);
       }
     } catch (error) {
-      setEditError('Ошибка соединения с сервером');
+      setEditError(r.edit.connectionError);
     } finally {
       setIsUpdating(false);
     }
   };
 
   if (isLoading) {
-    return <div className="text-center py-8 text-gray-500">Загрузка списка записей...</div>;
+    return <div className="text-center py-8 text-gray-500">{l.loading}</div>;
   }
 
   if (tasks.length === 0) {
-    return <div className="text-center py-8 text-gray-500">Нет запланированных или завершённых записей</div>;
+    return <div className="text-center py-8 text-gray-500">{l.empty}</div>;
   }
 
   if (filteredTasks.length === 0) {
-    return <div className="text-center py-8 text-gray-500">Нет записей с выбранным статусом</div>;
+    return <div className="text-center py-8 text-gray-500">{l.emptyFilter}</div>;
   }
 
   return (
@@ -523,13 +519,13 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
               {task.attemptCount !== undefined && task.attemptCount > 0 && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">
-                  Попытка {task.attemptCount} из 3
+                  {l.attempt(task.attemptCount, 3)}
                 </span>
               )}
 
               {task.status === 'completed' && task.duration > 10 && task.fileSize != null && task.fileSize < 5 * 1024 * 1024 && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700" title="Файл значительно короче ожидаемого">
-                  ⚠ Короткая
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700" title={l.shortHint}>
+                  {l.short}
                 </span>
               )}
 
@@ -538,7 +534,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                   size="sm"
                   variant="outline"
                   className="h-8 w-8 p-0"
-                  title="Смотреть, скачать или сохранить в библиотеку"
+                  title={l.watchHint}
                   onClick={() => setPlayerTask({ id: task.id, title: task.title })}
                 >
                   <Play className="h-4 w-4" />
@@ -560,10 +556,10 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                   }`}
                   title={
                     task.mergeStatus === 'merging' || task.mergeStatus === 'queued'
-                      ? (task.mergeProgress ?? 'Склейка...')
+                      ? (task.mergeProgress ?? l.merging)
                       : task.mergeStatus === 'failed'
-                      ? `Ошибка склейки: ${task.mergeError ?? 'неизвестно'}`
-                      : 'Склеить части в один файл: выбор частей и порядка, части других записей'
+                      ? l.mergeFailedHint(task.mergeError ?? l.unknown)
+                      : l.mergeHint
                   }
                   onClick={() => setMergeTaskId(task.id)}
                 >
@@ -572,14 +568,14 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                     : <Merge className="h-3.5 w-3.5" />
                   }
                   {task.mergeStatus === 'merging'
-                    ? 'Склейка…'
+                    ? l.merging
                     : task.mergeStatus === 'queued'
-                    ? 'В очереди…'
+                    ? l.queued
                     : task.mergeStatus === 'failed'
-                    ? 'Склейка: ошибка'
+                    ? l.mergeFailed
                     : task.mergeStatus === 'completed' && task.mergedUrl
-                    ? '✅ Склеено'
-                    : 'Склеить'}
+                    ? l.merged
+                    : l.merge}
                 </Button>
               )}
 
@@ -588,11 +584,11 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                   size="sm"
                   variant="outline"
                   className="h-8 px-2 text-orange-500 hover:text-orange-700 hover:border-orange-300 text-xs gap-1"
-                  title="Отменить запись"
+                  title={l.cancelHint}
                   onClick={() => handleCancel(task.id)}
                 >
                   <StopCircle className="h-4 w-4" />
-                  Отменить
+                  {l.cancel}
                 </Button>
               )}
 
@@ -603,7 +599,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                       size="sm"
                       variant="outline"
                       className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
-                      title="Перепроверить доступность URL"
+                      title={l.recheckHint}
                       onClick={() => handleRecheck(task.id)}
                     >
                       <RefreshCw className="h-3.5 w-3.5" />
@@ -614,18 +610,18 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                       size="sm"
                       variant="outline"
                       className="h-8 px-2 text-green-600 hover:text-green-800 hover:border-green-300 text-xs gap-1"
-                      title="Повторить запись"
+                      title={l.retryHint}
                       onClick={() => handleRecover(task.id)}
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
-                      Повторить
+                      {l.retry}
                     </Button>
                   )}
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-8 w-8 p-0"
-                    title={task.status === 'failed' ? 'Исправить и перезапустить' : 'Редактировать'}
+                    title={task.status === 'failed' ? l.fixHint : l.editHint}
                     onClick={() => handleEditStart(task)}
                   >
                     <Edit2 className="h-4 w-4" />
@@ -638,7 +634,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                   size="sm"
                   variant="outline"
                   className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:border-red-300"
-                  title="Удалить"
+                  title={l.deleteHint}
                   onClick={() => handleDelete(task.id)}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -649,7 +645,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm">
             <div className="bg-gray-50 p-2 rounded">
-              <span className="text-gray-500 text-xs block">Начало записи ({timeZoneShort(timeZone)})</span>
+              <span className="text-gray-500 text-xs block">{l.start(tzShort(timeZone, m))}</span>
               <p className="font-semibold text-xs leading-tight mt-0.5">
                 {fmtZoned(task.scheduledTime, timeZone).date}
               </p>
@@ -658,14 +654,14 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               </p>
             </div>
             <div className="bg-gray-50 p-2 rounded">
-              <span className="text-gray-500 text-xs block">Источник</span>
+              <span className="text-gray-500 text-xs block">{l.source}</span>
               <div className="flex items-center gap-1 mt-0.5">
                 <p className="font-semibold text-xs">{getDomain(task.streamUrl)}</p>
                 {task.urlCheckStatus === 'pending' && (
-                  <span title="Проверяется доступность..."><Loader className="h-3 w-3 text-gray-400 animate-spin flex-shrink-0" /></span>
+                  <span title={l.checking}><Loader className="h-3 w-3 text-gray-400 animate-spin flex-shrink-0" /></span>
                 )}
                 {task.urlCheckStatus === 'ok' && (
-                  <span title="URL доступен"><CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" /></span>
+                  <span title={l.urlOk}><CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" /></span>
                 )}
                 {task.urlCheckStatus === 'warning' && (
                   <span title={task.urlCheckMessage ?? undefined}><TriangleAlert className="h-3 w-3 text-amber-500 flex-shrink-0" /></span>
@@ -685,11 +681,11 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               </a>
             </div>
             <div className="bg-gray-50 p-2 rounded">
-              <span className="text-gray-500 text-xs block">Длительность</span>
+              <span className="text-gray-500 text-xs block">{l.duration}</span>
               <p className="font-semibold text-xs mt-0.5">{formatDuration(task.duration)}</p>
             </div>
             <div className="bg-gray-50 p-2 rounded">
-              <span className="text-gray-500 text-xs block">Статус</span>
+              <span className="text-gray-500 text-xs block">{l.status}</span>
               {(() => {
                 const isActive = task.status === 'in_progress' || task.status === 'uploading';
                 let pct = 0;
@@ -699,13 +695,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 } else if (task.status === 'completed') {
                   pct = 100;
                 }
-                const label =
-                  task.status === 'scheduled'   ? 'Запланировано' :
-                  task.status === 'ready'       ? 'Ожидает' :
-                  task.status === 'in_progress' ? 'Идёт запись' :
-                  task.status === 'uploading'   ? 'Загрузка' :
-                  task.status === 'completed'   ? 'Завершена' :
-                  task.status === 'failed'      ? 'Ошибка' : 'Отменена';
+                const label = r.status[task.status] ?? task.status;
                 const color =
                   task.status === 'scheduled'   ? 'text-indigo-600' :
                   task.status === 'ready'       ? 'text-blue-600' :
@@ -725,7 +715,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                           <span className="text-xs text-gray-400">{pct}%</span>
                           {isActive && task.startedAt && task.duration && (
                             <span className="text-xs text-gray-400">
-                              {Math.max(0, Math.round((task.duration * 60 * 1000 - (now - new Date(task.startedAt).getTime())) / 60000))} мин
+                              {m.common.minutes(Math.max(0, Math.round((task.duration * 60 * 1000 - (now - new Date(task.startedAt).getTime())) / 60000)))}
                             </span>
                           )}
                         </div>
@@ -742,21 +732,21 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               })()}
             </div>
             <div className="bg-gray-50 p-2 rounded col-span-2 sm:col-span-1">
-              <span className="text-gray-500 text-xs block">URL записи</span>
+              <span className="text-gray-500 text-xs block">{l.file}</span>
               {(task.begetUrl || task.playlistUrl) ? (
                 <button
                   type="button"
                   onClick={() => setPlayerTask({ id: task.id, title: task.title })}
                   className="text-xs text-blue-600 hover:text-blue-800 hover:underline truncate block mt-0.5 text-left max-w-full"
-                  title="Открыть плеер: просмотр, скачивание, сохранение в библиотеку"
+                  title={l.playerHint}
                 >
-                  ▶ Смотреть / скачать
+                  ▶ {l.watch}
                 </button>
               ) : (
                 <p className="text-xs text-gray-400 mt-0.5 italic">
-                  {task.status === 'completed' ? 'Нет ссылки' :
+                  {task.status === 'completed' ? l.noLink :
                    task.status === 'failed'    ? '—' :
-                                                 'После записи'}
+                                                 l.afterRecording}
                 </p>
               )}
             </div>
@@ -789,7 +779,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded p-2 mt-2">
               <TriangleAlert className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <p className="text-xs font-medium text-amber-800">Предупреждение о доступности</p>
+                <p className="text-xs font-medium text-amber-800">{l.urlWarning}</p>
                 <p className="text-xs text-amber-700 mt-0.5">{task.urlCheckMessage}</p>
               </div>
             </div>
@@ -799,7 +789,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded p-2 mt-2">
               <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <p className="text-xs font-medium text-red-800">URL трансляции недоступен</p>
+                <p className="text-xs font-medium text-red-800">{l.urlFailed}</p>
                 <p className="text-xs text-red-700 mt-0.5">{task.urlCheckMessage}</p>
               </div>
             </div>
@@ -830,7 +820,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
           <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {editingTask.status === 'failed' ? 'Исправить и перезапустить запись' : 'Редактировать запись'}
+                {editingTask.status === 'failed' ? r.edit.titleFix : r.edit.title}
               </DialogTitle>
             </DialogHeader>
 
@@ -839,14 +829,14 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 <Alert className="border-red-200 bg-red-50">
                   <AlertCircle className="h-4 w-4 text-red-600" />
                   <AlertDescription className="text-red-700 text-sm">
-                    <span className="font-medium">Причина ошибки:</span> {editingTask.start?.reason ?? editingTask.errorMessage}
+                    <span className="font-medium">{r.edit.errorReason}</span> {editingTask.start?.reason ?? editingTask.errorMessage}
                   </AlertDescription>
                 </Alert>
               )}
 
               {editingTask.status === 'failed' && (
                 <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
-                  После сохранения задача будет переведена в статус «Готова к записи»
+                  {r.edit.willBeReady}
                 </div>
               )}
 
@@ -861,13 +851,13 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 <Alert className="border-green-200 bg-green-50">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <AlertDescription className="text-green-700 text-sm font-medium">
-                    Изменения сохранены
+                    {r.edit.saved}
                   </AlertDescription>
                 </Alert>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="edit-title">Название</Label>
+                <Label htmlFor="edit-title">{r.edit.name}</Label>
                 <Input
                   id="edit-title"
                   value={editFormData.title}
@@ -877,7 +867,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-description">Описание (опционально)</Label>
+                <Label htmlFor="edit-description">{r.form.description}</Label>
                 <Textarea
                   id="edit-description"
                   value={editFormData.description}
@@ -888,7 +878,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-url">Ссылка на трансляцию</Label>
+                <Label htmlFor="edit-url">{r.form.streamUrl}</Label>
                 <Input
                   id="edit-url"
                   type="url"
@@ -900,12 +890,12 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
 
               <div className="space-y-2">
                 <Label htmlFor="edit-password">
-                  Пароль трансляции {editingTask.status === 'failed' ? '(оставьте пустым, если не изменился)' : '(опционально)'}
+                  {r.edit.password} {editingTask.status === 'failed' ? r.edit.passwordKeep : r.edit.optional}
                 </Label>
                 <Input
                   id="edit-password"
                   type="password"
-                  placeholder={editingTask.status === 'failed' ? 'Введите новый пароль или оставьте пустым' : ''}
+                  placeholder={editingTask.status === 'failed' ? r.edit.passwordPlaceholder : ''}
                   value={editFormData.streamPassword}
                   onChange={(e) => setEditFormData({ ...editFormData, streamPassword: e.target.value })}
                   disabled={isUpdating || editSuccess}
@@ -913,35 +903,35 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               </div>
 
               <div className="border-t pt-3">
-                <p className="text-xs text-gray-500 mb-3">Данные для входа в вебинарную комнату (автологин)</p>
+                <p className="text-xs text-gray-500 mb-3">{r.edit.joinTitle}</p>
                 <div className="space-y-3">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-join-name">Имя участника</Label>
+                    <Label htmlFor="edit-join-name">{r.form.joinName}</Label>
                     <Input
                       id="edit-join-name"
-                      placeholder="Например: Иван Петров"
+                      placeholder={r.edit.joinNamePlaceholder}
                       value={editFormData.joinName}
                       onChange={(e) => setEditFormData({ ...editFormData, joinName: e.target.value })}
                       disabled={isUpdating || editSuccess}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-join-email">Email участника <span className="text-gray-400 font-normal">(опционально)</span></Label>
+                    <Label htmlFor="edit-join-email">{r.form.joinEmail} <span className="text-gray-400 font-normal">{r.edit.optional}</span></Label>
                     <Input
                       id="edit-join-email"
                       type="email"
-                      placeholder="example@mail.ru"
+                      placeholder={r.form.emailPlaceholder}
                       value={editFormData.joinEmail}
                       onChange={(e) => setEditFormData({ ...editFormData, joinEmail: e.target.value })}
                       disabled={isUpdating || editSuccess}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-join-phone">Телефон участника <span className="text-gray-400 font-normal">(опционально)</span></Label>
+                    <Label htmlFor="edit-join-phone">{r.form.joinPhone} <span className="text-gray-400 font-normal">{r.edit.optional}</span></Label>
                     <Input
                       id="edit-join-phone"
                       type="tel"
-                      placeholder="+79001234567"
+                      placeholder={r.form.phonePlaceholder}
                       value={editFormData.joinPhone}
                       onChange={(e) => setEditFormData({ ...editFormData, joinPhone: e.target.value })}
                       disabled={isUpdating || editSuccess}
@@ -951,7 +941,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-time">Дата и время начала</Label>
+                <Label htmlFor="edit-time">{r.edit.start}</Label>
                 <div className="flex flex-col gap-2">
                   <Input
                     id="edit-time"
@@ -971,12 +961,12 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                     }}
                     disabled={isUpdating || editSuccess}
                   >
-                    <SelectTrigger aria-label="Часовой пояс">
+                    <SelectTrigger aria-label={m.events.calendar.timeZone}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {TIME_ZONE_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.value === 'local' ? `Местное время (${browserTimeZone()})` : o.label}</SelectItem>
+                        <SelectItem key={o.value} value={o.value}>{o.value === 'local' ? `${m.timeZones.local} (${browserTimeZone()})` : tzOptionLabel(o.value, m)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -984,7 +974,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-duration">Длительность (минут, от 1 до 1440)</Label>
+                <Label htmlFor="edit-duration">{r.edit.duration}</Label>
                 <Input
                   id="edit-duration"
                   type="number"
@@ -1003,15 +993,15 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
                 onClick={() => { setEditingTask(null); setEditError(null); setEditSuccess(false); }}
                 disabled={isUpdating}
               >
-                Отмена
+                {m.common.cancel}
               </Button>
               <Button onClick={handleEditSave} disabled={isUpdating || editSuccess}>
                 {isUpdating ? (
                   <>
                     <Loader className="h-4 w-4 mr-2 animate-spin" />
-                    Сохранение...
+                    {m.common.saving}
                   </>
-                ) : editingTask.status === 'failed' ? 'Сохранить и перезапустить' : 'Сохранить'}
+                ) : editingTask.status === 'failed' ? r.edit.saveRestart : m.common.save}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1026,7 +1016,7 @@ export function RecordingTasksList({ statusFilter, refreshKey, onTasksLoaded }: 
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={closeConfirm}>
-              Нет, отмена
+              {r.confirm.no}
             </Button>
             <Button variant={confirmDialog.confirmVariant} onClick={confirmDialog.onConfirm}>
               {confirmDialog.confirmLabel}

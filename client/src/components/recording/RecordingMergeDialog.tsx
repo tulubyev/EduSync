@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertCircle, ArrowDown, ArrowUp, CheckCircle, Loader, Merge, Play, Plus, X } from 'lucide-react';
 import { fmtZoned, useRecordingTimeZone, type TimeZoneChoice } from './timezones';
+import { videoLabel } from './recordingLink';
+import { useLang } from '@/i18n';
+import type { Messages } from '@/locales';
 
 /** Поля задачи, которые показывает окно склейки (обновляются списком записей каждые 10 с). */
 export interface MergeDialogTask {
@@ -17,7 +20,6 @@ export interface MergeDialogTask {
 
 interface OptionPart {
   video: string;
-  label: string;
   url: string;
   durationMs?: number;
   fileSize?: number;
@@ -38,6 +40,7 @@ interface MergeOptions {
 
 interface Item extends OptionPart {
   key: string;
+  label: string;
   taskId: string;
   recordingTitle: string;
   own: boolean;
@@ -58,21 +61,21 @@ const fmtDate = (iso: string, tz: TimeZoneChoice) => {
   return `${date.slice(0, 5)}, ${time}`;
 };
 
-function fmtDuration(ms?: number): string {
+function fmtDuration(ms: number | undefined, m: Messages): string {
   if (!ms || ms <= 0) return '';
   const totalMin = Math.round(ms / 60000);
-  if (totalMin < 1) return `${Math.max(1, Math.round(ms / 1000))} с`;
+  if (totalMin < 1) return m.recordings.merge.seconds(Math.max(1, Math.round(ms / 1000)));
   const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return h > 0 ? `${h} ч ${m} мин` : `${m} мин`;
+  return h > 0 ? m.recordings.list.hoursMinutes(h, totalMin % 60) : m.common.minutes(totalMin);
 }
 
-const fmtSize = (bytes?: number) => (bytes ? `${Math.round(bytes / 1024 / 1024)} МБ` : '');
+const fmtSize = (bytes: number | undefined, m: Messages) => (bytes ? m.recordings.merge.megabytes(Math.round(bytes / 1024 / 1024)) : '');
 
-function toItems(rec: OptionRecording, own: boolean, checked: boolean): Item[] {
+function toItems(rec: OptionRecording, own: boolean, checked: boolean, m: Messages): Item[] {
   return rec.parts.map((p) => ({
     ...p,
     key: `${rec.taskId}:${p.video}`,
+    label: videoLabel(p.video, rec.parts.length, m.recordings.files),
     taskId: rec.taskId,
     recordingTitle: rec.title,
     own,
@@ -86,6 +89,8 @@ function toItems(rec: OptionRecording, own: boolean, checked: boolean): Item[] {
  * Склеивает воркер, здесь — выбор, очередь, статус и переход к готовому файлу.
  */
 export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: RecordingMergeDialogProps) {
+  const { m } = useLang();
+  const t = m.recordings.merge;
   const [timeZone] = useRecordingTimeZone();
   const taskId = task?.id ?? null;
   const [options, setOptions] = useState<MergeOptions | null>(null);
@@ -109,14 +114,14 @@ export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: Reco
       .authenticatedFetch(`/api/recording/tasks/${taskId}/merge-options`)
       .then(async (r) => {
         const d = await r.json();
-        if (!r.ok) throw new Error(d.message || 'Не удалось загрузить части записи');
+        if (!r.ok) throw new Error(d.message || t.errLoad);
         if (cancelled) return;
         const opts = d as MergeOptions;
         setOptions(opts);
-        const own = toItems(opts.current, true, true);
+        const own = toItems(opts.current, true, true, m);
         if (opts.lastSelection && opts.lastSelection.length > 0) {
           // Повторная склейка: тот же набор и порядок, что в прошлый раз, остальные части — снятыми
-          const pool = new Map([...own, ...opts.others.flatMap((o) => toItems(o, false, true))].map((i) => [i.key, i]));
+          const pool = new Map([...own, ...opts.others.flatMap((o) => toItems(o, false, true, m))].map((i) => [i.key, i]));
           const picked = opts.lastSelection.map((s) => pool.get(`${s.taskId}:${s.video}`)).filter((i): i is Item => !!i);
           const pickedKeys = new Set(picked.map((i) => i.key));
           setItems([...picked, ...own.filter((i) => !pickedKeys.has(i.key)).map((i) => ({ ...i, checked: false }))]);
@@ -154,7 +159,7 @@ export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: Reco
   const addRecording = () => {
     const rec = options?.others.find((o) => o.taskId === addId);
     if (!rec) return;
-    setItems((prev) => [...prev, ...toItems(rec, false, true)]);
+    setItems((prev) => [...prev, ...toItems(rec, false, true, m)]);
     setAddId('');
   };
 
@@ -168,8 +173,8 @@ export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: Reco
         body: JSON.stringify({ sources: selected.map((i) => ({ taskId: i.taskId, video: i.video })) }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.message || 'Не удалось запустить склейку');
-      setMessage({ kind: 'ok', text: `${d.message}. Окно можно закрыть — склейка идёт на сервере.` });
+      if (!r.ok) throw new Error(d.message || t.errStart);
+      setMessage({ kind: 'ok', text: t.started });
       onChanged();
     } catch (e) {
       setMessage({ kind: 'error', text: (e as Error).message });
@@ -185,8 +190,8 @@ export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: Reco
     try {
       const r = await authService.authenticatedFetch(`/api/recording/tasks/${taskId}/merge/cancel`, { method: 'POST' });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.message || 'Не удалось отменить');
-      setMessage({ kind: 'ok', text: 'Склейка отменена' });
+      if (!r.ok) throw new Error(d.message || t.errCancel);
+      setMessage({ kind: 'ok', text: t.cancelled });
       onChanged();
     } catch (e) {
       setMessage({ kind: 'error', text: (e as Error).message });
@@ -201,48 +206,47 @@ export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: Reco
         <DialogHeader>
           <DialogTitle className="pr-6 break-words flex items-center gap-2">
             <Merge className="h-5 w-5 text-indigo-600 flex-shrink-0" />
-            Склейка: {task?.title}
+            {t.title(task?.title ?? '')}
           </DialogTitle>
           <DialogDescription>
-            Отметьте части и расставьте их по порядку — они объединятся в один файл «Вся запись». Можно добавить
-            части других ваших записей.
+            {t.description}
           </DialogDescription>
         </DialogHeader>
 
         {task?.mergeStatus === 'queued' && (
           <div className="flex flex-wrap items-center gap-2 rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
             <Loader className="h-4 w-4 animate-spin" />
-            <span className="flex-1">{task.mergeProgress || 'В очереди на склейку'}</span>
+            <span className="flex-1">{task.mergeProgress || t.queued}</span>
             <Button size="sm" variant="outline" onClick={cancelMerge} disabled={!!busy}>
-              {busy === 'cancel' ? <Loader className="h-4 w-4 animate-spin" /> : 'Отменить'}
+              {busy === 'cancel' ? <Loader className="h-4 w-4 animate-spin" /> : m.recordings.list.cancel}
             </Button>
           </div>
         )}
         {task?.mergeStatus === 'merging' && (
           <div className="flex items-center gap-2 rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
             <Loader className="h-4 w-4 animate-spin" />
-            {task.mergeProgress || 'Идёт склейка…'}
+            {task.mergeProgress || t.merging}
           </div>
         )}
         {task?.mergeStatus === 'failed' && (
           <div className="flex items-start gap-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>Склейка не удалась: {task.mergeError || 'неизвестная ошибка'}</span>
+            <span>{t.failed(task.mergeError || t.unknownError)}</span>
           </div>
         )}
         {task?.mergeStatus === 'completed' && task.mergedUrl && (
           <div className="flex flex-wrap items-center gap-2 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">
             <CheckCircle className="h-4 w-4" />
-            <span className="flex-1">Склейка готова. Новая склейка заменит её.</span>
+            <span className="flex-1">{t.ready}</span>
             <Button size="sm" className="gap-1" onClick={() => onWatch({ id: task.id, title: task.title })}>
-              <Play className="h-4 w-4" /> Смотреть / скачать
+              <Play className="h-4 w-4" /> {m.recordings.list.watch}
             </Button>
           </div>
         )}
 
         {loading && (
           <div className="flex items-center justify-center h-32 text-gray-500 gap-2">
-            <Loader className="h-5 w-5 animate-spin" /> Загрузка частей…
+            <Loader className="h-5 w-5 animate-spin" /> {t.loading}
           </div>
         )}
 
@@ -259,14 +263,14 @@ export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: Reco
                       onChange={(e) =>
                         setItems((prev) => prev.map((i) => (i.key === item.key ? { ...i, checked: e.target.checked } : i)))
                       }
-                      aria-label={`Включить ${item.label}`}
+                      aria-label={t.include(item.label)}
                     />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">
-                        {item.own ? item.label : `${item.recordingTitle} — ${item.label.toLowerCase()}`}
+                        {item.own ? item.label : `${item.recordingTitle} — ${item.label}`}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {[fmtDuration(item.durationMs), fmtSize(item.fileSize), item.own ? '' : 'другая запись']
+                        {[fmtDuration(item.durationMs, m), fmtSize(item.fileSize, m), item.own ? '' : t.otherRecording]
                           .filter(Boolean)
                           .join(' · ')}
                       </div>
@@ -275,19 +279,19 @@ export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: Reco
                       size="sm"
                       variant={preview === item.key ? 'default' : 'ghost'}
                       className="h-8 w-8 p-0"
-                      title="Посмотреть часть"
+                      title={t.preview}
                       onClick={() => setPreview(preview === item.key ? null : item.key)}
                     >
                       <Play className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Выше" disabled={index === 0} onClick={() => move(index, -1)}>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title={t.up} disabled={index === 0} onClick={() => move(index, -1)}>
                       <ArrowUp className="h-4 w-4" />
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       className="h-8 w-8 p-0"
-                      title="Ниже"
+                      title={t.down}
                       disabled={index === items.length - 1}
                       onClick={() => move(index, 1)}
                     >
@@ -298,7 +302,7 @@ export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: Reco
                         size="sm"
                         variant="ghost"
                         className="h-8 w-8 p-0"
-                        title="Убрать из списка"
+                        title={t.remove}
                         onClick={() => setItems((prev) => prev.filter((i) => i.key !== item.key))}
                       >
                         <X className="h-4 w-4" />
@@ -310,7 +314,7 @@ export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: Reco
                   )}
                 </li>
               ))}
-              {items.length === 0 && <li className="p-3 text-sm text-gray-500">У записи нет сохранённых частей.</li>}
+              {items.length === 0 && <li className="p-3 text-sm text-gray-500">{t.noParts}</li>}
             </ol>
 
             {addable.length > 0 && (
@@ -320,35 +324,34 @@ export function RecordingMergeDialog({ task, onClose, onChanged, onWatch }: Reco
                   value={addId}
                   onChange={(e) => setAddId(e.target.value)}
                 >
-                  <option value="">Добавить части другой записи…</option>
+                  <option value="">{t.addOther}</option>
                   {addable.map((o) => (
                     <option key={o.taskId} value={o.taskId}>
-                      {fmtDate(o.scheduledTime, timeZone)} — {o.title} ({o.parts.length} ч.)
+                      {fmtDate(o.scheduledTime, timeZone)} — {o.title} ({t.parts(o.parts.length)})
                     </option>
                   ))}
                 </select>
                 <Button size="sm" variant="outline" className="gap-1" disabled={!addId} onClick={addRecording}>
-                  <Plus className="h-4 w-4" /> Добавить
+                  <Plus className="h-4 w-4" /> {m.common.add}
                 </Button>
               </div>
             )}
 
             {fromOther && (
               <p className="text-xs text-amber-700">
-                Части склеиваются без перекодирования, поэтому качество у них должно совпадать (разрешение, кодек, звук).
-                Если не совпадает — склейка остановится с понятной ошибкой, исходные части не пострадают.
+                {t.qualityNote}
               </p>
             )}
 
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <Button onClick={startMerge} disabled={!!busy || inQueue || selected.length < 2} className="gap-2">
                 {busy === 'merge' ? <Loader className="h-4 w-4 animate-spin" /> : <Merge className="h-4 w-4" />}
-                {task?.mergeStatus === 'completed' ? 'Склеить заново' : 'Склеить'} ({selected.length})
+                {task?.mergeStatus === 'completed' ? t.mergeAgain : m.recordings.list.merge} ({selected.length})
               </Button>
               <span className="text-xs text-gray-500">
                 {selected.length < 2
-                  ? 'Отметьте минимум 2 части'
-                  : [fmtDuration(totalMs) && `≈ ${fmtDuration(totalMs)}`, fmtSize(totalBytes)].filter(Boolean).join(' · ')}
+                  ? t.minParts
+                  : [fmtDuration(totalMs, m) && `≈ ${fmtDuration(totalMs, m)}`, fmtSize(totalBytes, m)].filter(Boolean).join(' · ')}
               </span>
             </div>
           </>
