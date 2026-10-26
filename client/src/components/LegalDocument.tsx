@@ -12,7 +12,7 @@ const sources = import.meta.glob('../../../docs/legal/*/*.md', { query: '?raw', 
 export type LegalDocName = 'privacy-policy' | 'terms' | 'cookies' | 'consent';
 
 export function LegalDocument({ doc }: { doc: LegalDocName }) {
-  const { lang, t } = useLang();
+  const { lang, m } = useLang();
   const [html, setHtml] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -39,13 +39,15 @@ export function LegalDocument({ doc }: { doc: LegalDocName }) {
   }, [doc, lang]);
 
   if (failed) {
-    return <p>{t({ ru: 'Не удалось загрузить документ. Напишите нам: support@myepa.ru', en: 'Could not load the document. Contact us: support@myepa.ru' })}</p>;
+    return <p>{m.site.legal.loadError}</p>;
   }
   if (html === null) {
-    return <p>{t({ ru: 'Загрузка…', en: 'Loading…' })}</p>;
+    return <p>{m.common.loading}</p>;
   }
+  const translated = !!sources[`../../../docs/legal/${lang}/${doc}.md`];
   return (
     <>
+      {!translated && <p><em>{m.site.legal.englishOnly}</em></p>}
       <style>{`
         .legal-doc table { width: 100%; border-collapse: collapse; margin: 0 0 24px; font-size: 14px; }
         .legal-doc th, .legal-doc td { border: 1px solid #e0e0e0; padding: 8px 10px; text-align: left; vertical-align: top; }

@@ -11,3 +11,9 @@ export function parseRecordingRef(url: string | null | undefined): RecordingRef 
   const m = RE.exec(url ?? '');
   return m ? { taskId: m[1].toLowerCase(), video: m[2] ?? '' } : null;
 }
+
+/** Подпись файла записи на языке ученика: склейка, часть N или единственный файл (как partLabel на сервере) */
+export function videoLabel(video: string, partCount: number, f: { merged: string; part: (n: string) => string; single: string }): string {
+  if (video === 'merged') return f.merged;
+  return partCount > 1 ? f.part(video) : f.single;
+}

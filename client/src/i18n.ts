@@ -2,8 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { LANGS, isLang, pickLang, type Lang } from '@shared/languages';
 import { MESSAGES, type Messages } from './locales';
 
-// Языки кабинета и сайта: shared/languages.ts. Тексты кабинета — словари client/src/locales,
-// тексты публичных страниц пока заданы на месте: { ru, en } и, где переведено, остальные языки.
+// Языки кабинета и сайта: shared/languages.ts. Все тексты — словари client/src/locales (m.<раздел>.<ключ>).
 export type { Lang };
 export { LANGS };
 
@@ -54,12 +53,8 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-// Текст публичной части: русский и английский обязательны, остальные языки — когда переведены (иначе английский)
-export type Text = { ru: string; en: string } & Partial<Record<Lang, string>>;
-
 export function useLang() {
   const lang = useSyncExternalStore(subscribe, () => currentLang, () => currentLang);
-  const t = (text: Text) => text[lang] ?? text.en;
   const m: Messages = MESSAGES[lang];
-  return { lang, setLang, t, m };
+  return { lang, setLang, m };
 }

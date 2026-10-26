@@ -4,10 +4,15 @@ import { isValidInternationalPhone, normalizePhone } from '../utils/phoneUtils';
 import { countryOptions, guessCountry } from '../utils/countries';
 import { useLang } from '../i18n';
 
+// Буквы и прочие символы любого алфавита (é, ü, ñ — буквы, а не символы)
+const LETTER = new RegExp('\\p{L}', 'u');
+const SYMBOL = new RegExp('[^\\p{L}\\p{N}]', 'u');
+
 export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
   const [mode, setMode] = useState(initialMode);
   const [consentAccepted, setConsentAccepted] = useState(false);
-  const { t, lang } = useLang();
+  const { m, lang } = useLang();
+  const a = m.auth;
   const [isLoading, setIsLoading] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
@@ -49,14 +54,14 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
         setResetUserId(data.userId);
         setResetStep('verify');
         setResetMessage(resetForm.method === 'email'
-          ? t({ ru: 'Код отправлен на ваш email. Проверьте почту.', en: 'We sent a code to your email. Please check your inbox.' })
-          : t({ ru: 'Код отправлен по SMS на ваш номер телефона.', en: 'We sent a code by SMS to your phone.' }));
+          ? a.reset.sentEmail
+          : a.reset.sentSms);
       } else {
         setResetStep('verify');
-        setResetMessage(t({ ru: 'Если аккаунт найден, код будет отправлен.', en: 'If the account exists, a code will be sent.' }));
+        setResetMessage(a.reset.sentMaybe);
       }
     } catch {
-      setResetError(t({ ru: 'Ошибка соединения. Попробуйте снова.', en: 'Connection error. Please try again.' }));
+      setResetError(a.connectionError);
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +69,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
 
   const handleVerifyCode = async (e: any) => {
     e.preventDefault();
-    if (!resetUserId) { setResetError(t({ ru: 'Не удалось определить пользователя.', en: 'Could not identify the user.' })); return; }
+    if (!resetUserId) { setResetError(a.reset.noUser); return; }
     setIsLoading(true);
     setResetError('');
     try {
@@ -78,10 +83,10 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
         setResetStep('new-password');
         setResetMessage('');
       } else {
-        setResetError(data.message || t({ ru: 'Неверный код', en: 'Invalid code' }));
+        setResetError(data.message || a.reset.badCode);
       }
     } catch {
-      setResetError(t({ ru: 'Ошибка соединения. Попробуйте снова.', en: 'Connection error. Please try again.' }));
+      setResetError(a.connectionError);
     } finally {
       setIsLoading(false);
     }
@@ -90,10 +95,10 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
   const handleResetPassword = async (e: any) => {
     e.preventDefault();
     if (resetForm.newPassword !== resetForm.confirmPassword) {
-      setResetError(t({ ru: 'Пароли не совпадают', en: 'Passwords do not match' })); return;
+      setResetError(a.reset.mismatch); return;
     }
     if (resetForm.newPassword.length < 8) {
-      setResetError(t({ ru: 'Пароль должен быть не менее 8 символов', en: 'Password must be at least 8 characters' })); return;
+      setResetError(a.reset.tooShort); return;
     }
     setIsLoading(true);
     setResetError('');
@@ -108,12 +113,12 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
         setResetStep('idle');
         setMode('login');
         setResetForm({ identifier: '', method: 'email', code: '', newPassword: '', confirmPassword: '' });
-        alert(t({ ru: 'Пароль успешно изменён! Теперь войдите с новым паролем.', en: 'Password changed. Please log in with your new password.' }));
+        alert(a.reset.done);
       } else {
-        setResetError(data.message || t({ ru: 'Ошибка сброса пароля', en: 'Password reset failed' }));
+        setResetError(data.message || a.reset.failed);
       }
     } catch {
-      setResetError(t({ ru: 'Ошибка соединения. Попробуйте снова.', en: 'Connection error. Please try again.' }));
+      setResetError(a.connectionError);
     } finally {
       setIsLoading(false);
     }
@@ -122,21 +127,21 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
   // Для сброса пароля сервер требует 8+ символов
   const getPasswordRequirements = (password: string) => {
     return [
-      { label: t({ ru: '8+ символов', en: '8+ characters' }), met: password.length >= 8 },
-      { label: t({ ru: 'Цифры', en: 'Digits' }), met: /[0-9]/.test(password) },
-      { label: t({ ru: 'Буквы', en: 'Letters' }), met: /[a-zA-Zа-яА-Я]/.test(password) },
-      { label: t({ ru: 'Символы', en: 'Symbols' }), met: /[^a-zA-Zа-яА-Я0-9]/.test(password) }
+      { label: a.rules.min8, met: password.length >= 8 },
+      { label: a.rules.digits, met: /[0-9]/.test(password) },
+      { label: a.rules.letters, met: LETTER.test(password) },
+      { label: a.rules.symbols, met: SYMBOL.test(password) }
     ];
   };
 
   // Для регистрации — те же правила, что проверяет сервер (validationRules.password)
   const getRegisterPasswordRequirements = (password: string) => {
     return [
-      { label: t({ ru: '12+ символов', en: '12+ characters' }), met: password.length >= 12 },
-      { label: t({ ru: 'Заглавная A–Z', en: 'Uppercase A–Z' }), met: /[A-Z]/.test(password) },
-      { label: t({ ru: 'Строчная a–z', en: 'Lowercase a–z' }), met: /[a-z]/.test(password) },
-      { label: t({ ru: 'Цифра', en: 'Digit' }), met: /[0-9]/.test(password) },
-      { label: t({ ru: 'Один из !@#$%^&*', en: 'One of !@#$%^&*' }), met: /[!@#$%^&*]/.test(password) }
+      { label: a.rules.min12, met: password.length >= 12 },
+      { label: a.rules.upper, met: /[A-Z]/.test(password) },
+      { label: a.rules.lower, met: /[a-z]/.test(password) },
+      { label: a.rules.digit, met: /[0-9]/.test(password) },
+      { label: a.rules.special, met: /[!@#$%^&*]/.test(password) }
     ];
   };
 
@@ -151,7 +156,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
       if (identifier && !identifier.includes('@')) {
         identifier = normalizePhone(identifier);
         if (!isValidInternationalPhone(identifier)) {
-          alert(t({ ru: 'Введите email или телефон с кодом страны, например +79001234567', en: 'Enter your email or phone number with country code, e.g. +441234567890' }));
+          alert(a.badPhone);
           setIsLoading(false);
           return;
         }
@@ -173,11 +178,11 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
         onAuthSuccess(data.user);
       } else {
         const errorData = await response.json();
-        alert(errorData.message || t({ ru: 'Ошибка входа', en: 'Login failed' }));
+        alert(errorData.message || a.loginFailed);
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      alert(t({ ru: 'Ошибка при входе в систему', en: 'Login error' }));
+      alert(a.loginError);
     } finally {
       setIsLoading(false);
     }
@@ -186,7 +191,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
   const handleRegister = async (e: any) => {
     e.preventDefault();
     if (!consentAccepted) {
-      alert(t({ ru: 'Чтобы создать аккаунт, примите условия и дайте согласие на обработку персональных данных', en: 'To create an account, accept the terms and consent to the processing of personal data' }));
+      alert(a.consentRequired);
       return;
     }
     setIsLoading(true);
@@ -195,7 +200,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
       // Телефон необязателен; если указан — в международном формате
       const formattedPhone = normalizePhone(registerForm.phone);
       if (formattedPhone && !isValidInternationalPhone(formattedPhone)) {
-        alert(t({ ru: 'Укажите телефон с кодом страны, например +79001234567, или оставьте поле пустым', en: 'Enter the phone number with country code, e.g. +441234567890, or leave it empty' }));
+        alert(a.badRegisterPhone);
         setIsLoading(false);
         return;
       }
@@ -223,18 +228,15 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
         const errorData = await response.json();
         // данные ученика этой страны хранятся в другом региональном контуре — регистрация там
         if (response.status === 409 && errorData.code === 'region_redirect' && /^https:\/\//.test(errorData.url || '')) {
-          const go = window.confirm(t({
-            ru: `Для вашей страны учётная запись создаётся на сайте ${errorData.url}. Перейти?`,
-            en: `Accounts for your country are created at ${errorData.url}. Go there now?`,
-          }));
+          const go = window.confirm(a.regionRedirect(errorData.url));
           if (go) window.location.href = errorData.url;
           return;
         }
-        alert(errorData.message || t({ ru: 'Ошибка регистрации', en: 'Registration failed' }));
+        alert(errorData.message || a.registerFailed);
       }
     } catch (error: any) {
       console.error('Registration error:', error);
-      alert(t({ ru: 'Ошибка при регистрации', en: 'Registration error' }));
+      alert(a.registerError);
     } finally {
       setIsLoading(false);
     }
@@ -288,7 +290,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
             opacity: '0.9',
             fontWeight: '400'
           }}>
-            {t({ ru: 'Агрегатор Онлайн Обучения', en: 'Online Learning Aggregator' })}
+            {a.tagline}
           </p>
         </div>
 
@@ -312,7 +314,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
             }}
             data-testid="button-login-tab"
           >
-            {t({ ru: 'Вход', en: 'Log in' })}
+            {a.loginTab}
           </button>
           <button
             onClick={() => setMode('register')}
@@ -330,7 +332,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
             }}
             data-testid="button-register-tab"
           >
-            {t({ ru: 'Регистрация', en: 'Sign up' })}
+            {a.registerTab}
           </button>
         </div>
 
@@ -342,9 +344,9 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
               {/* Header */}
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                 <h3 style={{ margin: 0, color: '#333', fontSize: '18px' }}>
-                  {resetStep === 'request' && t({ ru: 'Восстановление пароля', en: 'Password recovery' })}
-                  {resetStep === 'verify' && t({ ru: 'Введите код', en: 'Enter the code' })}
-                  {resetStep === 'new-password' && t({ ru: 'Новый пароль', en: 'New password' })}
+                  {resetStep === 'request' && a.reset.title}
+                  {resetStep === 'verify' && a.reset.enterCode}
+                  {resetStep === 'new-password' && a.reset.newPassword}
                 </h3>
                 {resetMessage && (
                   <p style={{ color: '#28a745', fontSize: '13px', margin: '8px 0 0' }}>{resetMessage}</p>
@@ -359,13 +361,13 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                 <form onSubmit={handleForgotPasswordRequest}>
                   <div style={{ marginBottom: '16px' }}>
                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>
-                      {t({ ru: 'Email или телефон', en: 'Email or phone' })}
+                      {a.identifier}
                     </label>
                     <input
                       type="text"
                       value={resetForm.identifier}
                       onChange={(e) => setResetForm(p => ({ ...p, identifier: e.target.value }))}
-                      placeholder={t({ ru: 'user@example.com или +79001234567', en: 'user@example.com or +441234567890' })}
+                      placeholder={a.identifierPlaceholder}
                       required
                       style={{ width: '100%', padding: '12px 16px', border: '2px solid #e9ecef', borderRadius: '8px', fontSize: '15px', outline: 'none', boxSizing: 'border-box' }}
                       onFocus={(e) => e.target.style.borderColor = '#007bff'}
@@ -374,27 +376,27 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   </div>
                   <div style={{ marginBottom: '20px' }}>
                     <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#333' }}>
-                      {t({ ru: 'Способ получения кода', en: 'How to receive the code' })}
+                      {a.reset.method}
                     </label>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      {(['email', 'sms'] as const).map((m) => (
+                      {(['email', 'sms'] as const).map((method) => (
                         <button
-                          key={m}
+                          key={method}
                           type="button"
-                          onClick={() => setResetForm(p => ({ ...p, method: m }))}
+                          onClick={() => setResetForm(p => ({ ...p, method }))}
                           style={{
-                            flex: 1, padding: '10px', border: `2px solid ${resetForm.method === m ? '#667eea' : '#e9ecef'}`,
-                            borderRadius: '8px', background: resetForm.method === m ? '#f0f0ff' : 'white',
-                            color: resetForm.method === m ? '#667eea' : '#6c757d', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
+                            flex: 1, padding: '10px', border: `2px solid ${resetForm.method === method ? '#667eea' : '#e9ecef'}`,
+                            borderRadius: '8px', background: resetForm.method === method ? '#f0f0ff' : 'white',
+                            color: resetForm.method === method ? '#667eea' : '#6c757d', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
                           }}
                         >
-                          {m === 'email' ? 'Email' : 'SMS'}
+                          {method === 'email' ? a.email : 'SMS'}
                         </button>
                       ))}
                     </div>
                   </div>
                   <button type="submit" disabled={isLoading} style={{ width: '100%', padding: '12px', background: isLoading ? '#6c757d' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: isLoading ? 'not-allowed' : 'pointer' }}>
-                    {isLoading ? t({ ru: 'Отправка...', en: 'Sending...' }) : t({ ru: 'Отправить код', en: 'Send code' })}
+                    {isLoading ? a.reset.sending : a.reset.send}
                   </button>
                 </form>
               )}
@@ -404,7 +406,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                 <form onSubmit={handleVerifyCode}>
                   <div style={{ marginBottom: '20px' }}>
                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>
-                      {resetForm.method === 'email' ? t({ ru: 'Код из письма', en: 'Code from the email' }) : t({ ru: 'Код из SMS', en: 'Code from the SMS' })}
+                      {resetForm.method === 'email' ? a.reset.codeEmail : a.reset.codeSms}
                     </label>
                     <input
                       type="text"
@@ -419,10 +421,10 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                     />
                   </div>
                   <button type="submit" disabled={isLoading || resetForm.code.length < 6} style={{ width: '100%', padding: '12px', background: (isLoading || resetForm.code.length < 6) ? '#6c757d' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: (isLoading || resetForm.code.length < 6) ? 'not-allowed' : 'pointer' }}>
-                    {isLoading ? t({ ru: 'Проверка...', en: 'Checking...' }) : t({ ru: 'Подтвердить', en: 'Confirm' })}
+                    {isLoading ? a.reset.checking : a.reset.confirm}
                   </button>
                   <button type="button" onClick={() => setResetStep('request')} style={{ width: '100%', marginTop: '10px', padding: '10px', background: 'none', border: '1px solid #e9ecef', borderRadius: '8px', fontSize: '14px', color: '#6c757d', cursor: 'pointer' }}>
-                    ← {t({ ru: 'Отправить код повторно', en: 'Resend code' })}
+                    ← {a.reset.resend}
                   </button>
                 </form>
               )}
@@ -431,20 +433,20 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
               {resetStep === 'new-password' && (
                 <form onSubmit={handleResetPassword}>
                   <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>{t({ ru: 'Новый пароль', en: 'New password' })}</label>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>{a.reset.newPassword}</label>
                     <div style={{ position: 'relative' }}>
                       <input
                         type={showNewPassword ? 'text' : 'password'}
                         value={resetForm.newPassword}
                         onChange={(e) => setResetForm(p => ({ ...p, newPassword: e.target.value }))}
-                        placeholder={t({ ru: 'Минимум 8 символов', en: 'At least 8 characters' })}
+                        placeholder={a.reset.min8}
                         required
                         style={{ width: '100%', padding: '12px 50px 12px 16px', border: '2px solid #e9ecef', borderRadius: '8px', fontSize: '15px', outline: 'none', boxSizing: 'border-box' }}
                         onFocus={(e) => e.target.style.borderColor = '#007bff'}
                         onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
                       />
                       <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#6c757d' }}>
-                        {showNewPassword ? <EyeOff size={18} aria-label={t({ ru: 'Скрыть пароль', en: 'Hide password' })} /> : <Eye size={18} aria-label={t({ ru: 'Показать пароль', en: 'Show password' })} />}
+                        {showNewPassword ? <EyeOff size={18} aria-label={a.hidePassword} /> : <Eye size={18} aria-label={a.showPassword} />}
                       </button>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
@@ -456,21 +458,21 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                     </div>
                   </div>
                   <div style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>{t({ ru: 'Повторите пароль', en: 'Repeat password' })}</label>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#333' }}>{a.reset.repeat}</label>
                     <input
                       type="password"
                       value={resetForm.confirmPassword}
                       onChange={(e) => setResetForm(p => ({ ...p, confirmPassword: e.target.value }))}
-                      placeholder={t({ ru: 'Повторите пароль', en: 'Repeat password' })}
+                      placeholder={a.reset.repeat}
                       required
                       style={{ width: '100%', padding: '12px 16px', border: `2px solid ${resetForm.confirmPassword && resetForm.newPassword !== resetForm.confirmPassword ? '#dc3545' : '#e9ecef'}`, borderRadius: '8px', fontSize: '15px', outline: 'none', boxSizing: 'border-box' }}
                     />
                     {resetForm.confirmPassword && resetForm.newPassword !== resetForm.confirmPassword && (
-                      <p style={{ color: '#dc3545', fontSize: '12px', margin: '4px 0 0' }}>{t({ ru: 'Пароли не совпадают', en: 'Passwords do not match' })}</p>
+                      <p style={{ color: '#dc3545', fontSize: '12px', margin: '4px 0 0' }}>{a.reset.mismatch}</p>
                     )}
                   </div>
                   <button type="submit" disabled={isLoading} style={{ width: '100%', padding: '12px', background: isLoading ? '#6c757d' : 'linear-gradient(135deg, #28a745 0%, #218838 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: isLoading ? 'not-allowed' : 'pointer' }}>
-                    {isLoading ? t({ ru: 'Сохранение...', en: 'Saving...' }) : t({ ru: 'Сохранить пароль', en: 'Save password' })}
+                    {isLoading ? m.common.saving : a.reset.savePassword}
                   </button>
                 </form>
               )}
@@ -478,7 +480,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
               {/* Cancel link */}
               <div style={{ textAlign: 'center', marginTop: '20px' }}>
                 <button type="button" onClick={() => { setResetStep('idle'); setResetError(''); setResetMessage(''); }} style={{ background: 'none', border: 'none', color: '#6c757d', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}>
-                  ← {t({ ru: 'Вернуться ко входу', en: 'Back to login' })}
+                  ← {a.reset.back}
                 </button>
               </div>
             </div>
@@ -492,13 +494,13 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  {t({ ru: 'Email или телефон', en: 'Email or phone' })}
+                  {a.identifier}
                 </label>
                 <input
                   type="text"
                   value={loginForm.identifier}
                   onChange={handleLoginIdentifierChange}
-                  placeholder={t({ ru: 'user@example.com или +79001234567', en: 'user@example.com or +441234567890' })}
+                  placeholder={a.identifierPlaceholder}
                   required
                   style={{
                     width: '100%',
@@ -525,14 +527,14 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  {t({ ru: 'Пароль', en: 'Password' })}
+                  {a.password}
                 </label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showLoginPassword ? 'text' : 'password'}
                     value={loginForm.password}
                     onChange={(e) => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder={t({ ru: 'Введите пароль', en: 'Enter password' })}
+                    placeholder={a.passwordPlaceholder}
                     required
                     style={{
                       width: '100%',
@@ -564,7 +566,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                     }}
                     data-testid="button-toggle-login-password"
                   >
-                    {showLoginPassword ? <EyeOff size={18} aria-label={t({ ru: 'Скрыть пароль', en: 'Hide password' })} /> : <Eye size={18} aria-label={t({ ru: 'Показать пароль', en: 'Show password' })} />}
+                    {showLoginPassword ? <EyeOff size={18} aria-label={a.hidePassword} /> : <Eye size={18} aria-label={a.showPassword} />}
                   </button>
                 </div>
               </div>
@@ -575,7 +577,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   onClick={() => { setResetStep('request'); setResetError(''); setResetMessage(''); }}
                   style={{ background: 'none', border: 'none', color: '#667eea', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
                 >
-                  {t({ ru: 'Забыли пароль?', en: 'Forgot password?' })}
+                  {a.forgot}
                 </button>
               </div>
 
@@ -597,7 +599,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                 }}
                 data-testid="button-submit-login"
               >
-                {isLoading ? t({ ru: 'Вход...', en: 'Logging in...' }) : t({ ru: 'Войти', en: 'Log in' })}
+                {isLoading ? a.loggingIn : a.login}
               </button>
             </form>
           ) : (
@@ -610,13 +612,13 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  {t({ ru: 'Имя', en: 'First name' })}
+                  {a.firstName}
                 </label>
                 <input
                   type="text"
                   value={registerForm.firstName}
                   onChange={(e) => setRegisterForm(prev => ({ ...prev, firstName: e.target.value }))}
-                  placeholder={t({ ru: 'Введите имя', en: 'Enter first name' })}
+                  placeholder={a.firstNamePlaceholder}
                   required
                   style={{
                     width: '100%',
@@ -642,13 +644,13 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  {t({ ru: 'Фамилия', en: 'Last name' })}
+                  {a.lastName}
                 </label>
                 <input
                   type="text"
                   value={registerForm.lastName}
                   onChange={(e) => setRegisterForm(prev => ({ ...prev, lastName: e.target.value }))}
-                  placeholder={t({ ru: 'Введите фамилию', en: 'Enter last name' })}
+                  placeholder={a.lastNamePlaceholder}
                   required
                   style={{
                     width: '100%',
@@ -674,7 +676,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  Email
+                  {a.email}
                 </label>
                 <input
                   type="email"
@@ -706,13 +708,13 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  {t({ ru: 'Телефон (необязательно)', en: 'Phone (optional)' })}
+                  {a.phoneOptional}
                 </label>
                 <input
                   type="tel"
                   value={registerForm.phone}
                   onChange={handleRegisterPhoneChange}
-                  placeholder="+79001234567"
+                  placeholder={a.phonePlaceholder}
                   autoComplete="tel"
                   style={{
                     width: '100%',
@@ -738,7 +740,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  {t({ ru: 'Страна', en: 'Country' })}
+                  {a.country}
                 </label>
                 <select
                   id="register-country"
@@ -757,13 +759,13 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   }}
                   data-testid="select-register-country"
                 >
-                  <option value="" disabled>{t({ ru: 'Выберите страну', en: 'Select a country' })}</option>
+                  <option value="" disabled>{a.chooseCountry}</option>
                   {countries.map(country => (
                     <option key={country.code} value={country.code}>{country.name}</option>
                   ))}
                 </select>
                 <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#6c757d' }}>
-                  {t({ ru: 'Нужна, чтобы обрабатывать ваши данные по законам вашей страны.', en: 'Needed to process your data under the laws of your country.' })}
+                  {a.countryHint}
                 </p>
               </div>
 
@@ -775,14 +777,14 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   fontWeight: '500',
                   color: '#333'
                 }}>
-                  {t({ ru: 'Пароль', en: 'Password' })}
+                  {a.password}
                 </label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showRegisterPassword ? 'text' : 'password'}
                     value={registerForm.password}
                     onChange={(e) => setRegisterForm(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder={t({ ru: 'Создайте надёжный пароль', en: 'Create a strong password' })}
+                    placeholder={a.newPasswordPlaceholder}
                     required
                     style={{
                       width: '100%',
@@ -814,7 +816,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                     }}
                     data-testid="button-toggle-register-password"
                   >
-                    {showRegisterPassword ? <EyeOff size={18} aria-label={t({ ru: 'Скрыть пароль', en: 'Hide password' })} /> : <Eye size={18} aria-label={t({ ru: 'Показать пароль', en: 'Show password' })} />}
+                    {showRegisterPassword ? <EyeOff size={18} aria-label={a.hidePassword} /> : <Eye size={18} aria-label={a.showPassword} />}
                   </button>
                 </div>
                 
@@ -857,11 +859,11 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                   data-testid="checkbox-register-consent"
                 />
                 <span>
-                  {t({ ru: 'Я принимаю', en: 'I accept the' })} <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>{t({ ru: 'условия использования', en: 'terms of use' })}</a>{' '}
-                  {t({ ru: 'и даю', en: 'and give my' })}{' '}
-                  <a href="/consent" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>{t({ ru: 'согласие на обработку персональных данных', en: 'consent to the processing of personal data' })}</a>{' '}
-                  {t({ ru: 'в соответствии с', en: 'under the' })}{' '}
-                  <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>{t({ ru: 'политикой конфиденциальности', en: 'privacy policy' })}</a>
+                  {a.consentPrefix} <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>{a.consentTerms}</a>{' '}
+                  {a.consentMiddle}{' '}
+                  <a href="/consent" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>{a.consentData}</a>{' '}
+                  {a.consentUnder}{' '}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>{a.consentPrivacy}</a>
                 </span>
               </label>
 
@@ -883,7 +885,7 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
                 }}
                 data-testid="button-submit-register"
               >
-                {isLoading ? t({ ru: 'Регистрация...', en: 'Signing up...' }) : t({ ru: 'Создать аккаунт', en: 'Create account' })}
+                {isLoading ? a.registering : a.register}
               </button>
             </form>
           )}
@@ -898,11 +900,11 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
             color: '#6c757d'
           }}>
             <p style={{ margin: '0 0 8px 0' }}>
-              {t({ ru: 'Соединение защищено HTTPS.', en: 'The connection is protected by HTTPS.' })}{' '}
-              <a href="/security" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>{t({ ru: 'Как мы защищаем данные', en: 'How we protect data' })}</a>
+              {a.https}{' '}
+              <a href="/security" target="_blank" rel="noopener noreferrer" style={{ color: '#5a67d8' }}>{a.howWeProtect}</a>
             </p>
             <p style={{ margin: '0', fontSize: '11px', opacity: '0.8' }}>
-              {t({ ru: 'Агрегатор Онлайн Обучения', en: 'Online Learning Aggregator' })}
+              {a.tagline}
             </p>
           </div>
         </div>
