@@ -32,11 +32,14 @@ export const users = pgTable("users", {
   timezone: varchar("timezone", { length: 50 }).default("Europe/Moscow"),
   language: varchar("language", { length: 10 }).default("ru"),
   notificationsEnabled: boolean("notifications_enabled").default(true),
+  // Секрет ссылки на ленту .ics (#18, docs/CALENDAR-FEED.md); пусто — ссылки нет
+  calendarToken: varchar("calendar_token", { length: 64 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   emailIdx: index("users_email_idx").on(table.email),
   phoneIdx: index("users_phone_idx").on(table.phone),
+  calendarTokenUniq: uniqueIndex("users_calendar_token_uniq").on(table.calendarToken),
 }));
 
 // Sessions table - Web sessions for authentication

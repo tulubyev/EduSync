@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TIME_ZONE_OPTIONS, useRecordingTimeZone, type TimeZoneChoice } from '../recording/timezones';
@@ -13,6 +13,7 @@ import { QuickAddEvent } from './QuickAddEvent';
 import { useEventDialogs } from './useEventDialogs';
 import { useLang } from '@/i18n';
 import { tzOptionLabel } from './tzLabels';
+import { CalendarFeedDialog } from './CalendarFeedDialog';
 
 type View = 'week' | 'month';
 const VIEW_KEY = 'calendar.view';
@@ -34,6 +35,7 @@ export function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [feedOpen, setFeedOpen] = useState(false);
   const reload = () => setReloadKey((k) => k + 1);
   const { openEdit, openNew, openRecord, dialogs } = useEventDialogs(timeZone, reload);
 
@@ -100,6 +102,9 @@ export function CalendarPage() {
               </button>
             ))}
           </div>
+          <Button variant="outline" onClick={() => setFeedOpen(true)} className="gap-1">
+            <CalendarPlus className="h-4 w-4" /> {m.calendarFeed.button}
+          </Button>
           <Select value={timeZone} onValueChange={(v) => setTimeZone(v as TimeZoneChoice)}>
             <SelectTrigger className="w-auto min-w-[10rem]" aria-label={c.timeZone}><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -179,6 +184,7 @@ export function CalendarPage() {
         </>
       )}
       {dialogs}
+      <CalendarFeedDialog open={feedOpen} onClose={() => setFeedOpen(false)} />
     </div>
   );
 }

@@ -83,7 +83,7 @@ router.put('/update', authenticateToken as any, async (req: AuthRequest, res: Re
     }
 
     // хэш пароля наружу не отдаём; фото — как в /api/users
-    const { passwordHash, profileImage, ...profileData } = updatedUser;
+    const { passwordHash, calendarToken, profileImage, ...profileData } = updatedUser;
     res.json({ ...profileData, profileImage: profileImage ? `data:image/jpeg;base64,${profileImage}` : null });
   } catch (error) {
     logger.error('Profile update error:', error);
