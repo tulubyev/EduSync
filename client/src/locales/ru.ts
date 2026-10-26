@@ -147,4 +147,4 @@ export const ru = {
   },
 };
 
-export type Messages = typeof ru;
+export type CoreMessages = typeof ru;
