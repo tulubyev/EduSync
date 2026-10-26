@@ -8,6 +8,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
+import { useLang } from '@/i18n';
 
 interface Course {
   id: string;
@@ -31,23 +32,10 @@ interface SimilarCoursesModalProps {
   platforms: Record<string, { name: string; color: string }>;
 }
 
-const difficultyLabels: Record<string, string> = {
-  beginner: 'Начинающий',
-  intermediate: 'Средний',
-  advanced: 'Продвинутый',
-};
-
 const difficultyColors: Record<string, string> = {
   beginner: 'bg-green-100 text-green-800',
   intermediate: 'bg-yellow-100 text-yellow-800',
   advanced: 'bg-red-100 text-red-800',
-};
-
-const formatCost = (cost?: number | string | null) => {
-  if (cost === null || cost === undefined || cost === 0 || cost === '0') return 'Бесплатно';
-  const numCost = typeof cost === 'string' ? parseFloat(cost) : cost;
-  if (isNaN(numCost)) return 'Бесплатно';
-  return `₽${numCost.toFixed(2)}`;
 };
 
 export function SimilarCoursesModal({
@@ -57,7 +45,15 @@ export function SimilarCoursesModal({
   allCourses,
   platforms,
 }: SimilarCoursesModalProps) {
+  const { m, lang } = useLang();
+  const t = m.courses.similar;
   const [similarCourses, setSimilarCourses] = useState<Course[]>([]);
+
+  const formatCost = (cost?: number | string | null) => {
+    const numCost = typeof cost === 'string' ? parseFloat(cost) : cost;
+    if (numCost === null || numCost === undefined || isNaN(numCost) || numCost === 0) return m.courses.free;
+    return new Intl.NumberFormat(lang, { style: 'currency', currency: 'RUB' }).format(numCost);
+  };
 
   useEffect(() => {
     if (!currentCourse || !open) return;
@@ -83,17 +79,17 @@ export function SimilarCoursesModal({
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Подобные курсы для сравнения
+            {t.title}
           </DialogTitle>
           <p className="text-sm text-muted-foreground mt-2">
-            Мы нашли {similarCourses.length} похожих курсов на других платформах в категории "{currentCourse.category}"
+            {t.found(similarCourses.length, currentCourse.category ? (m.courses.categories[currentCourse.category] ?? currentCourse.category) : '')}
           </p>
         </DialogHeader>
 
         {similarCourses.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-muted-foreground">
-              К сожалению, похожих курсов не найдено
+              {t.none}
             </p>
           </div>
         ) : (
@@ -131,12 +127,12 @@ export function SimilarCoursesModal({
                       variant="secondary"
                       className={difficultyColors[course.difficulty]}
                     >
-                      {difficultyLabels[course.difficulty]}
+                      {m.courses.difficulty[course.difficulty] ?? course.difficulty}
                     </Badge>
                   )}
                   {course.duration && (
                     <Badge variant="outline">
-                      {Math.floor(course.duration / 60)}ч {course.duration % 60}м
+                      {m.courses.duration(Math.floor(course.duration / 60), course.duration % 60)}
                     </Badge>
                   )}
                   <Badge variant="outline" className="font-medium">
@@ -157,7 +153,7 @@ export function SimilarCoursesModal({
                     onClick={() => window.open(course.courseUrl, '_blank')}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    Перейти на платформу
+                    {t.goToPlatform}
                   </Button>
                 )}
               </div>

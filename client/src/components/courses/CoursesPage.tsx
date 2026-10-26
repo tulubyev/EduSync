@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Search, BookOpen, Filter } from 'lucide-react';
+import { useLang } from '@/i18n';
 
 interface Course {
   id: string;
@@ -41,6 +42,8 @@ interface Platform {
 }
 
 export function CoursesPage() {
+  const { m } = useLang();
+  const p = m.courses.page;
   const [courses, setCourses] = useState<Course[]>([]);
   const [catalogCourses, setCatalogCourses] = useState<CatalogCourse[]>([]);
   const [platforms, setPlatforms] = useState<Record<string, Platform>>({});
@@ -113,7 +116,7 @@ export function CoursesPage() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+      setError(err instanceof Error ? err.message : m.common.loadError);
     } finally {
       setLoading(false);
     }
@@ -135,7 +138,7 @@ export function CoursesPage() {
     });
     
     if (!response.ok) {
-      throw new Error('Ошибка создания курса');
+      throw new Error(p.errCreate);
     }
     
     await fetchData();
@@ -157,7 +160,7 @@ export function CoursesPage() {
     });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
-      throw new Error((data as any).message || 'Не удалось добавить курс');
+      throw new Error((data as any).message || p.errAdd);
     }
     await fetchData();
   };
@@ -176,7 +179,7 @@ export function CoursesPage() {
     });
     
     if (!response.ok) {
-      throw new Error('Ошибка обновления курса');
+      throw new Error(p.errUpdate);
     }
     
     setEditingCourse(null);
@@ -184,7 +187,7 @@ export function CoursesPage() {
   };
 
   const handleDeleteCourse = async (courseId: string) => {
-    if (!confirm('Вы уверены, что хотите удалить этот курс?')) return;
+    if (!confirm(p.confirmDelete)) return;
     
     const token = localStorage.getItem('accessToken');
     const response = await fetch(`/api/courses/${courseId}`, {
@@ -196,7 +199,7 @@ export function CoursesPage() {
     
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
-      alert((data as any).message || 'Ошибка удаления курса');
+      alert((data as any).message || p.errDelete);
       return;
     }
     
@@ -213,7 +216,7 @@ export function CoursesPage() {
     });
     
     if (!response.ok) {
-      throw new Error('Ошибка обновления избранного');
+      throw new Error(p.errFavorite);
     }
     
     await fetchData();
@@ -231,7 +234,7 @@ export function CoursesPage() {
     });
     
     if (!response.ok) {
-      throw new Error('Ошибка обновления прогресса');
+      throw new Error(p.errProgress);
     }
     
     await fetchData();
@@ -249,7 +252,7 @@ export function CoursesPage() {
     });
     
     if (!response.ok) {
-      throw new Error('Ошибка обновления статуса');
+      throw new Error(p.errStatus);
     }
     
     await fetchData();
@@ -310,7 +313,7 @@ export function CoursesPage() {
     return (
       <div className="flex flex-col items-center justify-center h-64">
         <p className="text-red-500 mb-4">{error}</p>
-        <Button onClick={fetchData}>Попробовать снова</Button>
+        <Button onClick={fetchData}>{p.retry}</Button>
       </div>
     );
   }
@@ -323,27 +326,27 @@ export function CoursesPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <BookOpen className="h-6 w-6" />
-            {viewMode === 'catalog' ? 'Каталог курсов' : 'Мои курсы'}
+            {viewMode === 'catalog' ? p.titleCatalog : p.titleMy}
           </h1>
           <p className="text-muted-foreground mt-1">
             {viewMode === 'catalog' 
-              ? `${catalogCourses.length} доступных курсов`
-              : `${stats.total} курсов • ${stats.inProgress} в процессе • ${stats.completed} завершено`
+              ? p.catalogCount(catalogCourses.length)
+              : p.stats(stats.total, stats.inProgress, stats.completed)
             }
           </p>
         </div>
         {viewMode === 'my' && (
           <Button onClick={() => setIsModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Добавить курс
+            {p.addCourse}
           </Button>
         )}
       </div>
 
       <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'my' | 'catalog')} className="w-full mb-6">
         <TabsList>
-          <TabsTrigger value="my">Мои курсы ({stats.total})</TabsTrigger>
-          <TabsTrigger value="catalog">Каталог ({catalogCourses.length})</TabsTrigger>
+          <TabsTrigger value="my">{p.tabMy(stats.total)}</TabsTrigger>
+          <TabsTrigger value="catalog">{p.tabCatalog(catalogCourses.length)}</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -353,7 +356,7 @@ export function CoursesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Поиск курсов..."
+                placeholder={p.search}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -362,10 +365,10 @@ export function CoursesPage() {
             
             <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-auto">
               <TabsList>
-                <TabsTrigger value="all">Все ({stats.total})</TabsTrigger>
-                <TabsTrigger value="in_progress">В процессе ({stats.inProgress})</TabsTrigger>
-                <TabsTrigger value="completed">Завершённые ({stats.completed})</TabsTrigger>
-                <TabsTrigger value="favorites">Избранное ({stats.favorites})</TabsTrigger>
+                <TabsTrigger value="all">{p.filterAll(stats.total)}</TabsTrigger>
+                <TabsTrigger value="in_progress">{p.filterInProgress(stats.inProgress)}</TabsTrigger>
+                <TabsTrigger value="completed">{p.filterCompleted(stats.completed)}</TabsTrigger>
+                <TabsTrigger value="favorites">{p.filterFavorites(stats.favorites)}</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -374,24 +377,24 @@ export function CoursesPage() {
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-[180px]">
                 <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Категория" />
+                <SelectValue placeholder={p.category} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Все категории</SelectItem>
+                <SelectItem value="all">{p.allCategories}</SelectItem>
                 {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat!}>{cat}</SelectItem>
+                  <SelectItem key={cat} value={cat!}>{m.courses.categories[cat] ?? cat}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Сортировка" />
+                  <SelectValue placeholder={p.sort} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="updated">По дате обновления</SelectItem>
-                  <SelectItem value="title">По названию</SelectItem>
-                  <SelectItem value="progress">По прогрессу</SelectItem>
+                  <SelectItem value="updated">{p.sortUpdated}</SelectItem>
+                  <SelectItem value="title">{p.sortTitle}</SelectItem>
+                  <SelectItem value="progress">{p.sortProgress}</SelectItem>
                 </SelectContent>
               </Select>
           </div>
@@ -408,16 +411,16 @@ export function CoursesPage() {
       ) : displayCourses.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-center">
           <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium">Курсы не найдены</h3>
+          <h3 className="text-lg font-medium">{p.notFound}</h3>
           <p className="text-muted-foreground mb-4">
             {searchQuery || statusFilter !== 'all' || categoryFilter !== 'all'
-              ? 'Попробуйте изменить фильтры поиска'
-              : 'Добавьте свой первый курс'}
+              ? p.tryFilters
+              : p.addFirst}
           </p>
           {!searchQuery && statusFilter === 'all' && categoryFilter === 'all' && (
             <Button onClick={() => setIsModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Добавить курс
+              {p.addCourse}
             </Button>
           )}
         </div>

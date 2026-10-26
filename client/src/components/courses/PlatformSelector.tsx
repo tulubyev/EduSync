@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Link as LinkIcon, Search, Globe } from 'lucide-react';
+import { useLang } from '@/i18n';
 
 interface ApiPlatform {
   id: string;
@@ -56,6 +57,8 @@ export function PlatformSelector({
   connectedPlatforms = new Set(),
   platforms = [],
 }: PlatformSelectorProps) {
+  const { m } = useLang();
+  const t = m.courses.platformSelector;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [requestingConnect, setRequestingConnect] = useState<string | null>(null);
@@ -152,9 +155,9 @@ export function PlatformSelector({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] !grid-rows-[auto_auto_1fr] !grid !p-0">
         <div className="px-6 pt-6 pb-4">
-          <DialogTitle>Выберите образовательную платформу</DialogTitle>
+          <DialogTitle>{t.title}</DialogTitle>
           <DialogDescription className="sr-only">
-            Выберите платформу для добавления курса
+            {t.description}
           </DialogDescription>
         </div>
 
@@ -162,7 +165,7 @@ export function PlatformSelector({
           <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Поиск платформы..."
+              placeholder={t.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -176,7 +179,7 @@ export function PlatformSelector({
               className="text-xs h-7"
               onClick={() => setSelectedCategory('all')}
             >
-              Все ({normalizedPlatforms.length})
+              {t.all(normalizedPlatforms.length)}
             </Button>
             <Button
               variant={selectedCategory === 'global' ? 'default' : 'outline'}
@@ -185,7 +188,7 @@ export function PlatformSelector({
               onClick={() => setSelectedCategory('global')}
             >
               <Globe className="h-3 w-3 mr-1" />
-              Глобальные
+              {t.global}
             </Button>
             <Button
               variant={selectedCategory === 'russian' ? 'default' : 'outline'}
@@ -194,7 +197,7 @@ export function PlatformSelector({
               onClick={() => setSelectedCategory('russian')}
             >
               <Globe className="h-3 w-3 mr-1" />
-              Русские
+              {t.russian}
             </Button>
             {categoryNames.map((cat) => (
               <Button
@@ -216,7 +219,7 @@ export function PlatformSelector({
               <div>
                 <h3 className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
                   <CheckCircle className="h-4 w-4" />
-                  Подключенные платформы
+                  {t.connected}
                 </h3>
                 <div className="space-y-2">
                   {filteredConnected.map((platform) => (
@@ -245,7 +248,7 @@ export function PlatformSelector({
               <div>
                 <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
                   <LinkIcon className="h-4 w-4" />
-                  Доступные платформы
+                  {t.available}
                 </h3>
                 <div className="space-y-2">
                   {filteredAvailable.map((platform) => (
@@ -274,7 +277,7 @@ export function PlatformSelector({
                           }}
                           className="flex-1"
                         >
-                          Использовать
+                          {t.use}
                         </Button>
                         <Button
                           size="sm"
@@ -282,7 +285,7 @@ export function PlatformSelector({
                           onClick={() => handleConnect(platform)}
                           disabled={requestingConnect === platform.id}
                         >
-                          {requestingConnect === platform.id ? 'Подключение...' : 'Подключить'}
+                          {requestingConnect === platform.id ? t.connecting : t.connect}
                         </Button>
                       </div>
                     </div>
@@ -293,7 +296,7 @@ export function PlatformSelector({
 
             {filteredConnected.length === 0 && filteredAvailable.length === 0 && (
               <div className="py-8 text-center text-muted-foreground">
-                Платформы не найдены
+                {t.notFound}
               </div>
             )}
           </div>
