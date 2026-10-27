@@ -2,19 +2,26 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { TIME_ZONE_OPTIONS, useRecordingTimeZone, type TimeZoneChoice } from '../recording/timezones';
 import { EventCard, EVENT_COLORS } from './EventCard';
 import { fetchEvents, type LearningEventDto } from './eventsApi';
 import {
   weekdaysShort, dayKeyOf, dayStartUtc, dayTitle, fromKey, monthGridKeys, monthTitle, shiftKey, toKey, todayIn,
-  weekKeys, weekTitle, type DayKey,
+  timeOf, weekKeys, weekTitle, type DayKey,
 } from './eventTime';
+import { weekdayOf } from '@shared/learningEvents';
+
+/** Суббота и воскресенье — фон чуть темнее */
+const weekendOf = (key: DayKey) => { const wd = weekdayOf(fromKey(key)); return wd === 0 || wd === 6; };
 import { QuickAddEvent } from './QuickAddEvent';
 import { useEventDialogs } from './useEventDialogs';
 import { useLang } from '@/i18n';
 import { tzOptionLabel } from './tzLabels';
 import { CalendarFeedDialog } from './CalendarFeedDialog';
 import { useRecordingHints } from './useRecordingHints';
+import { WeekGrid } from './WeekGrid';
+import { EventLegend, useHiddenTypes } from './EventLegend';
 
 type View = 'week' | 'month';
 const VIEW_KEY = 'calendar.view';
@@ -37,6 +44,8 @@ export function CalendarPage() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [feedOpen, setFeedOpen] = useState(false);
+  const [opened, setOpened] = useState<LearningEventDto | null>(null);
+  const [hiddenTypes, setHiddenTypes] = useHiddenTypes();
   const reload = () => setReloadKey((k) => k + 1);
   const { openEdit, openNew, openRecord, dialogs } = useEventDialogs(timeZone, reload);
 
@@ -58,14 +67,15 @@ export function CalendarPage() {
     return () => { cancelled = true; };
   }, [days, timeZone, reloadKey]);
 
+  const visible = useMemo(() => events.filter((e) => !hiddenTypes.has(e.type)), [events, hiddenTypes]);
   const byDay = useMemo(() => {
     const map = new Map<DayKey, LearningEventDto[]>();
-    for (const e of events) {
+    for (const e of visible) {
       const key = dayKeyOf(e.startsAt, timeZone);
       map.set(key, [...(map.get(key) ?? []), e]);
     }
     return map;
-  }, [events, timeZone]);
+  }, [visible, timeZone]);
 
   const step = (dir: -1 | 1) => {
     if (view === 'week') setAnchor(shiftKey(anchor, dir * 7));
@@ -123,6 +133,10 @@ export function CalendarPage() {
         <QuickAddEvent timeZone={timeZone} onAdded={reload} onOpenForm={openNew} />
       </div>
 
+      <div className="mb-3">
+        <EventLegend hidden={hiddenTypes} onChange={setHiddenTypes} />
+      </div>
+
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" onClick={() => step(-1)} aria-label={m.common.back}><ChevronLeft className="h-4 w-4" /></Button>
@@ -136,7 +150,11 @@ export function CalendarPage() {
       {loading && events.length === 0 && <p className="text-sm text-gray-500">{m.common.loading}</p>}
 
       {view === 'week' ? (
-        <div className="space-y-4">
+        <>
+        <div className="hidden sm:block">
+          <WeekGrid days={days} events={visible} timeZone={timeZone} todayKey={todayKey} hints={hints} onOpen={setOpened} />
+        </div>
+        <div className="space-y-4 sm:hidden">
           {days.map((key) => {
             const list = byDay.get(key) ?? [];
             return (
@@ -149,6 +167,7 @@ export function CalendarPage() {
             );
           })}
         </div>
+        </>
       ) : (
         <>
           <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-gray-200 bg-gray-200 text-sm" style={{ gap: 1 }}>
@@ -161,7 +180,7 @@ export function CalendarPage() {
                   key={key}
                   type="button"
                   onClick={() => setSelected(key)}
-                  className={`flex min-h-[3.5rem] min-w-0 flex-col items-stretch justify-start bg-white p-1 text-left sm:min-h-[5.5rem] ${d.month !== currentMonth ? 'text-gray-400' : 'text-gray-800'} ${selected === key ? 'ring-2 ring-inset ring-purple-500' : ''}`}
+                  className={`flex min-h-[3.5rem] min-w-0 flex-col items-stretch justify-start p-1 text-left sm:min-h-[6rem] ${weekendOf(key) ? 'bg-gray-50' : 'bg-white'} ${d.month !== currentMonth ? 'text-gray-400' : 'text-gray-800'} ${selected === key ? 'ring-2 ring-inset ring-purple-500' : ''}`}
                   aria-label={c.dayAria(dayTitle(key, lang), list.length)}
                 >
                   <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${key === todayKey ? 'bg-purple-600 text-white' : ''}`}>{d.day}</span>
@@ -170,8 +189,12 @@ export function CalendarPage() {
                   </div>
                   <div className="hidden space-y-0.5 sm:block">
                     {list.slice(0, 3).map((e) => (
-                      <div key={e.id} className={`truncate rounded px-1 text-xs text-white ${e.status === 'completed' ? 'opacity-50' : ''}`} style={{ backgroundColor: EVENT_COLORS[e.type] }}>
-                        {e.title}
+                      <div
+                        key={e.id}
+                        className={`truncate rounded px-1 text-xs text-gray-800 ${e.status === 'completed' ? 'line-through opacity-50' : ''}`}
+                        style={{ backgroundColor: `${EVENT_COLORS[e.type]}1f`, borderLeft: `3px solid ${EVENT_COLORS[e.type]}` }}
+                      >
+                        <span className="font-semibold" style={{ color: EVENT_COLORS[e.type] }}>{timeOf(e.startsAt, timeZone)}</span> {e.title}
                       </div>
                     ))}
                     {list.length > 3 && <div className="px-1 text-xs text-gray-500">{c.more(list.length - 3)}</div>}
@@ -189,6 +212,25 @@ export function CalendarPage() {
         </>
       )}
       {dialogs}
+      <Dialog open={!!opened} onOpenChange={(v) => !v && setOpened(null)}>
+        <DialogContent className="p-0 sm:max-w-lg">
+          <DialogTitle className="sr-only">{opened?.title}</DialogTitle>
+          {opened && (
+            <div className="p-2 pr-10">
+              <EventCard
+                event={opened}
+                timeZone={timeZone}
+                showDate
+                onChanged={() => { setOpened(null); reload(); }}
+                onEdit={(e) => { setOpened(null); openEdit(e); }}
+                onRecord={(e) => { setOpened(null); openRecord(e); }}
+                hint={hints.get(opened.id)}
+                onDismissHint={(id) => { dismiss(id); setOpened(null); }}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       <CalendarFeedDialog open={feedOpen} onClose={() => setFeedOpen(false)} />
     </div>
   );

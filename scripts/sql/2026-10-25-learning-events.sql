@@ -50,3 +50,14 @@ SELECT d.id, d.user_id, 'deadline', d.title, d.description, d.due_date, d.course
        d.created_at, d.updated_at
 FROM deadlines d
 ON CONFLICT (id) DO NOTHING;
+
+-- Таблицу создаёт тот, кто запускает этот файл (часто postgres). Приложению она должна принадлежать так же,
+-- как остальные таблицы, иначе «permission denied for table learning_events». Владелец — как у users.
+DO $$
+DECLARE app_owner text;
+BEGIN
+  SELECT tableowner INTO app_owner FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users';
+  IF app_owner IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE public.learning_events OWNER TO %I', app_owner);
+  END IF;
+END $$;

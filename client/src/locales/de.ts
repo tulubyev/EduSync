@@ -121,6 +121,9 @@ export const de: CoreMessages = {
       empty: 'Keine Termine',
       dayAria: (day: string, n: number) => `${day}: ${n} Termine`,
       more: (n: number) => `${n} weitere`,
+      dueRow: 'Fristen',
+      allTypes: 'Alle Typen',
+      typesAria: 'Welche Ereignisse anzeigen',
     },
     today: {
       title: 'Heute',

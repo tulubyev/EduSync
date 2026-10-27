@@ -9,12 +9,14 @@ import { deleteEvent, isPast, updateEvent, type LearningEventDto } from './event
 import { dayTitle, dayKeyOf, timeOf } from './eventTime';
 import { hintReason } from './hintText';
 
+/** Цвет по смыслу: занятия — холодные (урок синий, вебинар фиолетовый), сроки — тёплые по нарастанию важности
+ * (задание янтарное, дедлайн малиновый, экзамен красный) */
 export const EVENT_COLORS: Record<EventType, string> = {
-  lesson: '#3b82f6',
-  webinar: '#8b5cf6',
-  assignment: '#f59e0b',
-  exam: '#ef4444',
-  deadline: '#f97316',
+  lesson: '#2563eb',
+  webinar: '#7c3aed',
+  assignment: '#d97706',
+  exam: '#dc2626',
+  deadline: '#db2777',
 };
 
 const SOURCE_NAMES: Record<string, string> = { stepik: 'Stepik' };
@@ -86,7 +88,7 @@ export function EventCard({ event, timeZone, onChanged, onEdit, onRecord, showDa
             <span className="font-medium" style={{ color: EVENT_COLORS[event.type] }}>{m.events.types[event.type]}</span>
             <span className="text-gray-500">
               {showDate && `${dayTitle(dayKeyOf(event.startsAt, timeZone), lang)}, `}
-              {due ? m.events.card.due(time) : time}
+              {due && !event.durationMinutes ? m.events.card.due(time) : time}
               {event.durationMinutes ? ` · ${m.common.minutes(event.durationMinutes)}` : ''}
             </span>
             {overdue && <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700">{m.events.card.overdue}</span>}
