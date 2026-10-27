@@ -124,6 +124,9 @@ export const ru = {
       empty: 'Нет событий',
       dayAria: (day: string, n: number) => `${day}: событий ${n}`,
       more: (n: number) => `ещё ${n}`,
+      dueRow: 'Сроки',
+      allTypes: 'Все типы',
+      typesAria: 'Какие события показывать',
     },
     today: {
       title: 'Сегодня',

@@ -121,6 +121,9 @@ export const fr: CoreMessages = {
       empty: 'Aucun événement',
       dayAria: (day: string, n: number) => `${day} : ${n} événements`,
       more: (n: number) => `${n} de plus`,
+      dueRow: 'Échéances',
+      allTypes: 'Tous les types',
+      typesAria: 'Événements à afficher',
     },
     today: {
       title: "Aujourd'hui",
