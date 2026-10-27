@@ -4,6 +4,9 @@ import { authenticateToken } from "../middleware/auth";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { db } from "../db";
+import { rateLimiters } from "../middleware";
+import { isLang } from "@shared/languages";
+import { previewCourse, PreviewError } from "../services/coursePreview";
 
 const router = Router();
 
@@ -93,6 +96,31 @@ router.get('/:id', authenticateToken as any, async (req: AuthRequest, res: Respo
   } catch (error) {
     console.error('Error fetching course:', error);
     res.status(500).json({ message: 'Ошибка получения курса' });
+  }
+});
+
+// Курс по ссылке (#19): название, описание, обложка и площадка со страницы курса — для заполнения формы.
+// Сервер ходит по ссылке пользователя, поэтому защита от SSRF (coursePreview.ts) и строгий лимит запросов.
+const previewSchema = z.object({ url: z.string().trim().min(1).max(2000), lang: z.string().optional() });
+
+router.post('/preview', authenticateToken as any, rateLimiters.strict, async (req: AuthRequest, res: Response) => {
+  const parsed = previewSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ code: 'invalid_url', message: 'Нужна ссылка на курс' });
+  try {
+    const platforms = await storage.getPlatforms();
+    const lang = isLang(parsed.data.lang) ? parsed.data.lang : 'en';
+    const preview = await previewCourse(
+      parsed.data.url,
+      platforms.map((p) => ({ id: p.id, code: p.code, name: p.name, websiteUrl: p.websiteUrl })),
+      { lang },
+    );
+    res.json(preview);
+  } catch (error) {
+    if (error instanceof PreviewError) {
+      return res.status(400).json({ code: error.code, message: error.code === 'blocked' ? 'Эта ссылка недоступна' : 'Неверная ссылка' });
+    }
+    console.error('Course preview error:', error);
+    res.status(500).json({ code: 'unavailable', message: 'Не удалось прочитать страницу курса' });
   }
 });
 
