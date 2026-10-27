@@ -179,6 +179,7 @@ export function LibraryPage() {
 
     if (!response.ok) throw new Error(l.errors.create);
 
+    setIsModalOpen(false);
     await fetchNotes();
   };
 
@@ -195,6 +196,9 @@ export function LibraryPage() {
 
     if (!response.ok) throw new Error(l.errors.update);
 
+    const updated = await response.json();
+    if (selectedNote?.id === id) setSelectedNote(updated);
+    setEditingNote(null);
     await fetchNotes();
   };
 
@@ -227,6 +231,7 @@ export function LibraryPage() {
 
     if (!response.ok) throw new Error(l.errors.update);
 
+    if (selectedNote?.id === note.id) setSelectedNote(await response.json());
     await fetchNotes();
   };
 
@@ -664,7 +669,7 @@ export function LibraryPage() {
       </div>
 
       <MaterialModal
-        open={isModalOpen}
+        open={isModalOpen || !!editingNote}
         onClose={() => {
           setIsModalOpen(false);
           setEditingNote(null);
@@ -692,7 +697,7 @@ interface MaterialModalProps {
 function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData, courses, platforms }: MaterialModalProps) {
   const { m } = useLang();
   const f = m.library.form;
-  const [formData, setFormData] = useState({
+  const fromInitial = () => ({
     title: initialData?.title || '',
     content: initialData?.content || '',
     resourceUrl: initialData?.resourceUrl || '',
@@ -701,11 +706,22 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
     tags: initialData?.tags?.join(', ') || '',
     isPinned: initialData?.isPinned || false,
   });
+  const [formData, setFormData] = useState(fromInitial);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isConverting, setIsConverting] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [platformSearch, setPlatformSearch] = useState('');
   const [courseSearch, setCourseSearch] = useState('');
+
+  // при каждом открытии — данные редактируемого материала или пустая форма
+  useEffect(() => {
+    if (open) {
+      setFormData(fromInitial());
+      setSubmitError(null);
+      setUploadedFileName('');
+    }
+  }, [open, initialData]);
 
   const filteredPlatforms = platforms.filter(p => 
     p.name.toLowerCase().includes(platformSearch.toLowerCase())
@@ -796,6 +812,7 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
     if (!formData.title || !formData.content) return;
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await onSubmit({
         ...formData,
@@ -813,6 +830,8 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
         tags: '',
         isPinned: false,
       });
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : m.common.loadError);
     } finally {
       setIsSubmitting(false);
     }
@@ -953,6 +972,10 @@ function MaterialModal({ open, onClose, onSubmit, isEditing = false, initialData
             </p>
           </div>
         </div>
+
+        {submitError && (
+          <p role="alert" className="text-sm text-red-600">{submitError}</p>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{m.common.cancel}</Button>

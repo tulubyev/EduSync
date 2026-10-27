@@ -25,7 +25,12 @@ const courseSchema = z.object({
   duration: z.number().int().positive().optional(),
   platformId: z.string().uuid().optional(),
   tags: z.array(z.string()).optional(),
+  // стоимость в рублях; null — бесплатный курс
+  cost: z.number().min(0).max(100_000_000).nullable().optional(),
 });
+
+/** decimal-колонка cost хранится строкой */
+const costColumn = (cost: number | null | undefined) => (cost === undefined ? undefined : cost === null ? null : String(cost));
 
 const updateCourseSchema = courseSchema.partial().extend({
   progress: z.number().min(0).max(100).optional(),
@@ -139,6 +144,7 @@ router.post('/', authenticateToken as any, async (req: AuthRequest, res: Respons
       userId: req.user!.id,
       imageUrl: validation.data.imageUrl || null,
       courseUrl: validation.data.courseUrl || null,
+      cost: costColumn(validation.data.cost),
     };
     
     const course = await storage.createCourse(courseData);
@@ -171,6 +177,7 @@ router.put('/:id', authenticateToken as any, async (req: AuthRequest, res: Respo
     }
     
     const updates: any = { ...validation.data };
+    if ('cost' in validation.data) updates.cost = costColumn(validation.data.cost);
     
     if (validation.data.status === 'completed' && existingCourse.status !== 'completed') {
       updates.completedAt = new Date();

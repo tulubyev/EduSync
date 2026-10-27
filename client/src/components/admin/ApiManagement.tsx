@@ -7,7 +7,9 @@ function RecordingWorkerStatusCard() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const response = await fetch('/api/recording/monitor/worker-status');
+        const response = await fetch('/api/recording/monitor/worker-status', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+        });
         if (response.ok) {
           const data = await response.json();
           setStatus(data);

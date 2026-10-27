@@ -28,13 +28,18 @@ import {
   Download,
 } from 'lucide-react';
 import { useLang } from '@/i18n';
+import { fetchEvents } from '../events/eventsApi';
+import { costOf, dailyActivity, rangeStart } from './analyticsData';
+
+/** Дней в периоде; «всё время» — последний год (столько отдаёт календарь за раз) */
+const RANGE_DAYS = { week: 7, month: 30, all: 365 } as const;
 
 interface Course {
   id: string;
   title: string;
   status: string;
   duration?: number;
-  cost?: number | null;
+  cost?: number | string | null;
   progress: string;
   completedAt?: string;
 }
@@ -66,34 +71,35 @@ export function AnalyticsPage() {
       setLoading(true);
       const token = localStorage.getItem('accessToken');
 
-      // Fetch courses
-      const coursesRes = await fetch('/api/courses', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      const days = RANGE_DAYS[timeRange];
+      const now = new Date();
+      const [coursesRes, events] = await Promise.all([
+        fetch('/api/courses', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetchEvents(rangeStart(days, now).toISOString(), now.toISOString()),
+      ]);
       const coursesData: Course[] = await coursesRes.json();
       setCourses(coursesData);
 
       // Calculate analytics
       const completed = coursesData.filter(c => c.status === 'completed').length;
       const inProgress = coursesData.filter(c => c.status === 'in_progress').length;
-      const totalHours = Math.floor(
-        coursesData.reduce((sum, c) => sum + (c.duration || 0), 0) / 60
-      );
-      const totalSpent = coursesData.reduce((sum, c) => {
-        if (c.status === 'completed' && c.cost && c.cost > 0) {
-          return sum + c.cost;
-        }
-        return sum;
-      }, 0);
+      // часы и завершённые курсы по дням — из пройденных занятий календаря и дат завершения курсов
+      const activity = dailyActivity(events, coursesData, days, now);
+      const dailyProgress = activity.map((d) => ({
+        date: new Date(`${d.day}T12:00:00`).toLocaleDateString(lang, { month: 'short', day: 'numeric' }),
+        hours: d.hours,
+        courses: d.courses,
+      }));
+      const totalHours = Math.round(activity.reduce((sum, d) => sum + d.hours, 0) * 10) / 10;
+      const totalSpent = coursesData
+        .filter((c) => c.status === 'completed')
+        .reduce((sum, c) => sum + costOf(c), 0);
       const avgProgress = coursesData.length > 0
         ? Math.round(
             coursesData.reduce((sum, c) => sum + (parseFloat(c.progress) || 0), 0) /
             coursesData.length
           )
         : 0;
-
-      // Generate daily progress (last 30 days)
-      const dailyProgress = generateDailyProgress(coursesData, timeRange);
 
       // Category breakdown
       const categoryBreakdown = getCategoryBreakdown(coursesData);
@@ -123,30 +129,6 @@ export function AnalyticsPage() {
     fetchData();
   }, [timeRange, lang]);
 
-  const generateDailyProgress = (coursesData: Course[], range: 'week' | 'month' | 'all') => {
-    const days = range === 'week' ? 7 : range === 'month' ? 30 : 60;
-    const data = [];
-    const now = new Date();
-
-    for (let i = days; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toLocaleDateString(lang, { month: 'short', day: 'numeric' });
-
-      // Simulate progress based on course status
-      const completedOnDay = Math.floor(Math.random() * 3);
-      const hoursOnDay = Math.floor(Math.random() * 6) + (completedOnDay > 0 ? 2 : 0);
-
-      data.push({
-        date: dateStr,
-        hours: hoursOnDay,
-        courses: completedOnDay,
-      });
-    }
-
-    return data;
-  };
-
   const getCategoryBreakdown = (coursesData: Course[]) => {
     const categories: Record<string, number> = {};
     coursesData.forEach(course => {
@@ -163,15 +145,15 @@ export function AnalyticsPage() {
 
   const getCostBreakdown = (coursesData: Course[]) => {
     const completed = coursesData
-      .filter(c => c.status === 'completed' && c.cost && c.cost > 0)
-      .reduce((sum, c) => sum + (c.cost || 0), 0);
+      .filter(c => c.status === 'completed')
+      .reduce((sum, c) => sum + costOf(c), 0);
 
     const inProgress = coursesData
-      .filter(c => c.status === 'in_progress' && c.cost && c.cost > 0)
-      .reduce((sum, c) => sum + (c.cost || 0), 0);
+      .filter(c => c.status === 'in_progress')
+      .reduce((sum, c) => sum + costOf(c), 0);
 
     const free = coursesData
-      .filter(c => !c.cost || c.cost === 0)
+      .filter(c => costOf(c) === 0)
       .length;
 
     return [
