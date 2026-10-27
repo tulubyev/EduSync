@@ -28,7 +28,7 @@ import {
   Trash2,
   Edit
 } from 'lucide-react';
-import { format, isBefore, isToday, isTomorrow, addDays, differenceInDays } from 'date-fns';
+import { format, isBefore, isToday, isTomorrow, addDays, differenceInCalendarDays } from 'date-fns';
 import { useLang } from '@/i18n';
 
 interface Deadline {
@@ -40,15 +40,15 @@ interface Deadline {
   priority: string;
   status: string;
   reminderDate?: string;
-  course?: {
-    title: string;
-  };
 }
 
 interface Course {
   id: string;
   title: string;
 }
+
+/** Radix Select не допускает пустое значение пункта — «без курса» хранится так */
+const NO_COURSE = 'none';
 
 export function DeadlinesPage() {
   const { m, lang } = useLang();
@@ -75,6 +75,7 @@ export function DeadlinesPage() {
       
       const data = await response.json();
       setDeadlines(data);
+      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : m.common.loadError);
     } finally {
@@ -152,8 +153,12 @@ export function DeadlinesPage() {
       },
     });
     
-    if (!response.ok) throw new Error(d.errors.delete);
+    if (!response.ok) {
+      setError(d.errors.delete);
+      return;
+    }
     
+    setError(null);
     await fetchDeadlines();
   };
 
@@ -168,10 +173,16 @@ export function DeadlinesPage() {
       body: JSON.stringify({ status: 'completed' }),
     });
     
-    if (!response.ok) throw new Error(d.errors.update);
+    if (!response.ok) {
+      setError(d.errors.update);
+      return;
+    }
     
+    setError(null);
     await fetchDeadlines();
   };
+
+  const courseTitle = (courseId?: string) => courses.find((c) => c.id === courseId)?.title;
 
   const getDeadlineStatus = (deadline: Deadline) => {
     if (deadline.status === 'completed') return 'completed';
@@ -267,6 +278,12 @@ export function DeadlinesPage() {
         </Button>
       </div>
 
+      {error && (
+        <div role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
         {['all', 'active', 'today', 'this_week', 'overdue', 'completed'].map((status) => (
           <Button
@@ -297,7 +314,7 @@ export function DeadlinesPage() {
           {filteredDeadlines.map((deadline) => {
             const status = getDeadlineStatus(deadline);
             const dueDate = new Date(deadline.dueDate);
-            const daysLeft = differenceInDays(dueDate, new Date());
+            const daysLeft = differenceInCalendarDays(dueDate, new Date());
             
             return (
               <Card 
@@ -330,9 +347,9 @@ export function DeadlinesPage() {
                           <Clock className="h-4 w-4" />
                           {dueDate.toLocaleString(lang, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        {deadline.course && (
+                        {courseTitle(deadline.courseId) && (
                           <span className="flex items-center gap-1">
-                            📚 {deadline.course.title}
+                            📚 {courseTitle(deadline.courseId)}
                           </span>
                         )}
                         {status !== 'completed' && status !== 'overdue' && (
@@ -399,7 +416,7 @@ export function DeadlinesPage() {
 interface DeadlineModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: any) => Promise<void>;
   initialData?: Deadline;
   courses: Course[];
   isEditing?: boolean;
@@ -408,44 +425,38 @@ interface DeadlineModalProps {
 function DeadlineModal({ open, onClose, onSubmit, initialData, courses, isEditing }: DeadlineModalProps) {
   const { m } = useLang();
   const f = m.deadlines.form;
-  const [formData, setFormData] = useState({
+  const fromInitial = () => ({
     title: initialData?.title || '',
     description: initialData?.description || '',
     courseId: initialData?.courseId || '',
     dueDate: initialData?.dueDate ? format(new Date(initialData.dueDate), "yyyy-MM-dd'T'HH:mm") : '',
     priority: initialData?.priority || 'medium',
   });
+  const [formData, setFormData] = useState(fromInitial);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // при каждом открытии — данные редактируемого дедлайна или пустая форма
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        title: initialData.title,
-        description: initialData.description || '',
-        courseId: initialData.courseId || '',
-        dueDate: initialData.dueDate ? format(new Date(initialData.dueDate), "yyyy-MM-dd'T'HH:mm") : '',
-        priority: initialData.priority,
-      });
+    if (open) {
+      setFormData(fromInitial());
+      setSubmitError(null);
     }
-  }, [initialData]);
+  }, [open, initialData]);
 
   const handleSubmit = async () => {
     if (!formData.title || !formData.dueDate) return;
     
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await onSubmit({
         ...formData,
         courseId: formData.courseId || null,
         dueDate: new Date(formData.dueDate).toISOString(),
       });
-      setFormData({
-        title: '',
-        description: '',
-        courseId: '',
-        dueDate: '',
-        priority: 'medium',
-      });
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : m.common.loadError);
     } finally {
       setIsSubmitting(false);
     }
@@ -511,14 +522,14 @@ function DeadlineModal({ open, onClose, onSubmit, initialData, courses, isEditin
           <div className="space-y-2">
             <Label>{f.course}</Label>
             <Select 
-              value={formData.courseId} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, courseId: value }))}
+              value={formData.courseId || NO_COURSE} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, courseId: value === NO_COURSE ? '' : value }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder={f.coursePlaceholder} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{f.noCourse}</SelectItem>
+                <SelectItem value={NO_COURSE}>{f.noCourse}</SelectItem>
                 {courses.map((course) => (
                   <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>
                 ))}
@@ -526,6 +537,10 @@ function DeadlineModal({ open, onClose, onSubmit, initialData, courses, isEditin
             </Select>
           </div>
         </div>
+
+        {submitError && (
+          <p role="alert" className="text-sm text-red-600">{submitError}</p>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{m.common.cancel}</Button>

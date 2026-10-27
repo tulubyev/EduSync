@@ -19,7 +19,8 @@ const deadlineSchema = z.object({
     message: "Неверный формат даты напоминания"
   }).optional(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
-  courseId: z.string().uuid().optional(),
+  // null — «без курса» (форма шлёт null, когда курс снят)
+  courseId: z.string().uuid().nullable().optional(),
   isRecurring: z.boolean().optional(),
   recurringPattern: z.object({
     type: z.enum(['daily', 'weekly', 'monthly']),
@@ -162,6 +163,13 @@ router.put('/:id', authenticateToken as any, async (req: AuthRequest, res: Respo
         message: 'Ошибка валидации',
         errors: validation.error.errors 
       });
+    }
+    
+    if (validation.data.courseId) {
+      const course = await storage.getCourse(validation.data.courseId);
+      if (!course || course.userId !== req.user!.id) {
+        return res.status(400).json({ message: 'Курс не найден или недоступен' });
+      }
     }
     
     const updates: any = { ...validation.data };
