@@ -336,6 +336,8 @@ export const userSettings = pgTable("user_settings", {
   workTo: integer("work_to"),
   workDays: integer("work_days").array().notNull().default(sql`'{1,2,3,4,5}'`),
   recordingHints: boolean("recording_hints").notNull().default(true),
+  // План недели (#20): дни учёбы; минуты в день — studyGoalMinutes, любимое время — preferredStudyTime
+  studyDays: integer("study_days").array().notNull().default(sql`'{1,2,3,4,5,6,7}'`),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({

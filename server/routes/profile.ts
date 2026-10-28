@@ -17,6 +17,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import { userSettings } from '@shared/schema';
 import { DEFAULT_SCHEDULE_PREFS, type SchedulePrefs } from '@shared/recordingHints';
+import { DAY_PERIODS, isDayPeriod } from '@shared/weekPlan';
 
 interface AuthRequest extends Request {
   user?: { id: string; role?: string | null };
@@ -64,6 +65,10 @@ const schedulePrefsSchema = z
     workTo: minutes.nullable(),
     workDays: z.array(z.number().int().min(1).max(7)).max(7),
     recordingHints: z.boolean(),
+    // план недели (#20); старые клиенты их не присылают — тогда остаются прежние значения
+    studyMinutes: z.number().int().min(0).max(16 * 60).optional(),
+    studyDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
+    preferredStudyTime: z.enum(DAY_PERIODS).nullable().optional(),
   })
   .refine((p) => p.comfortFrom < p.comfortTo, { message: 'Удобное время: начало должно быть раньше конца' })
   .refine((p) => (p.workFrom === null) === (p.workTo === null), { message: 'Рабочее время: укажите начало и конец' })
@@ -73,7 +78,13 @@ router.get('/schedule', authenticateToken as any, async (req: AuthRequest, res: 
   try {
     const [row] = await db.select().from(userSettings).where(eq(userSettings.userId, req.user!.id));
     const prefs: SchedulePrefs = row
-      ? { comfortFrom: row.comfortFrom, comfortTo: row.comfortTo, workFrom: row.workFrom, workTo: row.workTo, workDays: row.workDays, recordingHints: row.recordingHints }
+      ? {
+        comfortFrom: row.comfortFrom, comfortTo: row.comfortTo, workFrom: row.workFrom, workTo: row.workTo, workDays: row.workDays,
+        recordingHints: row.recordingHints,
+        studyMinutes: row.studyGoalMinutes ?? DEFAULT_SCHEDULE_PREFS.studyMinutes,
+        studyDays: row.studyDays,
+        preferredStudyTime: isDayPeriod(row.preferredStudyTime) ? row.preferredStudyTime : null,
+      }
       : DEFAULT_SCHEDULE_PREFS;
     res.json(prefs);
   } catch (error) {
@@ -85,12 +96,28 @@ router.get('/schedule', authenticateToken as any, async (req: AuthRequest, res: 
 router.put('/schedule', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   const parsed = schedulePrefsSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || 'Неверные настройки времени' });
-  const prefs = { ...parsed.data, workDays: Array.from(new Set(parsed.data.workDays)).sort((a, b) => a - b) };
+  const { studyMinutes, studyDays, preferredStudyTime, ...hintPrefs } = parsed.data;
+  const sortDays = (days: number[]) => Array.from(new Set(days)).sort((a, b) => a - b);
+  const columns = {
+    ...hintPrefs,
+    workDays: sortDays(hintPrefs.workDays),
+    ...(studyMinutes !== undefined && { studyGoalMinutes: studyMinutes }),
+    ...(studyDays !== undefined && { studyDays: sortDays(studyDays) }),
+    ...(preferredStudyTime !== undefined && { preferredStudyTime }),
+  };
   try {
-    await db
+    const [row] = await db
       .insert(userSettings)
-      .values({ userId: req.user!.id, ...prefs })
-      .onConflictDoUpdate({ target: userSettings.userId, set: { ...prefs, updatedAt: new Date() } });
+      .values({ userId: req.user!.id, ...columns })
+      .onConflictDoUpdate({ target: userSettings.userId, set: { ...columns, updatedAt: new Date() } })
+      .returning();
+    const prefs: SchedulePrefs = {
+      comfortFrom: row.comfortFrom, comfortTo: row.comfortTo, workFrom: row.workFrom, workTo: row.workTo, workDays: row.workDays,
+      recordingHints: row.recordingHints,
+      studyMinutes: row.studyGoalMinutes ?? DEFAULT_SCHEDULE_PREFS.studyMinutes,
+      studyDays: row.studyDays,
+      preferredStudyTime: isDayPeriod(row.preferredStudyTime) ? row.preferredStudyTime : null,
+    };
     res.json(prefs);
   } catch (error) {
     logger.error('Schedule prefs save error', { error: error instanceof Error ? error.message : String(error) });

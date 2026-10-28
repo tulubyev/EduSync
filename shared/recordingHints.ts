@@ -14,6 +14,10 @@ export interface SchedulePrefs {
   workDays: number[];
   /** Предлагать запись (ученик может выключить) */
   recordingHints: boolean;
+  /** План недели (#20): минут на учёбу в день, дни учёбы (1 — пн … 7 — вс), любимое время суток */
+  studyMinutes: number;
+  studyDays: number[];
+  preferredStudyTime: 'morning' | 'afternoon' | 'evening' | 'night' | null;
 }
 
 export const DEFAULT_SCHEDULE_PREFS: SchedulePrefs = {
@@ -23,6 +27,9 @@ export const DEFAULT_SCHEDULE_PREFS: SchedulePrefs = {
   workTo: null,
   workDays: [1, 2, 3, 4, 5],
   recordingHints: true,
+  studyMinutes: 60,
+  studyDays: [1, 2, 3, 4, 5, 6, 7],
+  preferredStudyTime: null,
 };
 
 export interface HintEvent {
