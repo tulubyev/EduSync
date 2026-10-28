@@ -1,8 +1,4 @@
 import { useState } from 'react';
-import { ApiKeysModal } from './modals/ApiKeysModal';
-import { SyncModal } from './modals/SyncModal'; 
-import { WebhooksModal } from './modals/WebhooksModal';
-import { SecurityModal } from './modals/SecurityModal';
 import { ApiManagement } from './admin/ApiManagement';
 import { UsersSection } from './admin/UsersSection';
 import { CoursesManagement } from './admin/CoursesManagement';
@@ -22,10 +18,6 @@ function AdminPanel({ user, onBack }: any) {
   const [showSubscriptionPlans, setShowSubscriptionPlans] = useState(false);
   const [showPaymentSystems, setShowPaymentSystems] = useState(false);
   const [showRecordings, setShowRecordings] = useState(false);
-  const [showApiKeysModal, setShowApiKeysModal] = useState(false);
-  const [showSyncModal, setShowSyncModal] = useState(false);
-  const [showWebhooksModal, setShowWebhooksModal] = useState(false);
-  const [showSecurityModal, setShowSecurityModal] = useState(false);
 
   const adminRoles = {
     super_admin: 'Супер Администратор',
@@ -201,36 +193,8 @@ function AdminPanel({ user, onBack }: any) {
       {showApiManagement && (
         <ApiManagement 
           isVisible={true}
-          onShowApiKeys={() => setShowApiKeysModal(true)}
-          onShowSync={() => setShowSyncModal(true)}
-          onShowWebhooks={() => setShowWebhooksModal(true)}
-          onShowSecurity={() => setShowSecurityModal(true)}
         />
       )}
-
-      {/* Модальные окна для управления API */}
-      <ApiKeysModal isOpen={showApiKeysModal} onClose={() => setShowApiKeysModal(false)} />
-      <SyncModal isOpen={showSyncModal} onClose={() => setShowSyncModal(false)} />
-      <WebhooksModal isOpen={showWebhooksModal} onClose={() => setShowWebhooksModal(false)} />
-      <SecurityModal isOpen={showSecurityModal} onClose={() => setShowSecurityModal(false)} />
-
-      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
-        <h3 className="text-base font-semibold text-gray-800 mb-4">Системная информация</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <strong className="text-sm">Версия системы:</strong><br />
-            <span className="text-gray-600 text-sm">v2.1.3 (Стабильная)</span>
-          </div>
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <strong className="text-sm">Время работы:</strong><br />
-            <span className="text-gray-600 text-sm">47 дней, 12 часов</span>
-          </div>
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <strong className="text-sm">Последнее обновление:</strong><br />
-            <span className="text-gray-600 text-sm">28.12.2024 14:30</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
