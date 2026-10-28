@@ -1,7 +1,7 @@
 /** Подсказка записать вебинар в неудобное время (#48, npm test) */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_SCHEDULE_PREFS, recordingHint, recordingHints, wallClock, type HintEvent } from './recordingHints';
+import { DEFAULT_SCHEDULE_PREFS, recordingHint, recordingHints, soonWebinars, wallClock, type HintEvent } from './recordingHints';
 
 const TZ = 'Europe/Moscow'; // UTC+3 круглый год
 const now = Date.parse('2026-10-26T06:00:00Z'); // пн, 09:00 МСК
@@ -61,4 +61,19 @@ test('подсказки нет: прошедшее, без ссылки, уже
 test('список: подсказки только у неудобных вебинаров', () => {
   const list = [web('night', '2026-10-27T00:00:00Z'), web('ok', '2026-10-27T15:00:00Z')];
   assert.deepEqual([...recordingHints(list, prefs, TZ, now).keys()], ['night']);
+});
+
+test('напоминание перед вебинаром: ближайшие 2 часа, только то, что ещё можно записать', () => {
+  const list = [
+    web('later', '2026-10-26T08:30:00Z'), // через 2,5 ч — рано
+    web('in2h', '2026-10-26T08:00:00Z'), // ровно через 2 ч
+    web('in30', '2026-10-26T06:30:00Z'),
+    web('started', '2026-10-26T05:50:00Z'), // уже идёт
+    web('recorded', '2026-10-26T07:00:00Z', { recordingTaskId: 't1' }),
+    web('nolink', '2026-10-26T07:00:00Z', { joinUrl: null }),
+    web('cancelled', '2026-10-26T07:00:00Z', { status: 'cancelled' }),
+    { ...web('lesson', '2026-10-26T07:00:00Z'), type: 'lesson' },
+  ];
+  assert.deepEqual(soonWebinars(list, now).map((e) => e.id), ['in30', 'in2h']);
+  assert.deepEqual(soonWebinars(list, now, 60).map((e) => e.id), ['in30']);
 });
