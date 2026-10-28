@@ -9,6 +9,9 @@ import { useLang, setLang, onUserLangChange } from './i18n';
 import type { Messages } from './locales';
 import { isLang } from '@shared/languages';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
+import { ThemeSwitcher } from './components/ThemeSwitcher';
+import { onUserThemeChange, setTheme } from './theme';
+import { isTheme } from '@shared/themes';
 import { authService } from './services/authService';
 import { CoursesPage } from './components/courses/CoursesPage';
 import { DeadlinesPage } from './components/deadlines/DeadlinesPage';
@@ -78,6 +81,24 @@ function App() {
   useEffect(() => {
     if (currentUser && isLang(currentUser.language)) setLang(currentUser.language);
   }, [currentUser?.id, currentUser?.language]);
+
+  // Тема — из профиля ученика (переходит между устройствами); выбор в переключателе сохраняется в профиле
+  useEffect(() => {
+    if (!currentUser?.id || !localStorage.getItem('accessToken')) return;
+    authService.authenticatedFetch('/api/profile/theme')
+      .then(async (res) => {
+        if (!res.ok) return;
+        const { theme } = await res.json();
+        if (isTheme(theme)) setTheme(theme);
+      })
+      .catch(() => { /* остаётся тема браузера */ });
+  }, [currentUser?.id]);
+
+  useEffect(() => onUserThemeChange((theme) => {
+    if (!localStorage.getItem('accessToken')) return;
+    authService.authenticatedFetch('/api/profile/theme', { method: 'PUT', body: JSON.stringify({ theme }) })
+      .catch(() => { /* тема останется только в браузере */ });
+  }), []);
 
   useEffect(() => onUserLangChange((language) => {
     if (!localStorage.getItem('accessToken')) return;
@@ -345,6 +366,7 @@ function Sidebar({ user, isOpen, onToggle, onAdminClick, onLogout }: SidebarProp
           </button>
         )}
         {isOpen && <LanguageSwitcher className="mb-1 w-full" />}
+        {isOpen && <ThemeSwitcher className="mb-1 w-full" />}
         <button
           onClick={onLogout}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-left text-red-600 hover:bg-red-50 transition-colors mb-2`}
@@ -443,6 +465,7 @@ function MobileSidebarContent({ user, onAdminClick, onLogout }: MobileSidebarCon
           </button>
         )}
         <LanguageSwitcher className="mb-1 w-full min-h-11" />
+        <ThemeSwitcher className="mb-1 w-full min-h-11" />
         <button
           onClick={onLogout}
           className="flex items-center gap-3 px-3 py-3 rounded-lg w-full text-left text-red-600 hover:bg-red-50 transition-colors mb-2 min-h-11"

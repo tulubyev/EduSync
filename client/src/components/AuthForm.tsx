@@ -253,7 +253,8 @@ export function AuthForm({ onAuthSuccess, initialMode = 'login' }: any) {
   const countries = countryOptions(lang);
 
   return (
-    <div style={{ 
+    // форма на инлайн-стилях остаётся светлой и в тёмной теме (#45)
+    <div className="light-island" style={{ 
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       display: 'flex',

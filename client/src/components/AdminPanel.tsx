@@ -40,7 +40,7 @@ function AdminPanel({ user, onBack }: any) {
   const userRole = (user.adminRole || 'super_admin') as keyof typeof adminRoles;
 
   return (
-    <div className="p-3 sm:p-5 bg-gray-50 min-h-screen">
+    <div className="light-island p-3 sm:p-5 bg-gray-50 min-h-screen">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
         <div>
           <h1 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">📚 My EPA - Админ-панель</h1>
