@@ -15,7 +15,7 @@ const ru = {
   bannerText: 'Запланируйте запись — она пройдёт сама, а видео появится в «Записях».',
   settings: {
     title: 'Удобное время',
-    intro: 'По этим часам My EPA подсказывает, какие вебинары лучше записать.',
+    intro: 'По этим часам My EPA подсказывает, какие вебинары лучше записать, и составляет план недели в календаре.',
     comfort: 'Удобно заниматься',
     from: 'с',
     to: 'до',
@@ -45,7 +45,7 @@ const en: HintsMessages = {
   bannerText: 'Schedule a recording — it runs by itself and the video appears in “Recordings”.',
   settings: {
     title: 'Preferred time',
-    intro: 'My EPA uses these hours to suggest which webinars are better recorded.',
+    intro: 'My EPA uses these hours to suggest which webinars are better recorded and to build your weekly plan in the calendar.',
     comfort: 'I can study',
     from: 'from',
     to: 'to',
@@ -73,7 +73,7 @@ const fr: HintsMessages = {
   bannerText: 'Programmez l’enregistrement — il se fait tout seul et la vidéo apparaît dans « Enregistrements ».',
   settings: {
     title: 'Horaires préférés',
-    intro: 'My EPA s’appuie sur ces horaires pour suggérer les webinaires à enregistrer.',
+    intro: 'My EPA s’appuie sur ces horaires pour suggérer les webinaires à enregistrer et établir le plan de la semaine dans le calendrier.',
     comfort: 'Je peux étudier',
     from: 'de',
     to: 'à',
@@ -101,7 +101,7 @@ const de: HintsMessages = {
   bannerText: 'Planen Sie die Aufnahme — sie läuft von selbst, das Video erscheint unter „Aufnahmen“.',
   settings: {
     title: 'Bevorzugte Zeit',
-    intro: 'Anhand dieser Zeiten schlägt My EPA vor, welche Webinare Sie besser aufnehmen.',
+    intro: 'Anhand dieser Zeiten schlägt My EPA vor, welche Webinare Sie besser aufnehmen, und erstellt den Wochenplan im Kalender.',
     comfort: 'Ich kann lernen',
     from: 'von',
     to: 'bis',
@@ -129,7 +129,7 @@ const es: HintsMessages = {
   bannerText: 'Programa la grabación: se hace sola y el vídeo aparece en «Grabaciones».',
   settings: {
     title: 'Horario preferido',
-    intro: 'My EPA usa este horario para sugerir qué webinars conviene grabar.',
+    intro: 'My EPA usa este horario para sugerir qué webinars conviene grabar y para armar el plan de la semana en el calendario.',
     comfort: 'Puedo estudiar',
     from: 'de',
     to: 'a',
@@ -157,7 +157,7 @@ const it: HintsMessages = {
   bannerText: 'Programma la registrazione: parte da sola e il video compare in «Registrazioni».',
   settings: {
     title: 'Orario preferito',
-    intro: 'My EPA usa questi orari per suggerire quali webinar conviene registrare.',
+    intro: 'My EPA usa questi orari per suggerire quali webinar conviene registrare e per creare il piano della settimana nel calendario.',
     comfort: 'Posso studiare',
     from: 'dalle',
     to: 'alle',

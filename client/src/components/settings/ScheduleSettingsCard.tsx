@@ -7,7 +7,9 @@ import { Switch } from '@/components/ui/switch';
 import { DEFAULT_SCHEDULE_PREFS, type SchedulePrefs } from '@shared/recordingHints';
 import { authService } from '@/services/authService';
 import { useLang } from '@/i18n';
+import { DAY_PERIODS, isDayPeriod } from '@shared/weekPlan';
 import { setSchedulePrefs, useSchedulePrefs } from '../events/useRecordingHints';
+import { weekdaysShort } from '../events/eventTime';
 
 const toInput = (min: number) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 /** «22:00» → 1320; «00:00» в поле «до» — конец дня (1440) */
@@ -18,10 +20,14 @@ const fromInput = (v: string, end = false) => {
 };
 
 const WORK_DEFAULT = { workFrom: 9 * 60, workTo: 18 * 60 };
+/** Варианты времени на учёбу в день (#20), минуты */
+const STUDY_MINUTES = [0, 30, 45, 60, 90, 120, 180, 240, 300, 360];
 
 /** Удобные и рабочие часы и подсказки записать вебинар в неудобное время (#48) */
 export function ScheduleSettingsCard() {
-  const t = useLang().m.hints.settings;
+  const { m, lang } = useLang();
+  const t = m.hints.settings;
+  const p = m.plan.settings;
   const loaded = useSchedulePrefs();
   const [form, setForm] = useState<SchedulePrefs>(DEFAULT_SCHEDULE_PREFS);
   const [busy, setBusy] = useState(false);
@@ -84,6 +90,50 @@ export function ScheduleSettingsCard() {
             {t.work}
           </label>
           {work && range(form.workFrom!, form.workTo!, (workFrom, workTo) => set({ workFrom, workTo }), 'work')}
+        </div>
+        <div className="space-y-3 rounded-lg border p-3">
+          <p className="text-sm font-semibold">{p.title}</p>
+          <label className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium">{p.minutes}</span>
+            <select
+              className="rounded-md border border-gray-300 bg-white px-2 py-1"
+              value={form.studyMinutes}
+              onChange={(e) => set({ studyMinutes: Number(e.target.value) })}
+            >
+              {STUDY_MINUTES.map((n) => <option key={n} value={n}>{m.plan.duration(n)}</option>)}
+            </select>
+          </label>
+          <div className="space-y-1">
+            <p className="text-sm font-medium">{p.days}</p>
+            <div className="flex flex-wrap gap-1" role="group" aria-label={p.days}>
+              {weekdaysShort(lang).map((name, i) => {
+                const wd = i + 1;
+                const on = form.studyDays.includes(wd);
+                return (
+                  <button
+                    key={wd}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => set({ studyDays: on ? form.studyDays.filter((d) => d !== wd) : [...form.studyDays, wd].sort() })}
+                    className={`min-h-9 min-w-10 rounded-md border px-2 text-sm ${on ? 'border-purple-600 bg-purple-600 text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+                  >
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <label className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium">{p.preferred}</span>
+            <select
+              className="rounded-md border border-gray-300 bg-white px-2 py-1"
+              value={form.preferredStudyTime ?? ''}
+              onChange={(e) => set({ preferredStudyTime: isDayPeriod(e.target.value) ? e.target.value : null })}
+            >
+              <option value="">{p.any}</option>
+              {DAY_PERIODS.map((d) => <option key={d} value={d}>{p[d]}</option>)}
+            </select>
+          </label>
         </div>
         <label className="flex items-center justify-between gap-4 rounded-lg border bg-gray-50 p-3">
           <span className="text-sm font-medium">{t.hints}</span>

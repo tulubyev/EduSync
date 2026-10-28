@@ -21,13 +21,19 @@ import { tzOptionLabel } from './tzLabels';
 import { CalendarFeedDialog } from './CalendarFeedDialog';
 import { useRecordingHints } from './useRecordingHints';
 import { WeekGrid } from './WeekGrid';
+import { PlanView } from './PlanView';
 import { EventLegend, useHiddenTypes } from './EventLegend';
 
-type View = 'week' | 'month';
+type View = 'week' | 'month' | 'plan';
 const VIEW_KEY = 'calendar.view';
 
 function readView(): View {
-  try { return localStorage.getItem(VIEW_KEY) === 'month' ? 'month' : 'week'; } catch { return 'week'; }
+  try {
+    const saved = localStorage.getItem(VIEW_KEY);
+    return saved === 'month' || saved === 'plan' ? saved : 'week';
+  } catch {
+    return 'week';
+  }
 }
 
 /** Календарь ученика «Неделя / Месяц»: уроки, вебинары, задания, экзамены и дедлайны всех курсов (#17) */
@@ -54,7 +60,7 @@ export function CalendarPage() {
     try { localStorage.setItem(VIEW_KEY, v); } catch { /* приватный режим */ }
   };
 
-  const days = useMemo(() => (view === 'week' ? weekKeys(anchor) : monthGridKeys(anchor)), [view, anchor]);
+  const days = useMemo(() => (view === 'month' ? monthGridKeys(anchor) : weekKeys(anchor)), [view, anchor]);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,7 +110,7 @@ export function CalendarPage() {
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5" role="tablist">
-            {(['week', 'month'] as View[]).map((v) => (
+            {(['week', 'month', 'plan'] as View[]).map((v) => (
               <button
                 key={v}
                 type="button"
@@ -113,7 +119,7 @@ export function CalendarPage() {
                 onClick={() => setView(v)}
                 className={`rounded-md px-3 py-1.5 text-sm ${view === v ? 'bg-purple-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
               >
-                {v === 'week' ? c.week : c.month}
+                {v === 'week' ? c.week : v === 'month' ? c.month : m.plan.tab}
               </button>
             ))}
           </div>
@@ -133,10 +139,16 @@ export function CalendarPage() {
         <QuickAddEvent timeZone={timeZone} onAdded={reload} onOpenForm={openNew} />
       </div>
 
-      <div className="mb-3">
-        <EventLegend hidden={hiddenTypes} onChange={setHiddenTypes} />
-      </div>
+      {view !== 'plan' && (
+        <div className="mb-3">
+          <EventLegend hidden={hiddenTypes} onChange={setHiddenTypes} />
+        </div>
+      )}
 
+      {view === 'plan' ? (
+        <PlanView timeZone={timeZone} onOpen={setOpened} />
+      ) : (
+      <>
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" onClick={() => step(-1)} aria-label={m.common.back}><ChevronLeft className="h-4 w-4" /></Button>
@@ -210,6 +222,8 @@ export function CalendarPage() {
               : <div className="grid gap-2">{(byDay.get(selected) ?? []).map(card)}</div>}
           </section>
         </>
+      )}
+      </>
       )}
       {dialogs}
       <Dialog open={!!opened} onOpenChange={(v) => !v && setOpened(null)}>
