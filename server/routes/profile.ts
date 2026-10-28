@@ -8,6 +8,7 @@ import { promises as fs } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config/environment';
 import { isLang } from '@shared/languages';
+import { DEFAULT_THEME, isTheme } from '@shared/themes';
 import { collectUserData } from '../services/dataExport';
 import { buildExportEntries } from '../services/dataExportFiles';
 import { buildZip } from '../services/zip';
@@ -136,6 +137,32 @@ router.put('/language', authenticateToken as any, async (req: AuthRequest, res: 
   } catch (error) {
     logger.error('Error updating language:', error);
     res.status(500).json({ message: 'Ошибка сохранения языка' });
+  }
+});
+
+// Тема оформления (#45): хранится в user_settings.theme, чтобы выбор переходил между устройствами
+router.get('/theme', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const [row] = await db.select({ theme: userSettings.theme }).from(userSettings).where(eq(userSettings.userId, req.user!.id));
+    res.json({ theme: isTheme(row?.theme) ? row.theme : DEFAULT_THEME });
+  } catch (error) {
+    logger.error('Theme load error', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ message: 'Не удалось загрузить тему' });
+  }
+});
+
+router.put('/theme', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  const { theme } = req.body ?? {};
+  if (!isTheme(theme)) return res.status(400).json({ message: 'Неизвестная тема' });
+  try {
+    await db
+      .insert(userSettings)
+      .values({ userId: req.user!.id, theme })
+      .onConflictDoUpdate({ target: userSettings.userId, set: { theme, updatedAt: new Date() } });
+    res.json({ theme });
+  } catch (error) {
+    logger.error('Theme save error', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ message: 'Не удалось сохранить тему' });
   }
 });
 
