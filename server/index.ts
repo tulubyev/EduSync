@@ -10,6 +10,7 @@ import { recordingTaskManager, pollerController } from "./services/recording";
 import { executorModeService } from "./services/recording/executorModeService";
 import { registerHelpRecorderWebhook } from "./routes/helpRecorderWebhook";
 import { hrEnabled, syncDueHrTasks } from "./services/helpRecorder";
+import { runReminders } from "./services/reminders/reminderJob";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
@@ -191,6 +192,12 @@ app.use((req, res, next) => {
     setInterval(runRecordingWatchdog, 2 * 60 * 1000); // every 2 minutes
     runRecordingWatchdog(); // run immediately on start
     logger.info('Recording watchdog started (runs every 2 min, stale threshold: 12 min)');
+
+    // Напоминания о занятиях и сроках по почте (#18, docs/REMINDERS.md) — раз в минуту
+    const runReminderJob = () => runReminders().catch((err) => logger.error('Error in reminders job:', err));
+    setInterval(runReminderJob, 60 * 1000);
+    runReminderJob();
+    logger.info('Reminders job started (runs every 60s)');
 
     // Записи через Help Recorder — статусы идущих записей и склеек раз в 30 с (итог приходит и вебхуком)
     if (hrEnabled()) {

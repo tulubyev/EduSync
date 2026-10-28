@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config/environment';
 import { isLang } from '@shared/languages';
 import { DEFAULT_THEME, isTheme } from '@shared/themes';
+import { ADVANCE_HOURS, DEFAULT_ADVANCE_HOURS } from '@shared/reminders';
 import { collectUserData } from '../services/dataExport';
 import { buildExportEntries } from '../services/dataExportFiles';
 import { buildZip } from '../services/zip';
@@ -164,6 +165,41 @@ router.put('/language', authenticateToken as any, async (req: AuthRequest, res: 
   } catch (error) {
     logger.error('Error updating language:', error);
     res.status(500).json({ message: 'Ошибка сохранения языка' });
+  }
+});
+
+// Напоминания о занятиях и сроках по почте (#18): user_settings.deadline_reminders и reminder_advance (часы)
+router.get('/reminders', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const [row] = await db
+      .select({ enabled: userSettings.deadlineReminders, advance: userSettings.reminderAdvance })
+      .from(userSettings)
+      .where(eq(userSettings.userId, req.user!.id));
+    res.json({ enabled: row?.enabled !== false, advanceHours: row?.advance ?? DEFAULT_ADVANCE_HOURS });
+  } catch (error) {
+    logger.error('Reminders settings load error', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ message: 'Не удалось загрузить настройки напоминаний' });
+  }
+});
+
+const remindersSchema = z.object({
+  enabled: z.boolean(),
+  advanceHours: z.number().int().refine((h) => (ADVANCE_HOURS as readonly number[]).includes(h), { message: 'Неверное время напоминания' }),
+});
+
+router.put('/reminders', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  const parsed = remindersSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || 'Неверные настройки напоминаний' });
+  const columns = { deadlineReminders: parsed.data.enabled, reminderAdvance: parsed.data.advanceHours };
+  try {
+    await db
+      .insert(userSettings)
+      .values({ userId: req.user!.id, ...columns })
+      .onConflictDoUpdate({ target: userSettings.userId, set: { ...columns, updatedAt: new Date() } });
+    res.json(parsed.data);
+  } catch (error) {
+    logger.error('Reminders settings save error', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ message: 'Не удалось сохранить настройки напоминаний' });
   }
 });
 
