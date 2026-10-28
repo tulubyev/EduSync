@@ -8,6 +8,7 @@ import { StepikConnectionPage } from './StepikConnectionPage';
 import { NotificationSettingsCard } from './NotificationSettingsCard';
 import { DataExportCard } from './DataExportCard';
 import { ScheduleSettingsCard } from './ScheduleSettingsCard';
+import { ThemeSettingsCard } from './ThemeSettingsCard';
 import { isValidInternationalPhone, normalizePhone } from '../../utils/phoneUtils';
 import { useLang } from '@/i18n';
 
@@ -417,6 +418,8 @@ export function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+
+          <ThemeSettingsCard />
 
           <NotificationSettingsCard />
 

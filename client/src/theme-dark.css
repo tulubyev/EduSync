@@ -1,0 +1,731 @@
+/* Создано scripts/gen-dark-theme-css.cjs — не править руками (#45) */
+.dark .bg-white:where(:not(.light-island, .light-island *)),
+.dark .bg-gray-50:where(:not(.light-island, .light-island *)),
+.dark .bg-slate-50:where(:not(.light-island, .light-island *)) {
+  background-color: var(--card);
+}
+.dark .bg-gray-100:where(:not(.light-island, .light-island *)),
+.dark .bg-slate-100:where(:not(.light-island, .light-island *)) {
+  background-color: var(--muted);
+}
+.dark .bg-gray-200:where(:not(.light-island, .light-island *)),
+.dark .bg-slate-200:where(:not(.light-island, .light-island *)) {
+  background-color: hsl(210, 30%, 22%);
+}
+.dark .hover\:bg-white:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-gray-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-gray-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: hsl(210, 35%, 17%);
+}
+.dark .hover\:bg-gray-200:hover:where(:not(.light-island, .light-island *)) {
+  background-color: hsl(210, 30%, 24%);
+}
+.dark .text-gray-900:where(:not(.light-island, .light-island *)),
+.dark .text-gray-800:where(:not(.light-island, .light-island *)),
+.dark .text-black:where(:not(.light-island, .light-island *)),
+.dark .text-slate-900:where(:not(.light-island, .light-island *)),
+.dark .text-slate-800:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-gray-900:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-gray-800:hover:where(:not(.light-island, .light-island *)) {
+  color: var(--foreground);
+}
+.dark .text-gray-700:where(:not(.light-island, .light-island *)),
+.dark .text-slate-700:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-gray-700:hover:where(:not(.light-island, .light-island *)) {
+  color: hsl(210, 25%, 82%);
+}
+.dark .text-gray-600:where(:not(.light-island, .light-island *)),
+.dark .text-slate-600:where(:not(.light-island, .light-island *)) {
+  color: hsl(210, 18%, 70%);
+}
+.dark .text-gray-500:where(:not(.light-island, .light-island *)),
+.dark .text-slate-500:where(:not(.light-island, .light-island *)) {
+  color: hsl(210, 14%, 60%);
+}
+.dark .text-gray-400:where(:not(.light-island, .light-island *)),
+.dark .text-slate-400:where(:not(.light-island, .light-island *)) {
+  color: hsl(210, 12%, 50%);
+}
+.dark .border-gray-100:where(:not(.light-island, .light-island *)),
+.dark .border-slate-100:where(:not(.light-island, .light-island *)),
+.dark .divide-gray-100 > * + *:where(:not(.light-island, .light-island *)),
+.dark .border-gray-200:where(:not(.light-island, .light-island *)),
+.dark .border-slate-200:where(:not(.light-island, .light-island *)),
+.dark .divide-gray-200 > * + *:where(:not(.light-island, .light-island *)),
+.dark .border-gray-300:where(:not(.light-island, .light-island *)),
+.dark .border-slate-300:where(:not(.light-island, .light-island *)),
+.dark .divide-gray-300 > * + *:where(:not(.light-island, .light-island *)) {
+  border-color: var(--border);
+}
+.dark .from-gray-50:where(:not(.light-island, .light-island *)),
+.dark .from-white:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: var(--card) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-gray-100:where(:not(.light-island, .light-island *)),
+.dark .to-white:where(:not(.light-island, .light-island *)),
+.dark .to-gray-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: var(--muted) var(--tw-gradient-to-position);
+}
+.dark .bg-red-50:where(:not(.light-island, .light-island *)),
+.dark .bg-red-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-red-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(239 68 68 / 0.12);
+}
+.dark .bg-red-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(239 68 68 / 0.2);
+}
+.dark .bg-red-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(239 68 68 / 0.3);
+}
+.dark .hover\:bg-red-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-red-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(239 68 68 / 0.25);
+}
+.dark .from-red-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(239 68 68 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-red-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(239 68 68 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-red-700:where(:not(.light-island, .light-island *)),
+.dark .text-red-800:where(:not(.light-island, .light-island *)),
+.dark .text-red-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-red-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-red-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #fca5a5;
+}
+.dark .text-red-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-red-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #f87171;
+}
+.dark .border-red-100:where(:not(.light-island, .light-island *)),
+.dark .border-red-200:where(:not(.light-island, .light-island *)),
+.dark .border-red-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-red-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-red-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(239 68 68 / 0.35);
+}
+.dark .bg-orange-50:where(:not(.light-island, .light-island *)),
+.dark .bg-orange-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-orange-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(249 115 22 / 0.12);
+}
+.dark .bg-orange-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(249 115 22 / 0.2);
+}
+.dark .bg-orange-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(249 115 22 / 0.3);
+}
+.dark .hover\:bg-orange-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-orange-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(249 115 22 / 0.25);
+}
+.dark .from-orange-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(249 115 22 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-orange-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(249 115 22 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-orange-700:where(:not(.light-island, .light-island *)),
+.dark .text-orange-800:where(:not(.light-island, .light-island *)),
+.dark .text-orange-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-orange-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-orange-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #fdba74;
+}
+.dark .text-orange-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-orange-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #fb923c;
+}
+.dark .border-orange-100:where(:not(.light-island, .light-island *)),
+.dark .border-orange-200:where(:not(.light-island, .light-island *)),
+.dark .border-orange-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-orange-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-orange-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(249 115 22 / 0.35);
+}
+.dark .bg-amber-50:where(:not(.light-island, .light-island *)),
+.dark .bg-amber-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-amber-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(245 158 11 / 0.12);
+}
+.dark .bg-amber-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(245 158 11 / 0.2);
+}
+.dark .bg-amber-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(245 158 11 / 0.3);
+}
+.dark .hover\:bg-amber-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-amber-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(245 158 11 / 0.25);
+}
+.dark .from-amber-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(245 158 11 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-amber-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(245 158 11 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-amber-700:where(:not(.light-island, .light-island *)),
+.dark .text-amber-800:where(:not(.light-island, .light-island *)),
+.dark .text-amber-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-amber-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-amber-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #fcd34d;
+}
+.dark .text-amber-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-amber-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #fbbf24;
+}
+.dark .border-amber-100:where(:not(.light-island, .light-island *)),
+.dark .border-amber-200:where(:not(.light-island, .light-island *)),
+.dark .border-amber-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-amber-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-amber-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(245 158 11 / 0.35);
+}
+.dark .bg-yellow-50:where(:not(.light-island, .light-island *)),
+.dark .bg-yellow-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-yellow-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(234 179 8 / 0.12);
+}
+.dark .bg-yellow-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(234 179 8 / 0.2);
+}
+.dark .bg-yellow-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(234 179 8 / 0.3);
+}
+.dark .hover\:bg-yellow-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-yellow-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(234 179 8 / 0.25);
+}
+.dark .from-yellow-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(234 179 8 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-yellow-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(234 179 8 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-yellow-700:where(:not(.light-island, .light-island *)),
+.dark .text-yellow-800:where(:not(.light-island, .light-island *)),
+.dark .text-yellow-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-yellow-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-yellow-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #fde047;
+}
+.dark .text-yellow-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-yellow-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #facc15;
+}
+.dark .border-yellow-100:where(:not(.light-island, .light-island *)),
+.dark .border-yellow-200:where(:not(.light-island, .light-island *)),
+.dark .border-yellow-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-yellow-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-yellow-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(234 179 8 / 0.35);
+}
+.dark .bg-lime-50:where(:not(.light-island, .light-island *)),
+.dark .bg-lime-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-lime-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(132 204 22 / 0.12);
+}
+.dark .bg-lime-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(132 204 22 / 0.2);
+}
+.dark .bg-lime-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(132 204 22 / 0.3);
+}
+.dark .hover\:bg-lime-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-lime-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(132 204 22 / 0.25);
+}
+.dark .from-lime-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(132 204 22 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-lime-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(132 204 22 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-lime-700:where(:not(.light-island, .light-island *)),
+.dark .text-lime-800:where(:not(.light-island, .light-island *)),
+.dark .text-lime-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-lime-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-lime-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #bef264;
+}
+.dark .text-lime-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-lime-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #a3e635;
+}
+.dark .border-lime-100:where(:not(.light-island, .light-island *)),
+.dark .border-lime-200:where(:not(.light-island, .light-island *)),
+.dark .border-lime-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-lime-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-lime-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(132 204 22 / 0.35);
+}
+.dark .bg-green-50:where(:not(.light-island, .light-island *)),
+.dark .bg-green-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-green-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(34 197 94 / 0.12);
+}
+.dark .bg-green-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(34 197 94 / 0.2);
+}
+.dark .bg-green-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(34 197 94 / 0.3);
+}
+.dark .hover\:bg-green-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-green-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(34 197 94 / 0.25);
+}
+.dark .from-green-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(34 197 94 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-green-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(34 197 94 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-green-700:where(:not(.light-island, .light-island *)),
+.dark .text-green-800:where(:not(.light-island, .light-island *)),
+.dark .text-green-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-green-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-green-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #86efac;
+}
+.dark .text-green-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-green-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #4ade80;
+}
+.dark .border-green-100:where(:not(.light-island, .light-island *)),
+.dark .border-green-200:where(:not(.light-island, .light-island *)),
+.dark .border-green-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-green-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-green-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(34 197 94 / 0.35);
+}
+.dark .bg-emerald-50:where(:not(.light-island, .light-island *)),
+.dark .bg-emerald-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-emerald-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(16 185 129 / 0.12);
+}
+.dark .bg-emerald-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(16 185 129 / 0.2);
+}
+.dark .bg-emerald-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(16 185 129 / 0.3);
+}
+.dark .hover\:bg-emerald-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-emerald-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(16 185 129 / 0.25);
+}
+.dark .from-emerald-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(16 185 129 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-emerald-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(16 185 129 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-emerald-700:where(:not(.light-island, .light-island *)),
+.dark .text-emerald-800:where(:not(.light-island, .light-island *)),
+.dark .text-emerald-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-emerald-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-emerald-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #6ee7b7;
+}
+.dark .text-emerald-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-emerald-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #34d399;
+}
+.dark .border-emerald-100:where(:not(.light-island, .light-island *)),
+.dark .border-emerald-200:where(:not(.light-island, .light-island *)),
+.dark .border-emerald-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-emerald-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-emerald-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(16 185 129 / 0.35);
+}
+.dark .bg-teal-50:where(:not(.light-island, .light-island *)),
+.dark .bg-teal-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-teal-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(20 184 166 / 0.12);
+}
+.dark .bg-teal-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(20 184 166 / 0.2);
+}
+.dark .bg-teal-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(20 184 166 / 0.3);
+}
+.dark .hover\:bg-teal-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-teal-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(20 184 166 / 0.25);
+}
+.dark .from-teal-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(20 184 166 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-teal-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(20 184 166 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-teal-700:where(:not(.light-island, .light-island *)),
+.dark .text-teal-800:where(:not(.light-island, .light-island *)),
+.dark .text-teal-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-teal-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-teal-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #5eead4;
+}
+.dark .text-teal-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-teal-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #2dd4bf;
+}
+.dark .border-teal-100:where(:not(.light-island, .light-island *)),
+.dark .border-teal-200:where(:not(.light-island, .light-island *)),
+.dark .border-teal-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-teal-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-teal-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(20 184 166 / 0.35);
+}
+.dark .bg-cyan-50:where(:not(.light-island, .light-island *)),
+.dark .bg-cyan-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-cyan-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(6 182 212 / 0.12);
+}
+.dark .bg-cyan-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(6 182 212 / 0.2);
+}
+.dark .bg-cyan-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(6 182 212 / 0.3);
+}
+.dark .hover\:bg-cyan-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-cyan-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(6 182 212 / 0.25);
+}
+.dark .from-cyan-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(6 182 212 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-cyan-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(6 182 212 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-cyan-700:where(:not(.light-island, .light-island *)),
+.dark .text-cyan-800:where(:not(.light-island, .light-island *)),
+.dark .text-cyan-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-cyan-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-cyan-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #67e8f9;
+}
+.dark .text-cyan-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-cyan-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #22d3ee;
+}
+.dark .border-cyan-100:where(:not(.light-island, .light-island *)),
+.dark .border-cyan-200:where(:not(.light-island, .light-island *)),
+.dark .border-cyan-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-cyan-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-cyan-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(6 182 212 / 0.35);
+}
+.dark .bg-sky-50:where(:not(.light-island, .light-island *)),
+.dark .bg-sky-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-sky-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(14 165 233 / 0.12);
+}
+.dark .bg-sky-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(14 165 233 / 0.2);
+}
+.dark .bg-sky-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(14 165 233 / 0.3);
+}
+.dark .hover\:bg-sky-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-sky-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(14 165 233 / 0.25);
+}
+.dark .from-sky-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(14 165 233 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-sky-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(14 165 233 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-sky-700:where(:not(.light-island, .light-island *)),
+.dark .text-sky-800:where(:not(.light-island, .light-island *)),
+.dark .text-sky-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-sky-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-sky-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #7dd3fc;
+}
+.dark .text-sky-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-sky-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #38bdf8;
+}
+.dark .border-sky-100:where(:not(.light-island, .light-island *)),
+.dark .border-sky-200:where(:not(.light-island, .light-island *)),
+.dark .border-sky-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-sky-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-sky-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(14 165 233 / 0.35);
+}
+.dark .bg-blue-50:where(:not(.light-island, .light-island *)),
+.dark .bg-blue-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-blue-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(59 130 246 / 0.12);
+}
+.dark .bg-blue-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(59 130 246 / 0.2);
+}
+.dark .bg-blue-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(59 130 246 / 0.3);
+}
+.dark .hover\:bg-blue-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-blue-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(59 130 246 / 0.25);
+}
+.dark .from-blue-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(59 130 246 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-blue-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(59 130 246 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-blue-700:where(:not(.light-island, .light-island *)),
+.dark .text-blue-800:where(:not(.light-island, .light-island *)),
+.dark .text-blue-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-blue-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-blue-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #93c5fd;
+}
+.dark .text-blue-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-blue-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #60a5fa;
+}
+.dark .border-blue-100:where(:not(.light-island, .light-island *)),
+.dark .border-blue-200:where(:not(.light-island, .light-island *)),
+.dark .border-blue-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-blue-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-blue-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(59 130 246 / 0.35);
+}
+.dark .bg-indigo-50:where(:not(.light-island, .light-island *)),
+.dark .bg-indigo-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-indigo-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(99 102 241 / 0.12);
+}
+.dark .bg-indigo-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(99 102 241 / 0.2);
+}
+.dark .bg-indigo-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(99 102 241 / 0.3);
+}
+.dark .hover\:bg-indigo-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-indigo-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(99 102 241 / 0.25);
+}
+.dark .from-indigo-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(99 102 241 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-indigo-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(99 102 241 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-indigo-700:where(:not(.light-island, .light-island *)),
+.dark .text-indigo-800:where(:not(.light-island, .light-island *)),
+.dark .text-indigo-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-indigo-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-indigo-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #a5b4fc;
+}
+.dark .text-indigo-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-indigo-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #818cf8;
+}
+.dark .border-indigo-100:where(:not(.light-island, .light-island *)),
+.dark .border-indigo-200:where(:not(.light-island, .light-island *)),
+.dark .border-indigo-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-indigo-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-indigo-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(99 102 241 / 0.35);
+}
+.dark .bg-violet-50:where(:not(.light-island, .light-island *)),
+.dark .bg-violet-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-violet-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(139 92 246 / 0.12);
+}
+.dark .bg-violet-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(139 92 246 / 0.2);
+}
+.dark .bg-violet-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(139 92 246 / 0.3);
+}
+.dark .hover\:bg-violet-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-violet-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(139 92 246 / 0.25);
+}
+.dark .from-violet-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(139 92 246 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-violet-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(139 92 246 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-violet-700:where(:not(.light-island, .light-island *)),
+.dark .text-violet-800:where(:not(.light-island, .light-island *)),
+.dark .text-violet-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-violet-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-violet-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #c4b5fd;
+}
+.dark .text-violet-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-violet-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #a78bfa;
+}
+.dark .border-violet-100:where(:not(.light-island, .light-island *)),
+.dark .border-violet-200:where(:not(.light-island, .light-island *)),
+.dark .border-violet-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-violet-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-violet-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(139 92 246 / 0.35);
+}
+.dark .bg-purple-50:where(:not(.light-island, .light-island *)),
+.dark .bg-purple-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-purple-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(168 85 247 / 0.12);
+}
+.dark .bg-purple-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(168 85 247 / 0.2);
+}
+.dark .bg-purple-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(168 85 247 / 0.3);
+}
+.dark .hover\:bg-purple-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-purple-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(168 85 247 / 0.25);
+}
+.dark .from-purple-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(168 85 247 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-purple-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(168 85 247 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-purple-700:where(:not(.light-island, .light-island *)),
+.dark .text-purple-800:where(:not(.light-island, .light-island *)),
+.dark .text-purple-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-purple-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-purple-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #d8b4fe;
+}
+.dark .text-purple-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-purple-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #c084fc;
+}
+.dark .border-purple-100:where(:not(.light-island, .light-island *)),
+.dark .border-purple-200:where(:not(.light-island, .light-island *)),
+.dark .border-purple-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-purple-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-purple-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(168 85 247 / 0.35);
+}
+.dark .bg-fuchsia-50:where(:not(.light-island, .light-island *)),
+.dark .bg-fuchsia-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-fuchsia-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(217 70 239 / 0.12);
+}
+.dark .bg-fuchsia-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(217 70 239 / 0.2);
+}
+.dark .bg-fuchsia-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(217 70 239 / 0.3);
+}
+.dark .hover\:bg-fuchsia-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-fuchsia-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(217 70 239 / 0.25);
+}
+.dark .from-fuchsia-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(217 70 239 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-fuchsia-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(217 70 239 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-fuchsia-700:where(:not(.light-island, .light-island *)),
+.dark .text-fuchsia-800:where(:not(.light-island, .light-island *)),
+.dark .text-fuchsia-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-fuchsia-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-fuchsia-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #f0abfc;
+}
+.dark .text-fuchsia-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-fuchsia-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #e879f9;
+}
+.dark .border-fuchsia-100:where(:not(.light-island, .light-island *)),
+.dark .border-fuchsia-200:where(:not(.light-island, .light-island *)),
+.dark .border-fuchsia-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-fuchsia-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-fuchsia-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(217 70 239 / 0.35);
+}
+.dark .bg-pink-50:where(:not(.light-island, .light-island *)),
+.dark .bg-pink-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-pink-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(236 72 153 / 0.12);
+}
+.dark .bg-pink-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(236 72 153 / 0.2);
+}
+.dark .bg-pink-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(236 72 153 / 0.3);
+}
+.dark .hover\:bg-pink-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-pink-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(236 72 153 / 0.25);
+}
+.dark .from-pink-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(236 72 153 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-pink-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(236 72 153 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-pink-700:where(:not(.light-island, .light-island *)),
+.dark .text-pink-800:where(:not(.light-island, .light-island *)),
+.dark .text-pink-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-pink-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-pink-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #f9a8d4;
+}
+.dark .text-pink-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-pink-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #f472b6;
+}
+.dark .border-pink-100:where(:not(.light-island, .light-island *)),
+.dark .border-pink-200:where(:not(.light-island, .light-island *)),
+.dark .border-pink-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-pink-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-pink-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(236 72 153 / 0.35);
+}
+.dark .bg-rose-50:where(:not(.light-island, .light-island *)),
+.dark .bg-rose-50\/50:where(:not(.light-island, .light-island *)),
+.dark .bg-rose-50\/30:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(244 63 94 / 0.12);
+}
+.dark .bg-rose-100:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(244 63 94 / 0.2);
+}
+.dark .bg-rose-200:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(244 63 94 / 0.3);
+}
+.dark .hover\:bg-rose-50:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:bg-rose-100:hover:where(:not(.light-island, .light-island *)) {
+  background-color: rgb(244 63 94 / 0.25);
+}
+.dark .from-rose-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-from: rgb(244 63 94 / 0.12) var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark .to-rose-50:where(:not(.light-island, .light-island *)) {
+  --tw-gradient-to: rgb(244 63 94 / 0.12) var(--tw-gradient-to-position);
+}
+.dark .text-rose-700:where(:not(.light-island, .light-island *)),
+.dark .text-rose-800:where(:not(.light-island, .light-island *)),
+.dark .text-rose-900:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-rose-700:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-rose-800:hover:where(:not(.light-island, .light-island *)) {
+  color: #fda4af;
+}
+.dark .text-rose-600:where(:not(.light-island, .light-island *)),
+.dark .hover\:text-rose-600:hover:where(:not(.light-island, .light-island *)) {
+  color: #fb7185;
+}
+.dark .border-rose-100:where(:not(.light-island, .light-island *)),
+.dark .border-rose-200:where(:not(.light-island, .light-island *)),
+.dark .border-rose-300:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-rose-200:hover:where(:not(.light-island, .light-island *)),
+.dark .hover\:border-rose-300:hover:where(:not(.light-island, .light-island *)) {
+  border-color: rgb(244 63 94 / 0.35);
+}

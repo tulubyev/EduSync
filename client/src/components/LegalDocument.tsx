@@ -50,11 +50,11 @@ export function LegalDocument({ doc }: { doc: LegalDocName }) {
       {!translated && <p><em>{m.site.legal.englishOnly}</em></p>}
       <style>{`
         .legal-doc table { width: 100%; border-collapse: collapse; margin: 0 0 24px; font-size: 14px; }
-        .legal-doc th, .legal-doc td { border: 1px solid #e0e0e0; padding: 8px 10px; text-align: left; vertical-align: top; }
-        .legal-doc th { background: #f1f3f5; }
-        .legal-doc p, .legal-doc li { line-height: 1.6; color: #444; }
+        .legal-doc th, .legal-doc td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+        .legal-doc th { background: var(--muted); }
+        .legal-doc p, .legal-doc li { line-height: 1.6; color: var(--card-foreground); }
         .legal-doc ul, .legal-doc ol { padding-left: 24px; margin: 0 0 16px; }
-        .legal-doc code { background: #f1f3f5; padding: 1px 4px; border-radius: 4px; }
+        .legal-doc code { background: var(--muted); padding: 1px 4px; border-radius: 4px; }
         .legal-doc .legal-table-wrap { overflow-x: auto; }
       `}</style>
       {/* Текст из файлов репозитория (docs/legal), не из пользовательского ввода */}

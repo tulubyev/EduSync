@@ -121,12 +121,12 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)' }}>
       {/* Header */}
       <header style={{
-        backgroundColor: 'white',
+        backgroundColor: 'var(--card)',
         padding: '15px 40px',
-        borderBottom: '1px solid #e0e0e0',
+        borderBottom: '1px solid var(--border)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -172,12 +172,12 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
           h1 {
             font-size: 32px;
             font-weight: 700;
-            color: #1a1a1a;
+            color: var(--foreground);
             margin: 0 0 12px 0;
           }
           .subtitle {
             font-size: 18px;
-            color: #666;
+            color: var(--muted-foreground);
             margin: 0 0 40px 0;
           }
           section {
@@ -186,7 +186,7 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
           h2 {
             font-size: 20px;
             font-weight: 600;
-            color: #333;
+            color: var(--foreground);
             margin: 0 0 16px 0;
             padding-bottom: 8px;
             border-bottom: 2px solid #667eea;
@@ -200,11 +200,11 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
           li {
             margin-bottom: 10px;
             line-height: 1.6;
-            color: #444;
+            color: var(--card-foreground);
           }
           p {
             line-height: 1.7;
-            color: #444;
+            color: var(--card-foreground);
             margin: 0 0 16px 0;
           }
           .platforms-grid {
@@ -214,13 +214,13 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
             margin-top: 16px;
           }
           .platform-card {
-            background: white;
-            border: 1px solid #e0e0e0;
+            background: var(--card);
+            border: 1px solid var(--border);
             border-radius: 8px;
             padding: 16px;
             text-align: center;
             font-weight: 500;
-            color: #333;
+            color: var(--foreground);
           }
           .code-block {
             background: #1a1a1a;
@@ -245,9 +245,9 @@ export function FooterPage({ page, onBack }: FooterPageProps) {
             align-items: center;
             gap: 12px;
             padding: 16px;
-            background: white;
+            background: var(--card);
             border-radius: 8px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--border);
           }
           .status-item.operational .status-indicator {
             width: 12px;
