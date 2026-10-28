@@ -15,7 +15,7 @@ const noteSchema = z.object({
   resourceUrl: z.string().refine(
     (url) => !url || url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:'),
     "URL должен начинаться с http://, https:// или быть base64 данными"
-  ).optional(),
+  ).nullable().optional(), // null — материал без ссылки и файла
   platformId: z.string().uuid().nullable().optional(),
   courseId: z.string().uuid().nullable().optional(),
   lessonNumber: z.number().int().positive().optional(),
@@ -156,6 +156,13 @@ router.put('/:id', authenticateToken as any, async (req: AuthRequest, res: Respo
         message: 'Ошибка валидации',
         errors: validation.error.errors 
       });
+    }
+    
+    if (validation.data.courseId) {
+      const course = await storage.getCourse(validation.data.courseId);
+      if (!course || course.userId !== req.user!.id) {
+        return res.status(400).json({ message: 'Курс не найден или недоступен' });
+      }
     }
     
     const note = await storage.updateNote(id, validation.data);
