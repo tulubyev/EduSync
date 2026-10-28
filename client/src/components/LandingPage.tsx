@@ -62,7 +62,7 @@ export function LandingPage({ onLoginClick, onRegisterClick }: LandingPageProps)
     },
   ];
   return (
-    <div className="min-h-screen bg-[#f8f9fa]">
+    <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <img src="/myepa-logo-clean.png" alt="My EPA" className="h-10 w-auto sm:h-12" />
