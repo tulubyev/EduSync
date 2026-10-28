@@ -72,6 +72,16 @@ export function canSuggestRecording(e: HintEvent, now: number): boolean {
   return e.type === 'webinar' && !!e.joinUrl && e.status === 'pending' && !e.recordingTaskId && new Date(e.startsAt).getTime() > now;
 }
 
+/** Напоминание перед вебинаром (#48): за сколько минут до начала предлагать запись */
+export const SOON_MINUTES = 120;
+
+/** Вебинары, которые начнутся в ближайшие `withinMinutes` и которые ещё можно записать, — по времени начала */
+export function soonWebinars<E extends HintEvent>(events: readonly E[], now: number, withinMinutes = SOON_MINUTES): E[] {
+  return events
+    .filter((e) => canSuggestRecording(e, now) && new Date(e.startsAt).getTime() - now <= withinMinutes * 60_000)
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+}
+
 /** Отрезок [from, to) на часах пересекается с [a, b) — оба в минутах одного дня */
 const overlaps = (a: number, b: number, from: number, to: number) => a < to && from < b;
 

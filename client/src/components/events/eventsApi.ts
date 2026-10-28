@@ -47,6 +47,14 @@ export const updateEvent = (id: string, data: EventInput) =>
 
 export const deleteEvent = (id: string) => call<void>(`/api/events/${id}`, { method: 'DELETE' });
 
+export type RecordFromEventResult =
+  | { id: string; ok: true; taskId: string }
+  | { id: string; ok: false; code: 'not_found' | 'not_recordable' | 'failed'; message?: string };
+
+/** Записать несколько вебинаров разом (#48): подтверждение прав — одно на все */
+export const recordFromEvents = (eventIds: string[]) =>
+  call<{ results: RecordFromEventResult[] }>('/api/recording/from-events', { method: 'POST', body: JSON.stringify({ eventIds, rightsConfirmed: true }) });
+
 /** Событие уже прошло: дедлайн — после срока, урок и вебинар — после окончания */
 export function isPast(e: LearningEventDto, now: number = Date.now()): boolean {
   const end = new Date(e.startsAt).getTime() + (e.durationMinutes ?? 0) * 60_000;

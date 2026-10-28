@@ -20,6 +20,7 @@ import { useLang } from '@/i18n';
 import { tzOptionLabel } from './tzLabels';
 import { CalendarFeedDialog } from './CalendarFeedDialog';
 import { useRecordingHints } from './useRecordingHints';
+import { HintsBanner } from './HintsBanner';
 import { WeekGrid } from './WeekGrid';
 import { PlanView } from './PlanView';
 import { EventLegend, useHiddenTypes } from './EventLegend';
@@ -94,6 +95,8 @@ export function CalendarPage() {
   const goToday = () => { setAnchor(todayKey); setSelected(todayKey); };
 
   const { hints, dismiss } = useRecordingHints(events, timeZone);
+  // вебинары в неудобное время среди показанных — для «Записать все»
+  const hinted = visible.filter((e) => hints.has(e.id));
   const card = (e: LearningEventDto) => (
     <EventCard
       key={e.id} event={e} timeZone={timeZone} onChanged={reload} onEdit={openEdit} onRecord={openRecord}
@@ -137,6 +140,11 @@ export function CalendarPage() {
 
       <div className="mb-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
         <QuickAddEvent timeZone={timeZone} onAdded={reload} onOpenForm={openNew} />
+        <HintsBanner
+          hinted={hinted} listed={[]} hints={hints} timeZone={timeZone}
+          onRecord={openRecord} onDismiss={dismiss} onRecorded={reload}
+          title={m.hints.bannerPeriod(hinted.length)}
+        />
       </div>
 
       {view !== 'plan' && (
