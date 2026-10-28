@@ -15,6 +15,8 @@ import { eq, and, or, desc, sql, gte, count, inArray } from "drizzle-orm";
 import { S3Client, HeadBucketCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { HrError, hrEnabled, hrErrorResponse, isHrTask, NOT_HR_TASK, syncHrTaskById } from "../services/helpRecorder";
 import * as hr from "../services/helpRecorder/actions";
+import { eventStorage } from "../storage/EventStorage";
+import { canSuggestRecording } from "@shared/recordingHints";
 
 const router = Router();
 
@@ -46,48 +48,50 @@ const recordingSchema = z.object({
   rightsConfirmed: z.boolean().optional(),
 });
 
+type RecordingData = z.infer<typeof recordingSchema>;
+
+/** Создать запись: через Help Recorder, если он подключён, иначе — своим воркером. Возвращает id задачи */
+async function scheduleRecording(userId: string, d: RecordingData): Promise<string> {
+  if (hrEnabled()) {
+    const taskId = await hr.createHrRecording(userId, d);
+    logger.info(`Recording task created in Help Recorder: ${taskId} for user ${userId}`);
+    return taskId;
+  }
+  const taskId = await recordingTaskManager.createTask({
+    userId,
+    title: d.title,
+    description: d.description,
+    streamUrl: d.streamUrl,
+    streamPassword: d.streamPassword,
+    joinName: d.joinName || undefined,
+    joinEmail: d.joinEmail || undefined,
+    joinPhone: d.joinPhone || undefined,
+    scheduledTime: new Date(d.scheduledTime),
+    duration: d.duration,
+    saveTarget: d.saveTarget,
+  });
+  logger.info(`Recording task created: ${taskId} for user ${userId}`);
+  return taskId;
+}
+
+const RIGHTS_REQUIRED = 'Подтвердите, что вы вправе записывать это событие';
+
 router.post('/schedule', authenticateToken as any, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const validData = recordingSchema.parse(req.body);
 
-    if (hrEnabled()) {
-      if (validData.rightsConfirmed !== true) {
-        return res.status(400).json({ message: 'Подтвердите, что вы вправе записывать это событие' });
-      }
-      const taskId = await hr.createHrRecording(userId, validData);
-      logger.info(`Recording task created in Help Recorder: ${taskId} for user ${userId}`);
-      return res.status(201).json({
-        success: true,
-        message: 'Запись запланирована успешно',
-        taskId,
-        scheduledTime: validData.scheduledTime,
-        saveTarget: 'help_recorder',
-      });
+    if (hrEnabled() && validData.rightsConfirmed !== true) {
+      return res.status(400).json({ message: RIGHTS_REQUIRED });
     }
-
-    const taskId = await recordingTaskManager.createTask({
-      userId,
-      title: validData.title,
-      description: validData.description,
-      streamUrl: validData.streamUrl,
-      streamPassword: validData.streamPassword,
-      joinName: validData.joinName || undefined,
-      joinEmail: validData.joinEmail || undefined,
-      joinPhone: validData.joinPhone || undefined,
-      scheduledTime: new Date(validData.scheduledTime),
-      duration: validData.duration,
-      saveTarget: validData.saveTarget,
-    });
-
-    logger.info(`Recording task created: ${taskId} for user ${userId}`);
+    const taskId = await scheduleRecording(userId, validData);
 
     res.status(201).json({
       success: true,
       message: 'Запись запланирована успешно',
       taskId,
       scheduledTime: validData.scheduledTime,
-      saveTarget: validData.saveTarget,
+      saveTarget: hrEnabled() ? 'help_recorder' : validData.saveTarget,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -99,6 +103,57 @@ router.post('/schedule', authenticateToken as any, async (req: AuthRequest, res:
     logger.error('Error scheduling recording:', error);
     res.status(500).json({ message: 'Ошибка при планировании записи' });
   }
+});
+
+/**
+ * Записать несколько вебинаров календаря разом (#48). Данные берутся из событий ученика, а не из запроса;
+ * подтверждение прав — одно на все. Каждое событие — отдельная запись; ответ — итог по каждому.
+ */
+const fromEventsSchema = z.object({
+  eventIds: z.array(z.string().uuid()).min(1).max(20),
+  rightsConfirmed: z.literal(true, { errorMap: () => ({ message: RIGHTS_REQUIRED }) }),
+});
+
+type FromEventResult = { id: string; ok: true; taskId: string } | { id: string; ok: false; code: 'not_found' | 'not_recordable' | 'failed'; message?: string };
+
+router.post('/from-events', authenticateToken as any, async (req: AuthRequest, res: Response) => {
+  const parsed = fromEventsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || 'Ошибка валидации' });
+  const userId = req.user!.id;
+  const results: FromEventResult[] = [];
+  for (const id of Array.from(new Set(parsed.data.eventIds))) {
+    const event = await eventStorage.getEvent(id);
+    if (!event || event.userId !== userId) {
+      results.push({ id, ok: false, code: 'not_found' });
+      continue;
+    }
+    // только будущий вебинар со ссылкой входа, ещё не записанный и не отменённый
+    if (!canSuggestRecording(event, Date.now())) {
+      results.push({ id, ok: false, code: 'not_recordable' });
+      continue;
+    }
+    try {
+      const taskId = await scheduleRecording(userId, {
+        title: event.title,
+        description: event.programTitle ?? undefined,
+        streamUrl: event.joinUrl!,
+        scheduledTime: event.startsAt.toISOString(),
+        duration: Math.min(1440, Math.max(1, event.durationMinutes ?? 60)),
+        saveTarget: 'beget',
+        rightsConfirmed: true,
+      });
+      await eventStorage.updateEvent(id, { recordingTaskId: taskId });
+      results.push({ id, ok: true, taskId });
+    } catch (error) {
+      if (error instanceof HrError) {
+        results.push({ id, ok: false, code: 'failed', message: hrErrorResponse(error).message });
+      } else {
+        logger.error('Error scheduling recording from event:', error);
+        results.push({ id, ok: false, code: 'failed', message: 'Ошибка при планировании записи' });
+      }
+    }
+  }
+  res.json({ results });
 });
 
 router.get('/tasks', authenticateToken as any, async (req: AuthRequest, res: Response) => {

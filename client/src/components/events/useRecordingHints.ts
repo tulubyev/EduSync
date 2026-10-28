@@ -49,6 +49,9 @@ function dismissHint(id: string) {
   notify();
 }
 
+/** Ученик ответил «Не предлагать» или «Приду» для этого вебинара */
+export const isHintDismissed = (id: string) => readDismissed().has(id);
+
 export function useSchedulePrefs(): SchedulePrefs | null {
   const [, setTick] = useState(0);
   useEffect(() => {
