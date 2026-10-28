@@ -278,6 +278,19 @@ export const learningEvents = pgTable("learning_events", {
   sourceUniq: uniqueIndex("learning_events_source_uniq").on(table.userId, table.source, table.externalId),
 }));
 
+// Отправленные напоминания (#18): ключ — событие, вид, время события и канал; перенос события даёт новое напоминание
+export const eventReminders = pgTable("event_reminders", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: uuid("event_id").references(() => learningEvents.id, { onDelete: "cascade" }).notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  kind: varchar("kind", { length: 20 }).notNull(), // start, due
+  startsAt: timestamp("starts_at").notNull(),
+  channel: varchar("channel", { length: 20 }).notNull().default("email"),
+  sentAt: timestamp("sent_at").notNull().defaultNow(),
+}, (table) => ({
+  reminderUniq: uniqueIndex("event_reminders_uniq").on(table.eventId, table.kind, table.startsAt, table.channel),
+}));
+
 // Library table - User library materials for courses
 export const library = pgTable("notes", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
